@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- CONFIGURACIÓN REAL (PROYECTO: autenticacion-8faac) ---
+// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyAMQpnPJSdicgo5gungVOE0M7OHwkz4P9Y",
   authDomain: "autenticacion-8faac.firebaseapp.com",
@@ -17,7 +17,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- LISTA DE CORREOS AUTORIZADOS ---
+// --- LISTA BLANCA ---
 const correosPermitidos = [
     "dpachecog2@unemi.edu.ec", "cnavarretem4@unemi.edu.ec", "htigrer@unemi.edu.ec", 
     "gorellanas2@unemi.edu.ec", "iastudillol@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", 
@@ -41,7 +41,6 @@ let seleccionTemporal = null;
 let tiempoRestante = 0;
 let intervaloTiempo;
 
-// REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
@@ -76,7 +75,7 @@ async function validarDispositivo(user) {
                 await setDoc(docRef, { dispositivos: listaDispositivos }, { merge: true });
                 return true;
             } else {
-                alert(`⛔ ACCESO DENEGADO ⛔\n\nYa tienes 2 dispositivos registrados.\nNo puedes usar un tercer equipo.`);
+                alert(`⛔ ACCESO DENEGADO ⛔\n\nCupo lleno (2 dispositivos).\nNo puedes usar este equipo.`);
                 await signOut(auth);
                 location.reload();
                 return false;
@@ -88,6 +87,7 @@ async function validarDispositivo(user) {
     }
 }
 
+// --- AUTH ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
@@ -102,7 +102,7 @@ onAuthStateChanged(auth, async (user) => {
                 if(titulo) titulo.innerText = "Bienvenido";
             }
         } else {
-            alert("Tu correo no está autorizado.");
+            alert("Correo no autorizado.");
             signOut(auth);
         }
     } else {
@@ -115,21 +115,19 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- EVENTOS (SOLO GOOGLE) ---
+// --- SOLO GOOGLE ---
 document.getElementById('btn-google').addEventListener('click', () => {
-    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert("Error Google."));
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert("Error Google: " + e.message));
 });
 
 btnLogout.addEventListener('click', () => { signOut(auth); location.reload(); });
 
-// --- LÓGICA EXAMEN ---
+// --- EXAMEN ---
 document.getElementById('btn-start').addEventListener('click', () => {
     const tiempo = document.getElementById('time-select').value;
     if (tiempo !== 'infinity') { tiempoRestante = parseInt(tiempo) * 60; iniciarReloj(); } 
     else { document.getElementById('timer-display').innerText = "--:--"; }
-    
-    respuestasUsuario = []; 
-    indiceActual = 0;
+    respuestasUsuario = []; indiceActual = 0;
     setupScreen.classList.add('hidden');
     quizScreen.classList.remove('hidden');
     cargarPregunta();
@@ -138,7 +136,6 @@ document.getElementById('btn-start').addEventListener('click', () => {
 function cargarPregunta() {
     seleccionTemporal = null; 
     btnNextQuestion.classList.add('hidden'); 
-
     if (indiceActual >= preguntas.length) { terminarQuiz(); return; }
     
     const data = preguntas[indiceActual];
@@ -153,11 +150,8 @@ function cargarPregunta() {
     });
     document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntas.length}`;
 
-    if(indiceActual === preguntas.length - 1) {
-        btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
-    } else {
-        btnNextQuestion.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
-    }
+    if(indiceActual === preguntas.length - 1) btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
+    else btnNextQuestion.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
 }
 
 function seleccionarOpcion(index, btnClickeado) {
@@ -194,14 +188,12 @@ function terminarQuiz() {
     document.getElementById('score-final').innerText = `${aciertos} / ${preguntas.length}`;
 }
 
-// --- REVISIÓN ---
 document.getElementById('btn-review').addEventListener('click', () => {
     resultScreen.classList.add('hidden');
     reviewScreen.classList.remove('hidden');
     const cont = document.getElementById('review-container'); cont.innerHTML = '';
     preguntas.forEach((p, i) => {
-        const dada = respuestasUsuario[i];
-        const ok = (dada === p.respuesta);
+        const dada = respuestasUsuario[i], ok = (dada === p.respuesta);
         const card = document.createElement('div'); card.className = 'review-item';
         let ops = '';
         p.opciones.forEach((o, x) => {
