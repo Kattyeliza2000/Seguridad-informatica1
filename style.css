@@ -1,4 +1,4 @@
-/* === ESTILO BLANCO Y MINIMALISTA === */
+/* === DISEÑO COMPACTO Y AZUL === */
 
 * {
     box-sizing: border-box;
@@ -6,75 +6,77 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa; /* Un gris casi blanco para el fondo general */
-    color: #333333; /* Texto gris oscuro (casi negro) */
+    background-color: #eff3f8; /* Gris azulado suave */
+    color: #444;
     margin: 0;
     padding: 0;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center; /* Centra todo verticalmente */
+    justify-content: center;
 }
 
-/* ENCABEZADO (Barra superior) */
+/* ENCABEZADO (Header) */
 header {
     width: 100%;
-    padding: 20px;
-    background: #ffffff; /* Blanco puro */
-    border-bottom: 1px solid #e0e0e0;
+    padding: 10px 20px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     position: fixed;
     top: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Separa el logo del botón salir */
+    justify-content: space-between;
     z-index: 100;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .logo h1 {
     margin: 0;
-    font-size: 1.4rem;
-    color: #2c3e50;
+    font-size: 1.1rem; /* Texto más discreto */
+    color: #1a73e8;
+    font-weight: 700;
 }
 
 .subtitle {
-    color: #7f8c8d;
-    font-weight: normal;
-    font-size: 0.9rem;
-    margin-left: 10px;
+    color: #888;
+    font-size: 0.8rem;
+    margin-left: 5px;
 }
 
-/* TARJETA CENTRAL (Donde está el Login y el Examen) */
+/* TARJETA CENTRAL (Haciéndola pequeña como pediste) */
 .container {
     width: 90%;
-    max-width: 500px;
+    max-width: 380px; /* Ancho reducido (tipo tarjeta de login) */
     background: #ffffff;
-    padding: 40px;
+    padding: 30px 25px; /* Menos relleno para que se vea compacta */
     border-radius: 12px;
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.05); /* Sombra suave y elegante */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     text-align: center;
-    margin-top: 80px; /* Espacio para que no choque con el header */
+    margin-top: 50px;
 }
 
+/* TÍTULOS */
 h2 { 
-    color: #2c3e50; 
+    color: #1877f2;
     margin-top: 0;
+    font-size: 1.5rem; /* Título un poco más pequeño */
+    margin-bottom: 5px;
 }
 
 p {
     color: #666;
-    margin-bottom: 25px;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
 }
 
-/* INPUTS (Cajas de texto) */
+/* INPUTS */
 .control-group {
     text-align: left;
     margin-bottom: 15px;
@@ -84,106 +86,85 @@ label {
     display: block;
     margin-bottom: 5px;
     font-weight: 600;
+    font-size: 0.85rem;
     color: #555;
-    font-size: 0.9rem;
 }
 
 input, select {
     width: 100%;
-    padding: 12px;
-    border: 1px solid #ccc;
+    padding: 10px 15px; /* Inputs más compactos */
+    border: 1px solid #dadce0;
     border-radius: 6px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     background: #fff;
-    color: #333;
     transition: 0.3s;
 }
 
-input:focus, select:focus {
-    border-color: #4CAF50; /* Borde verde al escribir */
+input:focus {
+    border-color: #1877f2;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    box-shadow: 0 0 0 3px rgba(24, 119, 242, 0.1);
 }
 
 /* BOTONES */
 button {
     width: 100%;
-    padding: 12px;
+    padding: 10px; /* Botones más finos */
     border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: bold;
+    border-radius: 50px;
+    font-size: 0.95rem;
+    font-weight: 600;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 8px;
     transition: 0.2s;
 }
 
-/* Botón Principal (VERDE) */
+/* Botón AZUL (Principal) */
 .btn-primary {
-    background-color: #4CAF50; /* Verde Google/Excel */
+    background-color: #1877f2;
     color: white;
 }
 
 .btn-primary:hover {
-    background-color: #43a047;
+    background-color: #166fe5;
 }
 
-/* Botón Secundario (GRIS/BLANCO) */
-.btn-secondary {
-    background-color: #f1f1f1;
-    color: #333;
-}
-
-.btn-secondary:hover {
-    background-color: #e0e0e0;
-}
-
-/* Botón Google Especial */
+/* Botón GOOGLE */
 #btn-google {
     background-color: white;
-    color: #333;
-    border: 1px solid #ccc;
+    color: #3c4043;
+    border: 1px solid #dadce0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 #btn-google:hover {
-    background-color: #f9f9f9;
-    border-color: #bbb;
+    background-color: #f8f9fa;
 }
 
 /* UTILIDADES */
 .hidden { display: none; }
-hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+hr { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
+.btn-secondary { background: #f1f3f4; color: #333; }
 
-/* ESTILOS DEL EXAMEN */
+/* ESTILOS DEL EXAMEN (Ajustados al tamaño) */
+#question-text {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
 .options-box button {
     background: #fff;
-    border: 1px solid #ddd;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
     text-align: left;
     font-weight: normal;
 }
 
-.options-box button:hover {
-    background: #f5f5f5;
-    border-color: #ccc;
-}
-
-.correct {
-    background-color: #d4edda !important;
-    border-color: #c3e6cb !important;
-    color: #155724 !important;
-}
-
-.incorrect {
-    background-color: #f8d7da !important;
-    border-color: #f5c6cb !important;
-    color: #721c24 !important;
-}
-
-#timer-display {
-    color: #d9534f; /* Rojo para el tiempo */
-    font-size: 1.2rem;
-}
+.correct { background-color: #e6f4ea !important; border-color: #34a853 !important; }
+.incorrect { background-color: #fce8e6 !important; border-color: #d93025 !important; }
+#timer-display { color: #ea4335; font-size: 1.2rem; }
