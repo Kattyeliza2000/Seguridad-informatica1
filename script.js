@@ -10,7 +10,7 @@ import {
     onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-// 2. TU CONFIGURACIÓN (Recuperada de tus imágenes)
+// 2. TU CONFIGURACIÓN DE FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyBU1oaDdq6qD4fTiLN4lSAeQg6Kp06gDXk", 
   authDomain: "simulador-tics.firebaseapp.com",
@@ -21,17 +21,32 @@ const firebaseConfig = {
   measurementId: "G-5LFLE4MBPH"
 };
 
-// 3. INICIALIZAR
+// 3. INICIALIZAR APP
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// --- LÓGICA DEL SIMULADOR ---
+// --- BASE DE DATOS DE PREGUNTAS (Tus preguntas reales) ---
 const preguntas = [
-    { texto: "¿Cuál de los siguientes NO es un pilar de la triada CIA?", opciones: ["Confidencialidad", "Integridad", "Autenticación", "Disponibilidad"], respuesta: 2 },
-    { texto: "¿Qué tipo de ataque utiliza ingeniería social?", opciones: ["DDoS", "Phishing", "SQL Injection", "Man-in-the-Middle"], respuesta: 1 },
-    { texto: "Herramienta para análisis de paquetes de red:", opciones: ["Photoshop", "Wireshark", "Excel", "Visual Studio"], respuesta: 1 },
-    { texto: "¿Puerto por defecto de HTTPS?", opciones: ["80", "21", "443", "22"], respuesta: 2 },
-    { texto: "En criptografía asimétrica, ¿qué clave es pública?", opciones: ["Clave Privada", "Clave Pública", "Clave Maestra", "Clave de Sesión"], respuesta: 1 }
+    {
+        texto: "¿Qué categoría de activo abarca servidores, routers y estaciones de trabajo?",
+        opciones: ["Data", "Lines & Networks", "Hardware", "Software"],
+        respuesta: 2 // Hardware
+    },
+    {
+        texto: "Una amenaza ambiental típica para un centro de datos sería:",
+        opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"],
+        respuesta: 0 // Huracán
+    },
+    {
+        texto: "¿Qué nivel de riesgo requiere medidas inmediatas según la tabla de niveles?",
+        opciones: ["Alto/Extremo", "Bajo", "Negligible", "Medio"],
+        respuesta: 0 // Alto/Extremo
+    },
+    {
+        texto: "El estándar OWASP ASVS se utiliza para:",
+        opciones: ["Generar certificados SSL", "Probar hardware", "Cifrado TLS", "Verificar controles de seguridad en aplicaciones"],
+        respuesta: 3 // Verificar controles de seguridad en aplicaciones
+    }
 ];
 
 let indiceActual = 0;
@@ -39,25 +54,25 @@ let puntaje = 0;
 let tiempoRestante = 0;
 let intervaloTiempo;
 
-// REFERENCIAS HTML
+// REFERENCIAS AL HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
 const resultScreen = document.getElementById('result-screen');
 const btnLogout = document.getElementById('btn-logout');
 
-// --- AUTENTICACIÓN ---
+// --- LÓGICA DE AUTENTICACIÓN ---
 
-// Verificar si ya está logueado al entrar
+// Verificar estado del usuario (Si ya entró o no)
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Usuario conectado -> Mostrar Simulador
+        // Usuario logueado: Mostramos el menú del examen
         authScreen.classList.add('hidden');
         setupScreen.classList.remove('hidden');
         btnLogout.classList.remove('hidden');
         document.getElementById('user-display').innerText = user.email;
     } else {
-        // Nadie conectado -> Mostrar Login
+        // Nadie logueado: Mostramos pantalla de login
         authScreen.classList.remove('hidden');
         setupScreen.classList.add('hidden');
         quizScreen.classList.add('hidden');
@@ -66,46 +81,48 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// Botón: Iniciar Sesión (Email/Pass)
+// Botón Login (Correo y Contraseña)
 document.getElementById('btn-login').addEventListener('click', () => {
     const email = document.getElementById('email-input').value;
     const pass = document.getElementById('pass-input').value;
     signInWithEmailAndPassword(auth, email, pass)
-        .catch((error) => alert("Error: " + error.message));
+        .catch((error) => alert("Error al entrar: " + error.message));
 });
 
-// Botón: Registrarse
+// Botón Registro
 document.getElementById('btn-register').addEventListener('click', () => {
     const email = document.getElementById('email-input').value;
     const pass = document.getElementById('pass-input').value;
     createUserWithEmailAndPassword(auth, email, pass)
-        .then(() => alert("Cuenta creada y sesión iniciada!"))
-        .catch((error) => alert("Error: " + error.message));
+        .then(() => alert("¡Cuenta creada! Ya estás dentro."))
+        .catch((error) => alert("Error al registrar: " + error.message));
 });
 
-// Botón: Google
+// Botón Google
 document.getElementById('btn-google').addEventListener('click', () => {
     const provider = new GoogleAuthProvider();
     signInWithPopup(auth, provider).catch((error) => console.error(error));
 });
 
-// Botón: Salir
+// Botón Cerrar Sesión
 btnLogout.addEventListener('click', () => {
     signOut(auth);
-    location.reload(); // Recargar página para limpiar todo
+    location.reload();
 });
 
-
-// --- LÓGICA DEL JUEGO (Igual que antes) ---
+// --- LÓGICA DEL EXAMEN ---
 
 document.getElementById('btn-start').addEventListener('click', () => {
     const tiempo = document.getElementById('time-select').value;
+    
+    // Configurar tiempo
     if (tiempo !== 'infinity') {
         tiempoRestante = parseInt(tiempo) * 60;
         iniciarReloj();
     } else {
         document.getElementById('timer-display').innerText = "--:--";
     }
+
     setupScreen.classList.add('hidden');
     quizScreen.classList.remove('hidden');
     cargarPregunta();
@@ -116,32 +133,39 @@ function cargarPregunta() {
         terminarQuiz();
         return;
     }
+
     const data = preguntas[indiceActual];
     document.getElementById('question-text').innerText = `${indiceActual + 1}. ${data.texto}`;
-    const cont = document.getElementById('options-container');
-    cont.innerHTML = '';
+    const contenedorOpciones = document.getElementById('options-container');
+    contenedorOpciones.innerHTML = '';
 
     data.opciones.forEach((opcion, index) => {
         const btn = document.createElement('button');
         btn.innerText = opcion;
         btn.onclick = () => verificarRespuesta(index, btn);
-        cont.appendChild(btn);
+        contenedorOpciones.appendChild(btn);
     });
+
     document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntas.length}`;
 }
 
-function verificarRespuesta(index, btn) {
+function verificarRespuesta(indiceSeleccionado, btn) {
     const correcta = preguntas[indiceActual].respuesta;
     const botones = document.getElementById('options-container').querySelectorAll('button');
+
+    // Bloquear botones para no responder dos veces
     botones.forEach(b => b.disabled = true);
 
-    if (index === correcta) {
+    if (indiceSeleccionado === correcta) {
         btn.classList.add('correct');
         puntaje++;
     } else {
         btn.classList.add('incorrect');
+        // Mostrar cuál era la correcta
         botones[correcta].classList.add('correct');
     }
+
+    // Pasar a la siguiente pregunta automáticamente en 1.5 segundos
     setTimeout(() => {
         indiceActual++;
         cargarPregunta();
@@ -151,9 +175,10 @@ function verificarRespuesta(index, btn) {
 function iniciarReloj() {
     intervaloTiempo = setInterval(() => {
         tiempoRestante--;
-        let m = Math.floor(tiempoRestante / 60);
-        let s = tiempoRestante % 60;
-        document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        let minutos = Math.floor(tiempoRestante / 60);
+        let segundos = tiempoRestante % 60;
+        document.getElementById('timer-display').innerText = `${minutos}:${segundos < 10 ? '0' : ''}${segundos}`;
+
         if (tiempoRestante <= 0) {
             clearInterval(intervaloTiempo);
             terminarQuiz();
