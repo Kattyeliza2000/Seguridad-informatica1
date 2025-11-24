@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador Seguridad Informática</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=10">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -19,18 +19,23 @@
 
     <div class="container" id="auth-screen">
         <h2>Bienvenido</h2>
-        <p>Inicia sesión para comenzar</p>
+        <p>Inicia sesión para acceder al simulador</p>
+        
         <div class="control-group">
-            <label>Email</label>
-            <input type="email" id="email-input" placeholder="tu@correo.com">
+            <label>Email Institucional</label>
+            <input type="email" id="email-input" placeholder="usuario@unemi.edu.ec">
         </div>
+        
         <div class="control-group">
             <label>Contraseña</label>
             <input type="password" id="pass-input" placeholder="******">
         </div>
+
         <button id="btn-login" class="btn-primary">Iniciar Sesión</button>
         <button id="btn-register" class="btn-secondary">Registrarse</button>
+        
         <hr>
+        
         <button id="btn-google"><i class="fa-brands fa-google"></i> Acceder con Google</button>
     </div>
 
@@ -52,6 +57,7 @@
         </div>
         <div style="margin-top: 20px;">
             <p>Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">Usuario</span>.</p>
+            <p>Tu dispositivo ha sido verificado correctamente.</p>
             <button id="btn-start" class="btn-primary">Empezar Examen</button>
         </div>
     </div>
@@ -61,9 +67,11 @@
             <span id="timer-display">00:00</span>
             <span id="progress-display">Pregunta 1</span>
         </div>
+        
         <div class="question-box">
             <h2 id="question-text">Cargando...</h2>
         </div>
+
         <div class="options-box" id="options-container"></div>
     </div>
 
@@ -80,12 +88,12 @@
     </div>
 
     <div class="container hidden" id="review-screen" style="max-width: 700px; text-align: left;">
-        <h2 style="text-align: center;">Revisión del Examen</h2>
+        <h2 style="text-align: center; color: #1a73e8;">Revisión del Examen</h2>
         <div id="review-container" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;">
             </div>
         <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Finalizar Revisión</button>
     </div>
 
-    <script type="module" src="script.js?v=5"></script>
+    <script type="module" src="script.js?v=10"></script>
 </body>
 </html>
