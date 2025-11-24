@@ -1,8 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- CONFIGURACIÓN FIREBASE ---
+// --- CONFIGURACIÓN REAL (PROYECTO: autenticacion-8faac) ---
 const firebaseConfig = {
   apiKey: "AIzaSyAMQpnPJSdicgo5gungVOE0M7OHwkz4P9Y",
   authDomain: "autenticacion-8faac.firebaseapp.com",
@@ -17,7 +17,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- LISTA DE CORREOS ---
+// --- LISTA DE CORREOS AUTORIZADOS ---
 const correosPermitidos = [
     "dpachecog2@unemi.edu.ec", "cnavarretem4@unemi.edu.ec", "htigrer@unemi.edu.ec", 
     "gorellanas2@unemi.edu.ec", "iastudillol@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", 
@@ -35,14 +35,13 @@ const preguntas = [
     { texto: "El estándar OWASP ASVS se utiliza para:", opciones: ["Generar certificados SSL", "Probar hardware", "Cifrado TLS", "Verificar controles de seguridad en aplicaciones"], respuesta: 3, explicacion: "OWASP ASVS es un estándar para verificar la seguridad técnica en aplicaciones." }
 ];
 
-// VARIABLES
 let indiceActual = 0;
 let respuestasUsuario = []; 
-let seleccionTemporal = null; // Guardamos la selección antes de avanzar
+let seleccionTemporal = null; 
 let tiempoRestante = 0;
 let intervaloTiempo;
 
-// REFERENCIAS
+// REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
@@ -51,7 +50,7 @@ const reviewScreen = document.getElementById('review-screen');
 const btnLogout = document.getElementById('btn-logout');
 const btnNextQuestion = document.getElementById('btn-next-question');
 
-// --- SEGURIDAD ---
+// --- SEGURIDAD DISPOSITIVOS ---
 function obtenerDeviceId() {
     let deviceId = localStorage.getItem('device_id_seguro');
     if (!deviceId) {
@@ -116,21 +115,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// LOGIN EVENTOS
-document.getElementById('btn-login').addEventListener('click', () => {
-    signInWithEmailAndPassword(auth, document.getElementById('email-input').value, document.getElementById('pass-input').value).catch(e => alert(e.message));
-});
-document.getElementById('btn-register').addEventListener('click', () => {
-    const email = document.getElementById('email-input').value;
-    if(!correosPermitidos.includes(email)) return alert("Correo no autorizado.");
-    createUserWithEmailAndPassword(auth, email, document.getElementById('pass-input').value).catch(e => alert(e.message));
-});
+// --- EVENTOS (SOLO GOOGLE) ---
 document.getElementById('btn-google').addEventListener('click', () => {
     signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert("Error Google."));
 });
+
 btnLogout.addEventListener('click', () => { signOut(auth); location.reload(); });
 
-// --- LÓGICA EXAMEN (Manual) ---
+// --- LÓGICA EXAMEN ---
 document.getElementById('btn-start').addEventListener('click', () => {
     const tiempo = document.getElementById('time-select').value;
     if (tiempo !== 'infinity') { tiempoRestante = parseInt(tiempo) * 60; iniciarReloj(); } 
@@ -144,8 +136,8 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 function cargarPregunta() {
-    seleccionTemporal = null; // Reiniciar selección
-    btnNextQuestion.classList.add('hidden'); // Ocultar flecha siguiente
+    seleccionTemporal = null; 
+    btnNextQuestion.classList.add('hidden'); 
 
     if (indiceActual >= preguntas.length) { terminarQuiz(); return; }
     
@@ -156,12 +148,11 @@ function cargarPregunta() {
     data.opciones.forEach((opcion, index) => {
         const btn = document.createElement('button');
         btn.innerText = opcion;
-        btn.onclick = () => seleccionarOpcion(index, btn); // Solo seleccionar
+        btn.onclick = () => seleccionarOpcion(index, btn); 
         cont.appendChild(btn);
     });
     document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntas.length}`;
 
-    // Cambiar texto botón si es la última
     if(indiceActual === preguntas.length - 1) {
         btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
     } else {
@@ -177,7 +168,6 @@ function seleccionarOpcion(index, btnClickeado) {
     btnNextQuestion.classList.remove('hidden');
 }
 
-// Evento Click en "Siguiente"
 btnNextQuestion.addEventListener('click', () => {
     if (seleccionTemporal !== null) {
         respuestasUsuario.push(seleccionTemporal);
