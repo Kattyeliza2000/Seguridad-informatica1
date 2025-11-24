@@ -4,17 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador Seguridad Informática</title>
-    <link rel="stylesheet" href="style.css">
+    
+    <link rel="stylesheet" href="style.css?v=2">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
     <header>
         <div class="logo">
-            <i class="fa-solid fa-brain" style="color: #8e44ad;"></i>
+            <i class="fa-solid fa-brain" style="color: #1a73e8;"></i>
             <h1>Simulador de Preguntas <span class="subtitle">Seguridad Informática</span></h1>
         </div>
-        <button id="btn-logout" class="btn-primary hidden" style="margin-left: auto;">Cerrar Sesión</button>
+        <button id="btn-logout" class="btn-secondary hidden" style="width: auto; margin: 0;">Cerrar Sesión</button>
     </header>
 
     <div class="container" id="auth-screen">
@@ -23,22 +25,22 @@
         
         <div class="control-group">
             <label>Email</label>
-            <input type="email" id="email-input" placeholder="tu@correo.com" style="padding: 10px; margin-bottom: 10px; width: 100%; box-sizing: border-box;">
+            <input type="email" id="email-input" placeholder="tu@correo.com">
         </div>
         
         <div class="control-group">
             <label>Contraseña</label>
-            <input type="password" id="pass-input" placeholder="******" style="padding: 10px; margin-bottom: 20px; width: 100%; box-sizing: border-box;">
+            <input type="password" id="pass-input" placeholder="******">
         </div>
 
-        <div style="display: flex; gap: 10px; flex-direction: column;">
-            <button id="btn-login" class="btn-primary" style="background-color: #4CAF50; color: white;">Iniciar Sesión</button>
-            <button id="btn-register" class="btn-secondary">Registrarse</button>
-            <hr style="width: 100%; border: 0.5px solid #ddd;">
-            <button id="btn-google" class="btn-primary" style="background-color: #fff; color: #333; border: 1px solid #ccc;">
-                <i class="fa-brands fa-google"></i> Acceder con Google
-            </button>
-        </div>
+        <button id="btn-login" class="btn-primary">Iniciar Sesión</button>
+        <button id="btn-register" class="btn-secondary">Registrarse</button>
+        
+        <hr>
+        
+        <button id="btn-google">
+            <i class="fa-brands fa-google"></i> Acceder con Google
+        </button>
     </div>
 
     <div class="container hidden" id="setup-screen">
@@ -69,21 +71,21 @@
             </div>
         </div>
 
-        <div class="action-area">
-            <p>Hola, <span id="user-display" style="font-weight: bold;">Usuario</span>.</p>
+        <div style="margin-top: 20px;">
+            <p>Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">Usuario</span>.</p>
             <p>Selecciona el modo de estudio y presiona <b>Empezar</b>.</p>
             <button id="btn-start" class="btn-primary"><i class="fa-solid fa-rocket"></i> Empezar</button>
         </div>
     </div>
 
-    <div class="container hidden" id="quiz-screen">
-        <div class="quiz-header">
+    <div class="container hidden" id="quiz-screen" style="max-width: 600px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
             <span id="timer-display">00:00</span>
-            <span id="progress-display">Pregunta 1 de ?</span>
+            <span id="progress-display" style="color:#666;">Pregunta 1 de ?</span>
         </div>
         
         <div class="question-box">
-            <h2 id="question-text">Cargando...</h2>
+            <h2 id="question-text" style="font-size: 1.2rem; text-align: left;">Cargando...</h2>
         </div>
 
         <div class="options-box" id="options-container"></div>
@@ -92,10 +94,10 @@
 
     <div class="container hidden" id="result-screen">
         <h2>Resultados</h2>
-        <p>Tu puntuación: <span id="score-final">0</span></p>
+        <p>Tu puntuación: <span id="score-final" style="font-size: 2rem; color: #1a73e8; font-weight: bold;">0</span></p>
         <button onclick="location.reload()" class="btn-primary">Reiniciar</button>
     </div>
 
-    <script type="module" src="script.js"></script>
+    <script type="module" src="script.js?v=2"></script>
 </body>
 </html>
