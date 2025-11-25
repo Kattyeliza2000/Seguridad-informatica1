@@ -17,7 +17,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- 2. LISTA BLANCA ---
+// --- 2. LISTA DE CORREOS AUTORIZADOS ---
 const correosPermitidos = [
     "dpachecog2@unemi.edu.ec", "cnavarretem4@unemi.edu.ec", "htigrer@unemi.edu.ec", 
     "gorellanas2@unemi.edu.ec", "iastudillol@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", 
@@ -27,7 +27,7 @@ const correosPermitidos = [
     "ky211209@gmail.com", "ky2112h@gmail.com"
 ];
 
-// --- 3. BANCO DE PREGUNTAS COMPLETO (POOL) ---
+// --- 3. BANCO DE PREGUNTAS COMPLETO (62 PREGUNTAS) ---
 const bancoPreguntas = [
     { texto: "El término SSRF significa:", opciones: ["Safe Session Reset Form", "Simple Service Relay Feature", "Secure Software Risk Framework", "Server-Side Request Forgery"], respuesta: 3, explicacion: "Respuesta correcta: Server-Side Request Forgery" },
     { texto: "El proyecto OWASP tiene como finalidad principal:", opciones: ["Vender cortafuegos", "Producir malware de prueba", "Crear estándares de hardware", "Mejorar la seguridad de aplicaciones web de forma abierta"], respuesta: 3, explicacion: "Respuesta correcta: Mejorar la seguridad de aplicaciones web de forma abierta" },
@@ -82,17 +82,26 @@ const bancoPreguntas = [
     { texto: "La relación básica de riesgo se expresa como:", opciones: ["Amenaza + Impacto", "Vulnerabilidad ÷ Impacto", "Amenaza × Vulnerabilidad × Impacto", "Impacto – Probabilidad"], respuesta: 2, explicacion: "Respuesta correcta: Amenaza × Vulnerabilidad × Impacto" },
     { texto: "Una contramedida básica contra la enumeración NetBIOS es:", opciones: ["Abrir puertos 135-139", "Usar SMTP sin TLS", "Habilitar Telnet", "Deshabilitar el uso compartido de archivos/impresoras"], respuesta: 3, explicacion: "Respuesta correcta: Deshabilitar el uso compartido de archivos/impresoras" },
     { texto: "Un ejemplo de control de presencia y acceso es:", opciones: ["UPS", "Barrera antivirus", "Extintor", "CCTV"], respuesta: 3, explicacion: "Respuesta correcta: CCTV" },
-    { texto: "En seguridad lógica, el control AAA incluye:", opciones: ["Autenticación, autorización y auditoría", "API, App, Audit", "Asignar ACLs automáticas", "Antispam, antivirus, antimalware"], respuesta: 0, explicacion: "Respuesta correcta: Autenticación, autorización y auditoría" }
+    { texto: "En seguridad lógica, el control AAA incluye:", opciones: ["Autenticación, autorización y auditoría", "API, App, Audit", "Asignar ACLs automáticas", "Antispam, antivirus, antimalware"], respuesta: 0, explicacion: "Respuesta correcta: Autenticación, autorización y auditoría" },
+    { texto: "Un ataque pasivo contra WLAN que solo escucha tráfico se denomina:", opciones: ["DoS inalámbrico", "Spoofing", "Jamming", "Eavesdropping"], respuesta: 3, explicacion: "Respuesta correcta: Eavesdropping" },
+    { texto: "En una WLAN, ¿qué dispositivo conecta clientes Wi-Fi con la LAN cableada?", opciones: ["Firewall", "Repetidor", "Switch", "Punto de acceso (AP)"], respuesta: 3, explicacion: "Respuesta correcta: Punto de acceso (AP)" },
+    { texto: "El tráfico saliente que abandona la red se controla mediante:", opciones: ["VLAN", "Reglas de filtrado de salida en el cortafuegos", "IDS", "VPN"], respuesta: 1, explicacion: "Respuesta correcta: Reglas de filtrado de salida en el cortafuegos" },
+    { texto: "Política que define quién accede a qué datos dentro de una BD:", opciones: ["Cifrado TLS", "Autorización / control de acceso", "Compilación", "Backup"], respuesta: 1, explicacion: "Respuesta correcta: Autorización / control de acceso" },
+    { texto: "Antes de aplicar parches en producción se debe:", opciones: ["Cambiar el FQDN", "Borrar registros", "Probar el parche en un entorno de pruebas", "Reiniciar IDS"], respuesta: 2, explicacion: "Respuesta correcta: Probar el parche en un entorno de pruebas" },
+    { texto: "Una inyección SQL basada en errores aprovecha:", opciones: ["Cifrado AES", "Tiempo de respuesta", "Mensajes de error devueltos por la aplicación", "Token OTP"], respuesta: 2, explicacion: "Respuesta correcta: Mensajes de error devueltos por la aplicación" },
+    { texto: "Ventaja de un firewall perimetral bien configurado:", opciones: ["Mejora la batería de los clientes", "Elimina todos los virus", "Reduce la superficie de ataque expuesta a Internet", "Incrementa la velocidad Wi-Fi"], respuesta: 2, explicacion: "Respuesta correcta: Reduce la superficie de ataque expuesta a Internet" },
+    { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap" }
 ];
 
-// VARIABLES
-let preguntasExamen = []; // Aquí guardaremos las 30 preguntas aleatorias
+// VARIABLES GLOBALES
+let preguntasExamen = []; // Se llena aleatoriamente con 30 preguntas
 let indiceActual = 0;
 let respuestasUsuario = []; 
 let seleccionTemporal = null; 
 let tiempoRestante = 0;
 let intervaloTiempo;
 
+// REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
@@ -101,7 +110,7 @@ const reviewScreen = document.getElementById('review-screen');
 const btnLogout = document.getElementById('btn-logout');
 const btnNextQuestion = document.getElementById('btn-next-question');
 
-// --- SEGURIDAD DISPOSITIVOS ---
+// --- 4. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
 function obtenerDeviceId() {
     let deviceId = localStorage.getItem('device_id_seguro');
     if (!deviceId) {
@@ -111,42 +120,51 @@ function obtenerDeviceId() {
     return deviceId;
 }
 
+// --- 5. LÓGICA DE SEGURIDAD AVANZADA (Cupo de 2 Dispositivos) ---
 async function validarDispositivo(user) {
     const email = user.email;
     const miDeviceId = obtenerDeviceId(); 
+
     const docRef = doc(db, "usuarios_seguros", email);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
         const datos = docSnap.data();
         let listaDispositivos = datos.dispositivos || []; 
-        if (listaDispositivos.includes(miDeviceId)) return true; 
-        else {
+        
+        if (listaDispositivos.includes(miDeviceId)) {
+            return true; 
+        } else {
             if (listaDispositivos.length < 2) {
                 listaDispositivos.push(miDeviceId);
                 await setDoc(docRef, { dispositivos: listaDispositivos }, { merge: true });
                 return true;
             } else {
-                alert(`⛔ ACCESO DENEGADO ⛔\n\nCupo lleno (2 dispositivos).\nNo puedes usar este equipo.`);
+                alert(`⛔ ACCESO DENEGADO ⛔\n\nYa tienes 2 dispositivos registrados.\nNo puedes iniciar sesión en un tercer equipo.`);
                 await signOut(auth);
                 location.reload();
                 return false;
             }
         }
     } else {
-        await setDoc(docRef, { dispositivos: [miDeviceId], fecha_registro: new Date().toISOString() });
+        await setDoc(docRef, {
+            dispositivos: [miDeviceId],
+            fecha_registro: new Date().toISOString()
+        });
         return true;
     }
 }
 
-// --- AUTH ---
+// --- 6. MONITOR DE AUTENTICACIÓN ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             const titulo = document.querySelector('h2');
-            if(titulo) titulo.innerText = "Verificando..."; 
-            const valido = await validarDispositivo(user);
-            if (valido) {
+            if(titulo) titulo.innerText = "Verificando Dispositivo..."; 
+            
+            const dispositivoValido = await validarDispositivo(user);
+            
+            if (dispositivoValido) {
                 authScreen.classList.add('hidden');
                 setupScreen.classList.remove('hidden');
                 btnLogout.classList.remove('hidden');
@@ -154,7 +172,7 @@ onAuthStateChanged(auth, async (user) => {
                 if(titulo) titulo.innerText = "Bienvenido";
             }
         } else {
-            alert("Correo no autorizado.");
+            alert("ACCESO RESTRINGIDO: Tu correo no está autorizado.");
             signOut(auth);
         }
     } else {
@@ -167,14 +185,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- SOLO GOOGLE ---
+// --- 7. EVENTOS ---
 document.getElementById('btn-google').addEventListener('click', () => {
     signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert("Error Google: " + e.message));
 });
 
 btnLogout.addEventListener('click', () => { signOut(auth); location.reload(); });
 
-// --- LÓGICA EXAMEN ALEATORIO ---
+// --- 8. LÓGICA DEL EXAMEN (Aleatorio 30) ---
 document.getElementById('btn-start').addEventListener('click', () => {
     const tiempo = document.getElementById('time-select').value;
     if (tiempo !== 'infinity') { tiempoRestante = parseInt(tiempo) * 60; iniciarReloj(); } 
@@ -182,8 +200,8 @@ document.getElementById('btn-start').addEventListener('click', () => {
     
     // 1. BARAJAR Y SELECCIONAR 30
     preguntasExamen = [...bancoPreguntas]
-        .sort(() => 0.5 - Math.random()) // Mezclar
-        .slice(0, 30); // Tomar las primeras 30
+        .sort(() => 0.5 - Math.random()) 
+        .slice(0, 30); 
     
     respuestasUsuario = []; 
     indiceActual = 0;
@@ -195,7 +213,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
 function cargarPregunta() {
     seleccionTemporal = null; 
     btnNextQuestion.classList.add('hidden'); 
-    // Usamos preguntasExamen (la lista de 30) en lugar de bancoPreguntas
+    
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
     
     const data = preguntasExamen[indiceActual];
@@ -210,8 +228,11 @@ function cargarPregunta() {
     });
     document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntasExamen.length}`;
 
-    if(indiceActual === preguntasExamen.length - 1) btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
-    else btnNextQuestion.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
+    if(indiceActual === preguntasExamen.length - 1) {
+        btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
+    } else {
+        btnNextQuestion.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
+    }
 }
 
 function seleccionarOpcion(index, btnClickeado) {
@@ -245,16 +266,15 @@ function terminarQuiz() {
     preguntasExamen.forEach((p, i) => { if (respuestasUsuario[i] === p.respuesta) aciertos++; });
     quizScreen.classList.add('hidden');
     resultScreen.classList.remove('hidden');
-    // Mostrar sobre 30
     document.getElementById('score-final').innerText = `${aciertos} / ${preguntasExamen.length}`;
 }
 
-// --- REVISIÓN ---
+// --- 9. REVISIÓN ---
 document.getElementById('btn-review').addEventListener('click', () => {
     resultScreen.classList.add('hidden');
     reviewScreen.classList.remove('hidden');
     const cont = document.getElementById('review-container'); cont.innerHTML = '';
-    // Usamos preguntasExamen para la revisión
+    
     preguntasExamen.forEach((p, i) => {
         const dada = respuestasUsuario[i], ok = (dada === p.respuesta);
         const card = document.createElement('div'); card.className = 'review-item';
