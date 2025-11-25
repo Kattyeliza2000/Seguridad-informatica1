@@ -80,3 +80,30 @@ hr { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
 .ans-wrong { background-color: #fce8e6; color: #c5221f; text-decoration: line-through; }
 .review-explanation { margin-top: 10px; font-size: 0.85rem; color: #555; font-style: italic; background: #fff; padding: 8px; border-left: 3px solid #1a73e8; }
 #timer-display { color: #ea4335; font-size: 1.2rem; font-weight: bold; }
+
+/* === NUEVOS ESTILOS PARA EL MODO ESTUDIO === */
+
+/* Feedback visual para Modo Estudio */
+.feedback-visible {
+    /* Estilo base para el feedback */
+    font-weight: bold;
+    color: white !important; /* Texto blanco para resaltar */
+}
+.ans-correct {
+    background-color: #28a745 !important; /* Verde oscuro para la correcta */
+    border: 2px solid #1e7e34 !important;
+}
+.ans-wrong {
+    background-color: #dc3545 !important; /* Rojo oscuro para la incorrecta */
+    border: 2px solid #bd2130 !important;
+}
+.explanation-feedback {
+    /* Contenedor para la explicación */
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa; /* Fondo gris claro */
+    border-left: 5px solid #1a73e8; /* Borde azul llamativo */
+    color: #444;
+    text-align: left;
+    font-size: 0.95rem;
+}
