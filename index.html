@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador Seguridad Informática</title>
-    <link rel="stylesheet" href="style.css?v=25">
+    <link rel="stylesheet" href="style.css?v=30">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -17,19 +17,15 @@
         <button id="btn-logout" class="btn-secondary hidden" style="width: auto; margin: 0;">Cerrar Sesión</button>
     </header>
 
-    <div class="container" id="auth-screen" style="text-align: center; padding: 50px 30px;">
-        
-        <h2 style="font-size: 2rem; margin-bottom: 10px; color: #1877f2;">Bienvenido</h2>
-        
-        <p style="font-size: 1.1rem; color: #666; margin-bottom: 40px;">
-            Inicia sesión para acceder al simulador
-        </p>
+    <div class="container" id="auth-screen">
+        <h2>Bienvenido</h2>
+        <p>Inicia sesión para acceder al simulador</p>
         
         <button id="btn-google" style="
             background-color: white;
             color: #3c4043;
             border: 1px solid #dadce0;
-            border-radius: 50px; /* Redondo tipo píldora */
+            border-radius: 50px;
             padding: 15px 30px;
             font-size: 1.1rem;
             font-weight: 600;
@@ -45,7 +41,6 @@
             <i class="fa-brands fa-google" style="font-size: 1.2rem;"></i> 
             Acceder con Google
         </button>
-
     </div>
 
     <div class="container hidden" id="setup-screen">
@@ -54,6 +49,15 @@
                 <label>Materia</label>
                 <select disabled><option>Seguridad Informática</option></select>
             </div>
+
+            <div class="control-group">
+                <label>Modo</label>
+                <select id="mode-select">
+                    <option value="exam">📝 Examen (30 Preguntas)</option>
+                    <option value="study">📚 Estudio (Todas las preguntas)</option>
+                </select>
+            </div>
+
             <div class="control-group">
                 <label>Tiempo</label>
                 <select id="time-select">
@@ -64,10 +68,11 @@
                 </select>
             </div>
         </div>
+
         <div style="margin-top: 20px;">
             <p>Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">Usuario</span>.</p>
             <p style="color: #28a745; font-size: 0.9rem;"><i class="fa-solid fa-shield-halved"></i> Dispositivo verificado</p>
-            <button id="btn-start" class="btn-primary">Empezar Examen</button>
+            <button id="btn-start" class="btn-primary">Empezar</button>
         </div>
     </div>
 
@@ -76,8 +81,13 @@
             <span id="timer-display">00:00</span>
             <span id="progress-display">Pregunta 1</span>
         </div>
-        <div class="question-box"><h2 id="question-text">Cargando...</h2></div>
+        
+        <div class="question-box">
+            <h2 id="question-text">Cargando...</h2>
+        </div>
+
         <div class="options-box" id="options-container"></div>
+
         <div style="text-align: right; margin-top: 20px;">
             <button id="btn-next-question" class="btn-primary hidden" style="width: auto; padding: 10px 30px;">
                 Siguiente <i class="fa-solid fa-arrow-right"></i>
@@ -86,19 +96,23 @@
     </div>
 
     <div class="container hidden" id="result-screen">
-        <h2>Examen Finalizado</h2>
+        <h2>Finalizado</h2>
         <p>Tu calificación es:</p>
-        <h1 id="score-final" style="font-size: 3rem; color: #1a73e8; margin: 10px 0;">0/10</h1>
-        <button id="btn-review" class="btn-secondary" style="margin-bottom: 10px; border: 1px solid #1a73e8; color: #1a73e8;">Revisar Respuestas</button>
+        <h1 id="score-final" style="font-size: 3rem; color: #1a73e8; margin: 10px 0;">0/0</h1>
+        
+        <button id="btn-review" class="btn-secondary" style="margin-bottom: 10px; border: 1px solid #1a73e8; color: #1a73e8;">
+            <i class="fa-solid fa-list-check"></i> Revisar Respuestas
+        </button>
+        
         <button onclick="location.reload()" class="btn-primary">Volver al Inicio</button>
     </div>
 
     <div class="container hidden" id="review-screen" style="max-width: 700px; text-align: left;">
-        <h2 style="text-align: center; color: #1a73e8;">Revisión del Examen</h2>
+        <h2 style="text-align: center; color: #1a73e8;">Revisión</h2>
         <div id="review-container" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;"></div>
-        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Finalizar Revisión</button>
+        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Finalizar</button>
     </div>
 
-    <script type="module" src="script.js?v=40"></script>
+    <script type="module" src="script.js?v=30"></script>
 </body>
 </html>
