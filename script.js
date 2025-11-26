@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, onSnapshot, where, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, onSnapshot, where, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAMQpnPJSdicgo5gungVOE0M7OHwkz4P9Y",
@@ -39,7 +39,6 @@ const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS." },
     { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán." },
-    // ... (Tus 64 preguntas aqui) ...
     { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap." },
     { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
     { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
@@ -114,7 +113,7 @@ let currentRoomId = null;
 let currentMode = 'individual';
 let unsubscribeRoom = null;
 
-// --- INICIALIZACIÓN DE AVATARES ---
+// --- INICIALIZACIÓN ---
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
@@ -155,6 +154,7 @@ function showScreen(screenId) {
     document.getElementById(screenId).classList.remove('hidden');
 }
 
+// --- AUTH ---
 function obtenerDeviceId() {
     let deviceId = localStorage.getItem('device_id_seguro');
     if (!deviceId) {
@@ -192,17 +192,35 @@ async function validarDispositivo(user) {
     }
 }
 
+// --- LOGICA DE BOTONES DE HEADER (OCULTAR/MOSTRAR) ---
+function toggleHeaderButtons() {
+    const modo = document.getElementById('mode-select').value;
+    const btnRanking = document.getElementById('btn-ranking');
+    const btnStats = document.getElementById('btn-stats');
+    
+    // Solo mostrar en modo EXAMEN
+    if (modo === 'exam') {
+        btnRanking.classList.remove('hidden');
+        btnStats.classList.remove('hidden');
+    } else {
+        btnRanking.classList.add('hidden');
+        btnStats.classList.add('hidden');
+    }
+}
+
+document.getElementById('mode-select').addEventListener('change', toggleHeaderButtons);
+
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             if (await validarDispositivo(user)) {
                 showScreen('setup-screen');
-                document.getElementById('btn-ranking').classList.remove('hidden');
-                document.getElementById('btn-stats').classList.remove('hidden');
                 document.getElementById('btn-logout').classList.remove('hidden');
-                
                 document.getElementById('user-display').innerText = user.email.split('@')[0];
                 document.getElementById('player-nickname').value = user.email.split('@')[0];
+                
+                // Activar botones si corresponde
+                toggleHeaderButtons();
             }
         } else {
             alert("No autorizado.");
@@ -210,6 +228,7 @@ onAuthStateChanged(auth, async (user) => {
         }
     } else {
         showScreen('auth-screen');
+        // Ocultar todo al salir
         document.getElementById('btn-ranking').classList.add('hidden');
         document.getElementById('btn-stats').classList.add('hidden');
         document.getElementById('btn-logout').classList.add('hidden');
@@ -251,8 +270,24 @@ document.getElementById('btn-confirm-identity').addEventListener('click', () => 
 document.getElementById('back-to-setup').addEventListener('click', () => showScreen('setup-screen'));
 document.getElementById('back-to-avatar').addEventListener('click', () => showScreen('avatar-screen'));
 
-document.getElementById('btn-stats').addEventListener('click', () => { cargarGrafico(); document.getElementById('stats-modal').classList.remove('hidden'); });
+document.getElementById('btn-stats').addEventListener('click', async () => { 
+    const btn = document.getElementById('btn-stats');
+    // Evitar clic si está bloqueado
+    if(btn.classList.contains('locked-btn')) return;
+    
+    await cargarGraficoFirebase(); // Cargar desde Firestore
+    document.getElementById('stats-modal').classList.remove('hidden'); 
+});
 
+document.getElementById('btn-ranking').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-ranking');
+    if(btn.classList.contains('locked-btn')) return;
+
+    document.getElementById('ranking-modal').classList.remove('hidden');
+    await cargarRankingGlobal(); // Cargar desde Firestore
+});
+
+// --- MULTIPLAYER ---
 const SALAS_PREDEFINIDAS = ["SALA_ALPHA", "SALA_BETA", "SALA_GAMMA", "SALA_DELTA"];
 
 function mostrarSelectorSalas() {
@@ -333,6 +368,7 @@ document.getElementById('btn-start-war').addEventListener('click', async () => {
     await updateDoc(salaRef, { estado: 'jugando' });
 });
 
+// --- QUIZ ENGINE ---
 function iniciarQuizMultiplayer() {
     if (unsubscribeRoom) unsubscribeRoom();
     preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
@@ -340,6 +376,12 @@ function iniciarQuizMultiplayer() {
 }
 
 function iniciarInterfazQuiz() {
+    // BLOQUEAR BOTONES AL INICIAR EXAMEN
+    if(currentMode === 'exam') {
+        document.getElementById('btn-ranking').classList.add('locked-btn');
+        document.getElementById('btn-stats').classList.add('locked-btn');
+    }
+
     respuestasUsuario = [];
     indiceActual = 0;
     currentStreak = 0;
@@ -469,14 +511,22 @@ async function terminarQuiz(abandono = false) {
         });
         escucharResultadosSala();
         document.getElementById('room-results-box').classList.remove('hidden');
-        
         const avatarImg = document.getElementById('final-avatar-display');
         avatarImg.src = finalAvatar;
         avatarImg.classList.remove('hidden');
     } else {
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
-        if(currentMode === 'exam') guardarHistorialLocal(nota);
+        
+        // SOLO GUARDAR SI ES EXAMEN (NO BATALLA, NO ESTUDIO)
+        if(currentMode === 'exam') {
+            // DESBLOQUEAR BOTONES
+            document.getElementById('btn-ranking').classList.remove('locked-btn');
+            document.getElementById('btn-stats').classList.remove('locked-btn');
+            
+            await guardarHistorialFirebase(nota);
+            await guardarPuntajeGlobal(nota);
+        }
     }
 
     showScreen('result-screen');
@@ -530,20 +580,76 @@ function escucharResultadosSala() {
     });
 }
 
-function guardarHistorialLocal(nota) {
-    let h = JSON.parse(localStorage.getItem('my_scores')) || [];
-    h.push({ date: new Date().toLocaleDateString(), score: nota });
-    localStorage.setItem('my_scores', JSON.stringify(h));
+// --- FIREBASE: HISTORIAL Y RANKING ---
+async function guardarHistorialFirebase(nota) {
+    try {
+        await addDoc(collection(db, "historial_academico"), {
+            email: currentUserEmail,
+            score: nota,
+            date: new Date()
+        });
+    } catch (e) { console.error(e); }
 }
 
-function cargarGrafico() {
+async function guardarPuntajeGlobal(nota) {
+    try {
+        await addDoc(collection(db, "ranking_global"), {
+            email: currentUserEmail,
+            score: nota,
+            date: new Date()
+        });
+    } catch (e) { console.error(e); }
+}
+
+// --- CARGAR GRÁFICO DESDE FIREBASE ---
+async function cargarGraficoFirebase() {
+    const q = query(collection(db, "historial_academico"), where("email", "==", currentUserEmail), orderBy("date", "desc"), limit(10));
+    const querySnapshot = await getDocs(q);
+    
+    let history = [];
+    querySnapshot.forEach((doc) => {
+        history.push(doc.data());
+    });
+    
+    // Invertir para que se vea cronológico (el query trae el más reciente primero)
+    history.reverse();
+
     const ctx = document.getElementById('progressChart').getContext('2d');
-    const h = JSON.parse(localStorage.getItem('my_scores')) || [];
     if(window.myChart) window.myChart.destroy();
     window.myChart = new Chart(ctx, {
         type: 'line',
-        data: { labels: h.map((_, i)=>`#${i+1}`), datasets: [{ label: 'Nota', data: h.map(x=>x.score), borderColor: '#1a73e8', tension: 0.3, fill: true, backgroundColor: 'rgba(26,115,232,0.1)' }] },
+        data: { 
+            labels: history.map((_, i) => `Intento ${i+1}`), 
+            datasets: [{ 
+                label: 'Nota', 
+                data: history.map(x => x.score), 
+                borderColor: '#1a73e8', 
+                tension: 0.3, 
+                fill: true, 
+                backgroundColor: 'rgba(26,115,232,0.1)' 
+            }] 
+        },
         options: { scales: { y: { beginAtZero: true, max: 100 } } }
+    });
+}
+
+// --- CARGAR RANKING GLOBAL ---
+async function cargarRankingGlobal() {
+    const q = query(collection(db, "ranking_global"), orderBy("score", "desc"), limit(10));
+    const querySnapshot = await getDocs(q);
+    
+    const list = document.getElementById('ranking-list');
+    list.innerHTML = "";
+    let pos = 1;
+    querySnapshot.forEach((doc) => {
+        const d = doc.data();
+        list.innerHTML += `
+        <div class="rank-row">
+            <span class="rank-pos">#${pos}</span>
+            <span class="rank-name">${d.email.split('@')[0]}</span>
+            <span class="rank-score">${d.score} pts</span>
+        </div>`;
+        pos++;
     });
 }
 
@@ -560,6 +666,7 @@ function createConfetti() {
     }
 }
 
+// VOLUMEN
 document.getElementById('volume-slider').addEventListener('input', (e) => {
     document.querySelectorAll('audio').forEach(a => { a.volume = e.target.value; a.muted = (e.target.value == 0); });
 });
@@ -570,10 +677,6 @@ document.getElementById('btn-mute').addEventListener('click', () => {
 });
 document.getElementById('close-stats').addEventListener('click', () => document.getElementById('stats-modal').classList.add('hidden'));
 document.getElementById('close-ranking').addEventListener('click', () => document.getElementById('ranking-modal').classList.add('hidden'));
-document.getElementById('btn-ranking').addEventListener('click', () => {
-    document.getElementById('ranking-modal').classList.remove('hidden');
-    document.getElementById('ranking-list').innerHTML = "<p style='text-align:center'>Ranking global en construcción...</p>";
-});
 
 document.getElementById('btn-review').addEventListener('click', () => {
     document.getElementById('result-screen').classList.add('hidden');
