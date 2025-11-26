@@ -4,91 +4,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador Seguridad Informática</title>
-    <link rel="stylesheet" href="style.css?v=40">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=60">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
     <header>
         <div class="logo">
-            <i class="fa-solid fa-brain" style="color: #1a73e8;"></i>
-            <h1>Simulador <span class="subtitle">Seguridad Informática</span></h1>
+            <i class="fa-solid fa-shield-halved" style="color: #1a73e8;"></i>
+            <h1>Simulador <span class="subtitle">Seguridad</span></h1>
         </div>
         
-        <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
             <div class="volume-control-box">
-                <button id="btn-mute" class="btn-icon" title="Silenciar/Activar">
-                    <i class="fa-solid fa-volume-high" id="vol-icon"></i>
-                </button>
+                <button id="btn-mute" class="btn-icon"><i class="fa-solid fa-volume-high" id="vol-icon"></i></button>
                 <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.4">
             </div>
-            
-            <button id="btn-logout" class="btn-secondary hidden" style="width: auto; margin: 0; padding: 5px 15px; font-size: 0.8rem;">Salir</button>
+            <button id="btn-logout" class="btn-secondary hidden" style="font-size: 0.8rem; padding: 5px 15px;">Salir</button>
         </div>
     </header>
 
+    <div id="combo-display" class="hidden">¡RACHA x3! 🔥</div>
+
     <div class="container" id="auth-screen">
-        <h2>Bienvenido</h2>
-        <p>Inicia sesión para acceder al simulador</p>
-        
-        <button id="btn-google" style="
-            background-color: white;
-            color: #3c4043;
-            border: 1px solid #dadce0;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            width: 100%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: all 0.2s ease;
-        ">
-            <i class="fa-brands fa-google" style="font-size: 1.2rem;"></i> 
-            Acceder con Google
+        <h2>Bienvenido Agente</h2>
+        <p>Identifícate para acceder al sistema</p>
+        <button id="btn-google" style="background: white; color: #333; border: 1px solid #ccc; padding: 15px; width: 100%; border-radius: 50px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; font-weight: bold;">
+            <i class="fa-brands fa-google"></i> Acceder con Google
         </button>
     </div>
 
     <div class="container hidden" id="setup-screen">
-        <div class="controls-bar">
-            <div class="control-group">
-                <label>Materia</label>
-                <select disabled><option>Seguridad Informática</option></select>
-            </div>
-
-            <div class="control-group">
-                <label>Modo</label>
-                <select id="mode-select">
-                    <option value="exam">📝 Examen (20 Preguntas)</option>
-                    <option value="study">📚 Estudio (Todas las preguntas)</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label>Tiempo</label>
-                <select id="time-select">
-                    <option value="60">60 minutos</option>
-                    <option value="30">30 minutos</option>
-                    <option value="15">15 minutos</option>
-                    <option value="infinity">Sin tiempo</option>
-                </select>
-            </div>
+        <p>Agente: <span id="user-display" style="font-weight: bold; color: #1a73e8;">Usuario</span></p>
+        
+        <div class="avatar-section">
+            <label>Elige tu Avatar:</label>
+            <div class="avatar-grid" id="avatar-grid">
+                </div>
+            <input type="text" id="player-nickname" placeholder="Tu Apodo (Opcional)" maxlength="10" style="text-align: center; margin-top: 10px;">
         </div>
 
-        <div style="margin-top: 20px;">
-            <p>Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">Usuario</span>.</p>
-            <p style="color: #28a745; font-size: 0.9rem;"><i class="fa-solid fa-shield-halved"></i> Dispositivo verificado</p>
-            <button id="btn-start" class="btn-primary">Empezar</button>
+        <div class="main-menu-grid">
+            <button id="btn-mode-individual" class="menu-card">
+                <i class="fa-solid fa-user-astronaut"></i>
+                <h3>Solo</h3>
+                <p>Entrenamiento</p>
+            </button>
+
+            <button id="btn-mode-multiplayer" class="menu-card mp-card">
+                <i class="fa-solid fa-meteor" style="color: #ea4335;"></i>
+                <h3>Guerra</h3>
+                <p>Vs. Otros</p>
+            </button>
+            
+            <button id="btn-stats" class="menu-card secondary-card">
+                <i class="fa-solid fa-chart-pie"></i> Mis Stats
+            </button>
         </div>
+    </div>
+
+    <div class="container hidden" id="rooms-screen">
+        <button id="back-to-menu" class="btn-text"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+        <h2>Zonas de Guerra</h2>
+        <p>Únete a un escuadrón.</p>
+        <div id="rooms-list" class="rooms-grid"></div>
+    </div>
+
+    <div class="container hidden" id="lobby-screen">
+        <h2 id="lobby-title" style="color: #1a73e8;">SALA</h2>
+        <div class="lobby-status">
+            <div class="spinner"></div>
+            <p id="lobby-status-text">Esperando agentes...</p>
+        </div>
+        <div id="lobby-players" class="lobby-list"></div>
+        <button id="btn-start-war" class="btn-primary hidden" style="background: #28a745; margin-top: 20px;">¡INICIAR MISION!</button>
+        <button id="btn-leave-lobby" class="btn-secondary" style="margin-top: 10px; color: #ea4335;">Abortar Misión</button>
     </div>
 
     <div class="container hidden" id="quiz-screen" style="max-width: 600px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-            <span id="timer-display">00:00</span>
+            <span id="timer-display" style="font-family: monospace; font-size: 1.2rem;">00:00</span>
             <span id="progress-display">Pregunta 1</span>
         </div>
         
@@ -97,47 +93,49 @@
         </div>
 
         <div class="options-box" id="options-container"></div>
-
-        <div style="text-align: right; margin-top: 20px;">
-            <button id="btn-next-question" class="btn-primary hidden" style="width: auto; padding: 10px 30px;">
-                Siguiente <i class="fa-solid fa-arrow-right"></i>
-            </button>
+        
+        <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+            <button id="btn-quit-quiz" class="btn-text" style="color: #ea4335;">Rendirse</button>
+            <button id="btn-next-question" class="btn-primary hidden" style="width: auto; padding: 10px 30px;">Siguiente <i class="fa-solid fa-arrow-right"></i></button>
         </div>
     </div>
 
     <div class="container hidden" id="result-screen">
-        <h2 id="result-title">Finalizado</h2>
-        <p>Tu calificación es:</p>
         
-        <h1 id="score-final" style="font-size: 3rem; color: #1a73e8; margin: 10px 0;">0/0</h1>
+        <div id="final-avatar-display" style="font-size: 4rem; margin-bottom: 10px;">😎</div>
+        <h2 id="result-title">Misión Cumplida</h2>
         
-        <p id="custom-msg" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;"></p>
+        <h1 id="score-final" style="font-size: 3rem; color: #1a73e8; margin: 5px 0;">0/0</h1>
+        <p id="custom-msg" style="font-size: 1.1rem; font-weight: bold; margin-bottom: 20px;"></p>
 
-        <button id="btn-review" class="btn-secondary" style="margin-bottom: 10px; border: 1px solid #1a73e8; color: #1a73e8;">
-            <i class="fa-solid fa-list-check"></i> Revisar Respuestas
-        </button>
-        
-        <button onclick="location.reload()" class="btn-primary">Volver al Inicio</button>
+        <div id="room-results-box" class="hidden" style="background: #fff8e1; border: 2px solid #fbbc04; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+            <h3 style="color: #f9a825; margin: 0 0 10px 0;">🏆 Tabla de Posiciones</h3>
+            <div id="room-leaderboard" style="text-align: left;">Esperando datos...</div>
+        </div>
+
+        <button id="btn-review" class="btn-secondary">Revisar Errores</button>
+        <button onclick="location.reload()" class="btn-primary">Nueva Misión</button>
     </div>
 
     <div class="container hidden" id="review-screen" style="max-width: 700px; text-align: left;">
-        <h2 style="text-align: center; color: #1a73e8;">Revisión</h2>
+        <h2 style="text-align: center; color: #1a73e8;">Informe de Misión</h2>
         <div id="review-container" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;"></div>
-        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Finalizar</button>
+        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Cerrar Informe</button>
     </div>
 
-    <audio id="bg-music" loop>
-        <source src="https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=science-documentary-123270.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="success-sound">
-        <source src="https://www.soundjay.com/human/applause-01.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="fail-sound">
-        <source src="https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3" type="audio/mpeg">
-    </audio>
-    
-    <div id="confetti-wrapper" class="hidden"></div>
+    <div id="stats-modal" class="hidden modal-overlay">
+        <div class="container modal-content">
+            <button id="close-stats" class="close-btn">&times;</button>
+            <h2 style="color: #1a73e8;">Rendimiento Personal</h2>
+            <canvas id="progressChart"></canvas>
+        </div>
+    </div>
 
-    <script type="module" src="script.js?v=40"></script>
+    <audio id="bg-music" loop><source src="https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=science-documentary-123270.mp3" type="audio/mpeg"></audio>
+    <audio id="success-sound"><source src="https://www.soundjay.com/human/applause-01.mp3" type="audio/mpeg"></audio>
+    <audio id="fail-sound"><source src="https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3" type="audio/mpeg"></audio>
+    <audio id="correct-sound"><source src="https://www.soundjay.com/buttons/sounds/button-3.mp3" type="audio/mpeg"></audio> <div id="confetti-wrapper" class="hidden"></div>
+
+    <script type="module" src="script.js?v=60"></script>
 </body>
 </html>
