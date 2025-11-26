@@ -30,7 +30,7 @@ const correosDosDispositivos = [
 const correosUnDispositivo = [
     "cnavarretem4@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", 
     "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", 
-    "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec"
+    "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"
 ];
 
 // Unimos las listas para la validación de acceso inicial
