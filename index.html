@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador Seguridad Informática</title>
-    <link rel="stylesheet" href="style.css?v=32">
+    <link rel="stylesheet" href="style.css?v=34">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -96,10 +96,13 @@
     </div>
 
     <div class="container hidden" id="result-screen">
-        <h2>Finalizado</h2>
+        <h2 id="result-title">Finalizado</h2>
         <p>Tu calificación es:</p>
+        
         <h1 id="score-final" style="font-size: 3rem; color: #1a73e8; margin: 10px 0;">0/0</h1>
         
+        <p id="custom-msg" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;"></p>
+
         <button id="btn-review" class="btn-secondary" style="margin-bottom: 10px; border: 1px solid #1a73e8; color: #1a73e8;">
             <i class="fa-solid fa-list-check"></i> Revisar Respuestas
         </button>
@@ -113,6 +116,20 @@
         <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Finalizar</button>
     </div>
 
-    <script type="module" src="script.js?v=32"></script>
+    <audio id="bg-music" loop>
+        <source src="https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=science-documentary-123270.mp3" type="audio/mpeg">
+    </audio>
+    
+    <audio id="success-sound">
+        <source src="https://www.soundjay.com/human/applause-01.mp3" type="audio/mpeg">
+    </audio>
+    
+    <audio id="fail-sound">
+        <source src="https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3" type="audio/mpeg">
+    </audio>
+    
+    <div id="confetti-wrapper" class="hidden"></div>
+
+    <script type="module" src="script.js?v=34"></script>
 </body>
 </html>
