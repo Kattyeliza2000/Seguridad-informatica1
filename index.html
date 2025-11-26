@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador Seguridad Informática</title>
-    <link rel="stylesheet" href="style.css?v=34">
+    <link rel="stylesheet" href="style.css?v=38">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -14,7 +14,14 @@
             <i class="fa-solid fa-brain" style="color: #1a73e8;"></i>
             <h1>Simulador <span class="subtitle">Seguridad Informática</span></h1>
         </div>
-        <button id="btn-logout" class="btn-secondary hidden" style="width: auto; margin: 0;">Cerrar Sesión</button>
+        
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button id="btn-mute" class="btn-icon" title="Activar/Desactivar Sonido">
+                <i class="fa-solid fa-volume-high"></i>
+            </button>
+            
+            <button id="btn-logout" class="btn-secondary hidden" style="width: auto; margin: 0; padding: 5px 15px; font-size: 0.8rem;">Salir</button>
+        </div>
     </header>
 
     <div class="container" id="auth-screen">
@@ -130,6 +137,6 @@
     
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=34"></script>
+    <script type="module" src="script.js?v=38"></script>
 </body>
 </html>
