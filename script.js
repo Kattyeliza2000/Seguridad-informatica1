@@ -3,7 +3,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 // Mantenemos imports de Firestore para Ranking, Historial y Batalla
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
+// --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -86,7 +86,7 @@ const btnQuitQuiz = document.getElementById('btn-quit-quiz');
 const headerUserInfo = document.getElementById('header-user-info');
 const avatarGrid = document.getElementById('avatar-grid');
 
-// --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA ---
+// --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA (CORREGIDO: Ubicación al inicio) ---
 function showScreen(screenId) {
     document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
     const screenElement = document.getElementById(screenId);
@@ -200,7 +200,7 @@ async function iniciarBatalla() {
     // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA (PUNTO DE ACTIVACIÓN DE PERFIL)
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    // ** SOLUCIÓN: FLUJO AVANZA A LA PANTALLA DE AVATAR/ALIAS **
+    // ** FLUJO CORREGIDO: Va a la pantalla de Avatar/Alias **
     showScreen('avatar-screen'); 
     initAvatars(); // Inicia la grilla de avatares
 }
@@ -210,7 +210,7 @@ async function limpiarSalaBatalla() { /* Simulada */ }
 async function verificarSesionActivaEnBatalla(uid) { return null; /* Simulada */ }
 
 
-// --- FUNCIÓN: Inicializa la grilla de avatares ---
+// --- FUNCIÓN: Inicializa la grilla de avatares (Corregida la selección de click) ---
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(!grid) return; 
@@ -230,6 +230,7 @@ function initAvatars() {
         
         img.onclick = () => {
             playClick();
+            // LÓGICA DE SELECCIÓN: Deseleccionar todos, seleccionar el actual
             document.querySelectorAll('.avatar-option').forEach(x => x.classList.remove('avatar-selected'));
             img.classList.add('avatar-selected');
             currentAvatarUrl = url;
@@ -619,13 +620,13 @@ function terminarQuiz(abandono = false) {
         if (sfxWin) sfxWin.play().catch(()=>{});
 
     } else if (notaPorcentaje >= 70) { 
-        msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Misión Cumplida!'; // Ícono de check
+        msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Misión Cumplida!'; 
         msg.style.color = "#fbbc04";
         if (sfxWin) sfxWin.play().catch(()=>{});
 
     } else { 
         msg.innerHTML = '<i class="fa-solid fa-face-sad-cry moving-icon-fail"></i> Entrenamiento fallido. Debes mejorar.'; 
-        msg.style.color = "#1a73e8"; // Azul
+        msg.style.color = "#1a73e8"; 
         if (sfxFail) sfxFail.play().catch(()=>{});
     }
     
