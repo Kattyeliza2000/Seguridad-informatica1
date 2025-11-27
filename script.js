@@ -44,6 +44,7 @@ let currentAvatarUrl = null;
 let currentStreak = 0;
 let startTime = 0; 
 let jugadorActualData = null; 
+let jugadorActualId = null; // Identificador único del jugador actual para batallas
 
 // --- BANCO DE PREGUNTAS COMPLETO (64 PREGUNTAS) ---
 const bancoPreguntas = [
@@ -165,12 +166,21 @@ function hablar(texto, callback) {
 }
 
 window.addEventListener('load', () => {
-    setTimeout(() => document.getElementById('app-loader').classList.add('hidden'), 1000);
+    // Aumentar el tiempo de carga a 2 segundos para asegurar que todo se inicialice
+    setTimeout(() => document.getElementById('app-loader').classList.add('hidden'), 2000);
 });
 
-window.addEventListener('beforeunload', (e) => {
-    if (!document.getElementById('quiz-screen').classList.contains('hidden') || !document.getElementById('lobby-screen').classList.contains('hidden')) {
-        e.preventDefault(); e.returnValue = '';
+// *************** INICIO: Lógica mejorada para Salas ***************
+window.addEventListener('beforeunload', async (e) => {
+    if (currentRoomId && jugadorActualId) {
+        // Mejor intento de limpieza en cierre de página
+        await limpiarSala(currentRoomId).catch(err => console.error(err));
+    }
+    
+    if (!document.getElementById('quiz-screen').classList.contains('hidden') || 
+        !document.getElementById('lobby-screen').classList.contains('hidden')) {
+        e.preventDefault(); 
+        e.returnValue = '';
     }
 });
 
@@ -260,6 +270,8 @@ onAuthStateChanged(auth, async (user) => {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
                     document.getElementById('header-photo').src = user.photoURL;
+                    document.getElementById('header-username').innerText = nombreReal;
+                    document.getElementById('header-user-info').classList.remove('hidden');
                 }
                 
                 toggleHeaderButtons();
@@ -358,7 +370,11 @@ function mostrarSelectorSalas() {
     SALAS_PREDEFINIDAS.forEach(salaId => {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
-        btn.innerHTML = `<strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">...</span>`;
+        // Uso de icono para embellecer
+        const iconClass = ROOM_ICONS[salaId] || 'fa-users';
+        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">...</span>`;
+        
+        // Listener en tiempo real para el contador
         onSnapshot(doc(db, "salas_activas", salaId), (docSnap) => {
             const count = docSnap.exists() ? (docSnap.data().jugadores || []).length : 0;
             const el = document.getElementById(`count-${salaId}`);
@@ -369,6 +385,7 @@ function mostrarSelectorSalas() {
     });
 }
 
+// ** FUNCIÓN unirseASala MEJORADA (Según tu solicitud) **
 async function unirseASala(salaId) {
     currentRoomId = salaId;
     const salaRef = doc(db, "salas_activas", salaId);
@@ -382,18 +399,34 @@ async function unirseASala(salaId) {
         await setDoc(salaRef, { configTiempo: tiempoDeLaSala }, { merge: true });
     }
 
-    if (tiempoDeLaSala !== 'infinity') { tiempoRestante = parseInt(tiempoDeLaSala) * 60; } 
-    else { tiempoRestante = -1; }
+    if (tiempoDeLaSala !== 'infinity') { 
+        tiempoRestante = parseInt(tiempoDeLaSala) * 60; 
+    } else { 
+        tiempoRestante = -1; 
+    }
 
     const nick = document.getElementById('player-nickname').value || currentUserEmail.split('@')[0];
-    const jugadorData = { name: nick, avatar: currentAvatarUrl };
+    
+    // SOLUCIÓN: Crear ID único para este jugador en esta sesión
+    jugadorActualId = `${currentUserEmail}_${Date.now()}`;
+    
+    const jugadorData = { 
+        id: jugadorActualId, // ← ID único
+        name: nick, 
+        avatar: currentAvatarUrl,
+        email: currentUserEmail // Para referencia
+    };
 
     jugadorActualData = jugadorData;
 
-    await setDoc(salaRef, { jugadores: arrayUnion(jugadorData), estado: "esperando" }, { merge: true });
+    await setDoc(salaRef, { 
+        jugadores: arrayUnion(jugadorData), 
+        estado: "esperando" 
+    }, { merge: true });
 
     showScreen('lobby-screen');
     document.getElementById('lobby-title').innerText = salaId.replace('SALA_', '').replace(/_/g, ' ');
+    document.getElementById('lobby-status-text').innerText = 'Esperando agentes...';
 
     unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -409,34 +442,60 @@ async function unirseASala(salaId) {
             });
             
             const btnStart = document.getElementById('btn-start-war');
-            if (jugadores.length >= 2) btnStart.classList.remove('hidden');
-            else btnStart.classList.add('hidden');
+            // Sólo el primer jugador puede iniciar (o se podría añadir lógica de Admin/Host)
+            const esHost = jugadores.length > 0 && jugadores[0].id === jugadorActualId;
+
+            if (esHost && jugadores.length >= 2 && data.estado === 'esperando') {
+                btnStart.classList.remove('hidden');
+            } else {
+                btnStart.classList.add('hidden');
+            }
 
             if (data.estado === 'jugando') iniciarQuizMultiplayer();
         }
     });
 }
 
+// ** FUNCIÓN limpiarSala MEJORADA (Según tu solicitud para evitar arrayRemove ineficiente) **
 async function limpiarSala(salaId) {
-    if(!salaId || !jugadorActualData) return;
+    if(!salaId || !jugadorActualId) return;
+    
     const salaRef = doc(db, "salas_activas", salaId);
+    
     try {
-        await updateDoc(salaRef, { jugadores: arrayRemove(jugadorActualData) });
-        
         const snap = await getDoc(salaRef);
+        
         if(snap.exists()) {
-            const currentPlayers = snap.data().jugadores || [];
-            if(currentPlayers.length === 0 && snap.data().estado !== 'esperando') {
-                 await updateDoc(salaRef, { estado: 'esperando' });
+            const jugadores = snap.data().jugadores || [];
+            
+            // Filtrar para eliminar al jugador actual por ID
+            const jugadoresActualizados = jugadores.filter(j => j.id !== jugadorActualId);
+            
+            // Actualizar con el array filtrado
+            await updateDoc(salaRef, { 
+                jugadores: jugadoresActualizados 
+            });
+            
+            // Si no quedan jugadores, resetear la sala
+            if(jugadoresActualizados.length === 0) {
+                await updateDoc(salaRef, { 
+                    estado: 'esperando',
+                    jugadores: [] // Limpiar array completamente
+                });
             }
+            
+            console.log("✅ Sala limpiada correctamente");
         }
-    } catch (e) { console.error("Error limpiando sala:", e); }
+    } catch (e) { 
+        console.error("❌ Error limpiando sala:", e); 
+    }
 }
 
 document.getElementById('btn-leave-lobby').addEventListener('click', async () => {
     if (confirm("¿Abandonar escuadrón?")) {
         if (currentRoomId) {
             await limpiarSala(currentRoomId);
+            if (unsubscribeRoom) unsubscribeRoom();
             location.reload();
         }
     }
@@ -449,9 +508,13 @@ document.getElementById('btn-start-war').addEventListener('click', async () => {
 
 function iniciarQuizMultiplayer() {
     if (unsubscribeRoom) unsubscribeRoom();
+    // En modo multiplayer se usan todas las preguntas
     preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
     iniciarInterfazQuiz();
 }
+
+// *************** FIN: Lógica mejorada para Salas ***************
+
 
 function iniciarInterfazQuiz() {
     if(currentMode === 'exam') {
@@ -543,6 +606,14 @@ document.getElementById('btn-next-question').addEventListener('click', () => {
         }
 
         if(currentMode !== 'study') respuestasUsuario.push(seleccionTemporal);
+        
+        // Manejo de avance de pregunta en modo estudio
+        if (currentMode === 'study' && respuestasUsuario.length <= indiceActual) {
+            // Esto solo ocurre si se hizo clic en "Siguiente" antes de seleccionar, lo cual es manejado por seleccionTemporal !== null.
+            // Si el modo es 'study', la respuesta ya fue pusheada en mostrarResultadoInmediato.
+            // Si el modo es 'exam' o 'multiplayer', se pushea arriba.
+        }
+        
         indiceActual++;
         cargarPregunta();
     }
@@ -577,15 +648,22 @@ async function terminarQuiz(abandono = false) {
     const tiempoFinal = Math.floor((Date.now() - startTime) / 1000);
 
     let aciertos = 0;
+    // Solo contar aciertos hasta el índice actual si hubo un abandono antes de completar
+    const maxIndex = abandono ? indiceActual : preguntasExamen.length;
+    
     respuestasUsuario.forEach((r, i) => {
-        if (i < preguntasExamen.length && r === preguntasExamen[i].respuesta) aciertos++;
+        if (i < maxIndex && r === preguntasExamen[i].respuesta) aciertos++;
     });
-    const nota = Math.round((aciertos / preguntasExamen.length) * 100);
+    
+    // Calcular nota solo en base a las preguntas respondidas
+    const totalRespondidas = respuestasUsuario.length;
+    const nota = totalRespondidas > 0 ? Math.round((aciertos / totalRespondidas) * 100) : 0;
     
     const nick = document.getElementById('player-nickname').value || currentUserEmail.split('@')[0];
     const finalAvatar = currentAvatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default';
 
     if (currentMode === 'multiplayer' && currentRoomId) {
+        // En multiplayer, guardar el resultado del jugador
         await addDoc(collection(db, `salas_activas/${currentRoomId}/resultados`), {
             user: nick,
             avatar: finalAvatar,
@@ -596,14 +674,17 @@ async function terminarQuiz(abandono = false) {
             date: new Date()
         });
         
+        // Limpiar la sala solo del jugador que termina
         await limpiarSala(currentRoomId);
+        
         renderBattlePodium();
         document.getElementById('battle-results-modal').classList.remove('hidden');
     } else {
         document.getElementById('room-results-box').classList.add('hidden');
-        document.getElementById('final-avatar-display').classList.add('hidden');
+        document.getElementById('final-avatar-display').classList.remove('hidden');
+        document.getElementById('final-avatar-display').src = finalAvatar;
         
-        if(currentMode === 'exam') {
+        if(currentMode === 'exam' && !abandono) {
             document.getElementById('btn-ranking').classList.remove('locked-btn');
             document.getElementById('btn-stats').classList.remove('locked-btn');
             
@@ -623,7 +704,7 @@ async function terminarQuiz(abandono = false) {
 
         msg.className = '';
         if (abandono) {
-            msg.innerText = "Finalizado por usuario."; msg.style.color = "#ea4335";
+            msg.innerText = "Finalizado por usuario. Se registraron las respuestas completadas."; msg.style.color = "#ea4335";
         } else if (nota === 100) {
             msg.innerText = "¡LEGENDARIO! 🏆"; msg.style.color = "#28a745"; createConfetti();
         } else if (nota >= 70) {
@@ -632,35 +713,10 @@ async function terminarQuiz(abandono = false) {
             msg.innerText = "Entrenamiento fallido."; msg.style.color = "#ea4335";
         }
 
-        if (currentMode === 'study') document.getElementById('btn-review').classList.add('hidden');
+        if (currentMode === 'study' || totalRespondidas === 0) document.getElementById('btn-review').classList.add('hidden');
         else document.getElementById('btn-review').classList.remove('hidden');
     }
 }
-
-async function limpiarSala(salaId) {
-    if(!salaId || !jugadorActualData) return;
-    const salaRef = doc(db, "salas_activas", salaId);
-    try {
-        await updateDoc(salaRef, { jugadores: arrayRemove(jugadorActualData) });
-        
-        const snap = await getDoc(salaRef);
-        if(snap.exists()) {
-            const currentPlayers = snap.data().jugadores || [];
-            if(currentPlayers.length === 0 && snap.data().estado !== 'esperando') {
-                 await updateDoc(salaRef, { estado: 'esperando' });
-            }
-        }
-    } catch (e) { console.error("Error limpiando sala:", e); }
-}
-
-document.getElementById('btn-leave-lobby').addEventListener('click', async () => {
-    if (confirm("¿Abandonar escuadrón?")) {
-        if (currentRoomId) {
-            await limpiarSala(currentRoomId);
-            location.reload();
-        }
-    }
-});
 
 document.getElementById('btn-exit-war-modal').addEventListener('click', async () => { location.reload(); });
 
@@ -672,10 +728,25 @@ function renderBattlePodium() {
         let players = [];
         snap.forEach(doc => players.push(doc.data()));
         players.slice(0, 5).forEach((p, index) => {
-            const height = Math.max(20, p.score) + '%'; 
+            // Altura de la barra: mínimo 20px, máximo 100% de la altura del contenedor.
+            const height = Math.min(100, Math.max(20, p.score)) + '%'; 
+            
             const col = document.createElement('div');
             col.className = 'podium-column';
-            col.innerHTML = `<div class="podium-avatar" style="background-image: url('${p.avatar}'); background-size: cover;"></div><div class="podium-name">${p.user}</div><div class="podium-bar" style="height: ${height};">${p.score}</div>`;
+            col.classList.add(`rank-${index + 1}`); // Agregar clase para estilos de podio
+            
+            // Reemplazar los estilos de gradiente fijos en CSS por estilos en línea basados en el puesto
+            let barStyle = '';
+            if (index === 0) barStyle = 'background: linear-gradient(to top, #fbc02d, #fff176); color: #5f4300;';
+            else if (index === 1) barStyle = 'background: linear-gradient(to top, #9e9e9e, #e0e0e0); color: #424242;';
+            else if (index === 2) barStyle = 'background: linear-gradient(to top, #8d6e63, #d7ccc8); color: #3e2723;';
+            else barStyle = 'background: linear-gradient(to top, #1a73e8, #4285f4); color: white;';
+
+            col.innerHTML = `
+                <div class="podium-avatar" style="background-image: url('${p.avatar}'); background-size: cover;"></div>
+                <div class="podium-name">${p.user}</div>
+                <div class="podium-bar" style="height: ${height}; ${barStyle}">${p.score}</div>
+            `;
             container.appendChild(col);
         });
     });
@@ -691,6 +762,35 @@ async function guardarHistorialFirebase(nota) {
     } catch (e) { console.error(e); }
 }
 
+async function guardarPuntajeGlobal(nota) {
+    try {
+        const today = new Date().toLocaleDateString();
+        const docRef = doc(db, "ranking_global", currentUserEmail); // Usar el email como ID del documento
+        
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().dateString === today) {
+            // Actualizar solo si la nueva nota es mayor
+            if (nota > docSnap.data().score) {
+                await updateDoc(docRef, {
+                    score: nota,
+                    date: new Date(),
+                    dateString: today
+                });
+            }
+        } else {
+            // Crear o reemplazar si es un nuevo día
+            await setDoc(docRef, {
+                email: currentUserEmail,
+                score: nota,
+                date: new Date(),
+                dateString: today
+            });
+        }
+    } catch (e) { console.error("Error guardando puntaje global:", e); }
+}
+
+
 async function cargarGraficoFirebase() {
     try {
         const q = query(collection(db, "historial_academico"), where("email", "==", currentUserEmail), orderBy("date", "desc"), limit(10));
@@ -703,7 +803,23 @@ async function cargarGraficoFirebase() {
         window.myChart = new Chart(ctx, {
             type: 'line',
             data: { labels: history.map((_, i) => `Intento ${i+1}`), datasets: [{ label: 'Nota', data: history.map(x => x.score), borderColor: '#1a73e8', tension: 0.3, fill: true, backgroundColor: 'rgba(26,115,232,0.1)' }] },
-            options: { scales: { y: { beginAtZero: true, max: 100 } } }
+            options: { 
+                responsive: true,
+                scales: { 
+                    y: { 
+                        beginAtZero: true, 
+                        max: 100,
+                        title: { display: true, text: 'Nota (0-100)' }
+                    },
+                    x: {
+                        title: { display: true, text: 'Intentos' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Historial de Últimos 10 Exámenes' }
+                }
+            }
         });
     } catch(e) { console.error("Error gráfico (posible falta de índice):", e); }
 }
@@ -711,6 +827,7 @@ async function cargarGraficoFirebase() {
 async function cargarRankingGlobal() {
     try {
         const today = new Date().toLocaleDateString();
+        // Cargar el Top 10 de puntajes de HOY.
         const q = query(collection(db, "ranking_global"), where("dateString", "==", today), orderBy("score", "desc"), limit(10));
         const querySnapshot = await getDocs(q);
         const list = document.getElementById('ranking-list');
@@ -721,7 +838,7 @@ async function cargarRankingGlobal() {
             list.innerHTML += `<div class="rank-row"><span class="rank-pos">#${pos}</span><span class="rank-name">${d.email.split('@')[0]}</span><span class="rank-score">${d.score} pts</span></div>`;
             pos++;
         });
-        if(pos === 1) list.innerHTML = "<p style='text-align:center; padding:20px;'>Aún no hay puntajes hoy. ¡Sé el primero!</p>";
+        if(pos === 1) list.innerHTML = "<p style='text-align:center; padding:20px;'>Aún no hay puntajes para hoy. ¡Sé el primero!</p>";
     } catch(e) { console.error("Error ranking:", e); }
 }
 
@@ -740,12 +857,23 @@ function createConfetti() {
 
 document.getElementById('volume-slider').addEventListener('input', (e) => {
     document.querySelectorAll('audio').forEach(a => { a.volume = e.target.value; a.muted = (e.target.value == 0); });
+    // Actualizar icono de volumen
+    const icon = document.getElementById('vol-icon');
+    const vol = parseFloat(e.target.value);
+    icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
 });
+
 document.getElementById('btn-mute').addEventListener('click', () => {
     const audios = document.querySelectorAll('audio');
     const isMuted = !audios[0].muted;
     audios.forEach(a => a.muted = isMuted);
+    
+    // Actualizar icono y slider
+    const icon = document.getElementById('vol-icon');
+    icon.className = 'fa-solid ' + (isMuted ? 'fa-volume-high' : 'fa-volume-xmark');
+    document.getElementById('volume-slider').value = isMuted ? 0.4 : 0; // Restaurar un valor o poner a 0
 });
+
 document.getElementById('close-stats').addEventListener('click', () => document.getElementById('stats-modal').classList.add('hidden'));
 document.getElementById('close-ranking').addEventListener('click', () => document.getElementById('ranking-modal').classList.add('hidden'));
 
@@ -754,6 +882,9 @@ document.getElementById('btn-review').addEventListener('click', () => {
     document.getElementById('review-screen').classList.remove('hidden');
     const c = document.getElementById('review-container'); c.innerHTML = '';
     preguntasExamen.forEach((p, i) => {
+        // Solo revisar las preguntas que el usuario respondió (respuestasUsuario.length)
+        if (i >= respuestasUsuario.length) return; 
+
         const ok = respuestasUsuario[i] === p.respuesta;
         let ops = '';
         p.opciones.forEach((o, x) => {
