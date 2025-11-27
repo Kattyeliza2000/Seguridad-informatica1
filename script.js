@@ -1,8 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+// Mantenemos imports de Firestore para Ranking, Historial y Batalla
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
+// --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -85,7 +86,7 @@ const btnQuitQuiz = document.getElementById('btn-quit-quiz');
 const headerUserInfo = document.getElementById('header-user-info');
 const avatarGrid = document.getElementById('avatar-grid');
 
-// --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA (CORREGIDO: Ubicación al inicio) ---
+// --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA ---
 function showScreen(screenId) {
     document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
     const screenElement = document.getElementById(screenId);
@@ -93,7 +94,6 @@ function showScreen(screenId) {
         screenElement.classList.remove('hidden');
     }
 }
-
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
@@ -200,7 +200,7 @@ async function iniciarBatalla() {
     // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA (PUNTO DE ACTIVACIÓN DE PERFIL)
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    // ** FLUJO CORREGIDO: Va a la pantalla de Avatar/Alias **
+    // ** SOLUCIÓN: FLUJO AVANZA A LA PANTALLA DE AVATAR/ALIAS **
     showScreen('avatar-screen'); 
     initAvatars(); // Inicia la grilla de avatares
 }
@@ -257,6 +257,7 @@ function mostrarSelectorSalas() {
         // CORRECCIÓN: Contador Simulado a 0 Agentes
         btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">0 Agentes</span>`; 
         
+        // EVENTO DE CLICK: Inicia el juego
         btn.onclick = () => { 
             playClick(); 
             // SIMULAMOS EL INICIO DEL QUIZ AL SELECCIONAR LA SALA
@@ -605,26 +606,26 @@ function terminarQuiz(abandono = false) {
         msg.style.color = "#ea4335";
         
     } else if (aciertos === totalPreguntas) { // VALIDACIÓN: PUNTAJE PERFECTO (100%)
-        msg.innerText = "¡FELICITACIONES! PUNTAJE PERFECTO 💯"; 
+        msg.innerHTML = '<i class="fa-solid fa-trophy moving-icon-win"></i> ¡FELICITACIONES! PUNTAJE PERFECTO 💯'; 
         msg.style.color = "#28a745"; 
         if (typeof createConfetti === 'function') createConfetti(); 
         if (sfxWin) sfxWin.play().catch(()=>{});
         hablar("¡Increíble! Has obtenido un puntaje perfecto. Eres un maestro en seguridad."); 
 
     } else if (notaPorcentaje >= 85) { 
-        msg.innerText = "¡LEGENDARIO! 🏆"; 
+        msg.innerHTML = '<i class="fa-solid fa-medal moving-icon-win"></i> ¡LEGENDARIO! 🏆'; 
         msg.style.color = "#28a745"; 
         if (typeof createConfetti === 'function') createConfetti(); 
         if (sfxWin) sfxWin.play().catch(()=>{});
 
     } else if (notaPorcentaje >= 70) { 
-        msg.innerText = "¡Misión Cumplida!"; 
+        msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Misión Cumplida!'; // Ícono de check
         msg.style.color = "#fbbc04";
         if (sfxWin) sfxWin.play().catch(()=>{});
 
     } else { 
-        msg.innerText = "Entrenamiento fallido. Debes mejorar."; 
-        msg.style.color = "#ea4335";
+        msg.innerHTML = '<i class="fa-solid fa-face-sad-cry moving-icon-fail"></i> Entrenamiento fallido. Debes mejorar.'; 
+        msg.style.color = "#1a73e8"; // Azul
         if (sfxFail) sfxFail.play().catch(()=>{});
     }
     
