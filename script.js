@@ -1,17 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+// Se mantienen los imports de Firestore para Ranking, Historial y Dispositivos
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, onSnapshot, where, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- 1. CONFIGURACIÓN FINAL (PROYECTO: simulador-c565e) ---
-// SE ESTÁ USANDO LA CONFIGURACIÓN QUE PROPORCIONASTE PREVIAMENTE
+// --- 1. CONFIGURACIÓN INICIAL Y FIREBASE ---
 const firebaseConfig = {
-    apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
-    authDomain: "simulador-c565e.firebaseapp.com",
-    projectId: "simulador-c565e",
-    storageBucket: "simulador-c565e.firebasestorage.app",
-    messagingSenderId: "673284794982",
-    appId: "1:673284794982:web:3c21cf20e04798a647dba7",
-    measurementId: "G-W715QQWGY1"
+    apiKey: "AIzaSyAMQpnPJSdicgo5gungVOE0M7OHwkz4P9Y",
+    authDomain: "autenticacion-8faac.firebaseapp.com",
+    projectId: "autenticacion-8faac",
+    storageBucket: "autenticacion-8faac.firebasestorage.app",
+    messagingSenderId: "939518706600",
+    appId: "1:939518706600:web:d28c3ec7de21da8379939d",
+    measurementId: "G-8LXM9VS1M0"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -23,8 +23,25 @@ const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec
 const correosUnDispositivo = ["cnavarretem4@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
-// --- 3. VARIABLES GLOBALES (Limpio de conflictos) ---
-let preguntasExamen = []; 
+// --- 3. CONFIGURACIÓN DE AVATARES (Mantenido) ---
+const AVATAR_CONFIG = [
+    { seed: 'Felix', style: 'avataaars', bg: 'b6e3f4' },
+    { seed: 'Aneka', style: 'avataaars', bg: 'c0aede' },
+    { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9' },
+    { seed: 'Bear', style: 'avataaars', bg: 'ffdfbf' },
+    { seed: 'Chester', style: 'avataaars', bg: 'ffd5dc' },
+    { seed: 'Bandit', style: 'lorelei', bg: 'c0aede' },
+    { seed: 'Molly', style: 'lorelei', bg: 'b6e3f4' },
+    { seed: 'Buster', style: 'lorelei', bg: 'ffdfbf' }
+];
+
+// **************************************************************************************
+// ** 4. VARIABLES GLOBALES UNIFICADAS (Se elimina la sección duplicada que causaba el error) **
+// **************************************************************************************
+let currentAvatarUrl = null;
+let currentStreak = 0;
+let startTime = 0; 
+let preguntasExamen = []; // <<== Declaración única aquí
 let indiceActual = 0;
 let respuestasUsuario = []; 
 let seleccionTemporal = null; 
@@ -33,11 +50,8 @@ let intervaloTiempo;
 let currentUserEmail = "";
 let currentMode = 'individual';
 let uidJugadorPermanente = null; 
-let currentAvatarUrl = null; 
-let currentStreak = 0; 
-let startTime = 0; 
 
-// REFERENCIAS HTML
+// REFERENCIAS HTML (Estas variables deben declararse aquí y solo aquí)
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
@@ -47,9 +61,9 @@ const btnLogout = document.getElementById('btn-logout');
 const btnNextQuestion = document.getElementById('btn-next-question');
 const btnRanking = document.getElementById('btn-ranking');
 const btnStats = document.getElementById('btn-stats');
+// **************************************************************************************
 
-
-// --- 4. BANCO DE PREGUNTAS COMPLETO ---
+// --- 5. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica (Fallo técnico/suministro)." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 0, explicacion: "Respuesta correcta: Nmap (Herramienta fundamental para escaneo y mapeo de redes)." },
@@ -120,16 +134,10 @@ const bancoPreguntas = [
 // VARIABLES GLOBALES
 let preguntasExamen = []; // Se llena aleatoriamente con 20 preguntas
 let indiceActual = 0;
-let respuestasUsuario = []; 
-let seleccionTemporal = null; 
+let respuestasUsuario = []; 
+let seleccionTemporal = null; 
 let tiempoRestante = 0;
 let intervaloTiempo;
-let currentUserEmail = "";
-let currentMode = 'individual';
-let uidJugadorPermanente = null; 
-let currentAvatarUrl = null; 
-let currentStreak = 0; 
-let startTime = 0; 
 
 // REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
@@ -139,281 +147,268 @@ const resultScreen = document.getElementById('result-screen');
 const reviewScreen = document.getElementById('review-screen');
 const btnLogout = document.getElementById('btn-logout');
 const btnNextQuestion = document.getElementById('btn-next-question');
-const btnRanking = document.getElementById('btn-ranking');
-const btnStats = document.getElementById('btn-stats');
 
-
-// --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
+// --- 4. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
 function obtenerDeviceId() {
-    let deviceId = localStorage.getItem('device_id_seguro');
-    if (!deviceId) {
-        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + Date.now();
-        localStorage.setItem('device_id_seguro', deviceId);
-    }
-    return deviceId;
+    let deviceId = localStorage.getItem('device_id_seguro');
+    if (!deviceId) {
+        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + Date.now();
+        localStorage.setItem('device_id_seguro', deviceId);
+    }
+    return deviceId;
 }
 
-// --- 6. FUNCIÓN DE VOZ ---
-function hablar(texto) {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    synth.cancel();
-    const utterance = new SpeechSynthesisUtterance(texto);
-    utterance.lang = 'es-ES';
-    utterance.rate = 1.0;
-    synth.speak(utterance);
-}
-
-// --- 7. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS y SESIÓN EXCLUSIVA) ---
+// --- 5. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS) ---
 async function validarDispositivo(user) {
-    currentUserEmail = user.email;
-    uidJugadorPermanente = user.uid; // Asignar el UID de Firebase
-    const miDeviceId = obtenerDeviceId(); 
-    
-    let limiteDispositivos = 1;
-    if (correosDosDispositivos.includes(currentUserEmail)) {
-        limiteDispositivos = 2; // Mantener este valor para la advertencia
-    }
+    const email = user.email;
+    const miDeviceId = obtenerDeviceId(); 
+    
+    // Determinar el límite de dispositivos para este usuario
+    let limiteDispositivos = 1;
+    if (correosDosDispositivos.includes(email)) {
+        limiteDispositivos = 2;
+    }
 
-    const docRef = doc(db, "usuarios_seguros", currentUserEmail);
-    const docSnap = await getDoc(docRef);
+    // Consultar la base de datos
+    const docRef = doc(db, "usuarios_seguros", email);
+    const docSnap = await getDoc(docRef);
 
-    if (docSnap.exists()) {
-        const datos = docSnap.data();
-        let listaDispositivos = datos.dispositivos || []; 
-        
-        if (listaDispositivos.includes(miDeviceId)) {
-            return true; // Dispositivo actual ya está activo. OK.
-        } else {
-            // LÓGICA DE SESIÓN EXCLUSIVA: Reemplazar la lista con el nuevo dispositivo.
-            const nuevaLista = [miDeviceId];
-            await setDoc(docRef, { dispositivos: nuevaLista }, { merge: true });
-            
-            // Advertencia al usuario (la sesión anterior se invalidará)
-            alert("Se ha detectado un inicio de sesión en un nuevo dispositivo. Su sesión anterior ha sido invalidada (Sesión Exclusiva).");
-            return true;
-        }
-    } else {
-        // Primer inicio de sesión: registrar solo este dispositivo
-        await setDoc(docRef, {
-            dispositivos: [miDeviceId],
-            fecha_registro: new Date().toISOString()
-        });
-        return true;
-    }
+    if (docSnap.exists()) {
+        const datos = docSnap.data();
+        let listaDispositivos = datos.dispositivos || []; 
+        
+        if (listaDispositivos.includes(miDeviceId)) {
+            return true; // Dispositivo ya registrado
+        } else {
+            if (listaDispositivos.length < limiteDispositivos) {
+                // Registrar nuevo dispositivo
+                listaDispositivos.push(miDeviceId);
+                await setDoc(docRef, { dispositivos: listaDispositivos }, { merge: true });
+                return true;
+            } else {
+                // Acceso denegado por exceder el límite
+                alert(`⛔ ACCESO DENEGADO ⛔\n\nHas excedido tu límite de ${limiteDispositivos} dispositivos registrados. Debes cerrar sesión en otro equipo para continuar.`);
+                await signOut(auth);
+                location.reload();
+                return false;
+            }
+        }
+    } else {
+        // Primer inicio de sesión: registrar el dispositivo con su límite
+        await setDoc(docRef, {
+            dispositivos: [miDeviceId],
+            fecha_registro: new Date().toISOString()
+        });
+        return true;
+    }
 }
 
-// --- 8. MONITOR DE AUTENTICACIÓN ---
+// --- 6. MONITOR DE AUTENTICACIÓN ---
 onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        if (correosPermitidos.includes(user.email)) {
-            const titulo = document.querySelector('h2');
-            if(titulo) titulo.innerText = "Verificando Dispositivo..."; 
-            
-            const dispositivoValido = await validarDispositivo(user);
-            
-            if (dispositivoValido) {
-                authScreen.classList.add('hidden');
-                setupScreen.classList.remove('hidden');
-                btnLogout.classList.remove('hidden');
-                
-                // Mostrar datos de perfil y foto
-                const nombreReal = user.displayName || user.email.split('@')[0];
-                document.getElementById('user-display').innerText = nombreReal;
-                document.getElementById('header-username').innerText = nombreReal;
-                if(user.photoURL) document.getElementById('header-photo').src = user.photoURL;
-
-                if(titulo) titulo.innerText = "Bienvenido";
-                
-                // Audio de bienvenida usando síntesis de voz
-                setTimeout(() => {
-                    hablar(`Bienvenido ${nombreReal}, elija la opción que necesite.`);
-                }, 500); 
-            }
-        } else {
-            alert("ACCESO RESTRINGIDO: Tu correo no está autorizado.");
-            signOut(auth);
-        }
-    } else {
-        authScreen.classList.remove('hidden');
-        setupScreen.classList.add('hidden');
-        quizScreen.classList.add('hidden');
-        resultScreen.classList.add('hidden');
-        reviewScreen.classList.add('hidden');
-        btnLogout.classList.add('hidden');
-    }
+    if (user) {
+        if (correosPermitidos.includes(user.email)) {
+            const titulo = document.querySelector('h2');
+            if(titulo) titulo.innerText = "Verificando Dispositivo..."; 
+            
+            const dispositivoValido = await validarDispositivo(user);
+            
+            if (dispositivoValido) {
+                authScreen.classList.add('hidden');
+                setupScreen.classList.remove('hidden');
+                btnLogout.classList.remove('hidden');
+                document.getElementById('user-display').innerText = user.email;
+                if(titulo) titulo.innerText = "Bienvenido";
+            }
+        } else {
+            alert("ACCESO RESTRINGIDO: Tu correo no está autorizado.");
+            signOut(auth);
+        }
+    } else {
+        authScreen.classList.remove('hidden');
+        setupScreen.classList.add('hidden');
+        quizScreen.classList.add('hidden');
+        resultScreen.classList.add('hidden');
+        reviewScreen.classList.add('hidden');
+        btnLogout.classList.add('hidden');
+    }
 });
 
-// --- 9. EVENTOS DE AUTENTICACIÓN ---
+// --- 7. EVENTOS ---
 document.getElementById('btn-google').addEventListener('click', () => {
-    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
-        console.error("Error Google:", e);
-        alert("Error de inicio de sesión. Revisa la consola o permisos de pop-ups.");
-    });
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert("Error Google: " + e.message));
 });
 
-btnLogout.addEventListener('click', () => { 
-    if(confirm("¿Cerrar sesión?")) {
-        signOut(auth); 
-        location.reload(); 
-    }
-});
+btnLogout.addEventListener('click', () => { signOut(auth); location.reload(); });
 
-// --- 10. LÓGICA DEL EXAMEN ---
+// --- 8. LÓGICA DEL EXAMEN (Aleatorio 20 o Estudio todas) ---
 document.getElementById('btn-start').addEventListener('click', () => {
-    // ... [Lógica del Examen/Estudio] ...
-    const tiempo = document.getElementById('time-select').value;
-    const modo = document.getElementById('mode-select').value;
+    const tiempo = document.getElementById('time-select').value;
+    const modo = document.getElementById('mode-select').value;
 
-    if (tiempo !== 'infinity') { tiempoRestante = parseInt(tiempo) * 60; iniciarReloj(); } 
-    else { document.getElementById('timer-display').innerText = "--:--"; }
-    
-    if (modo === 'study') {
-        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
-    } else {
-        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
-    }
-    
-    respuestasUsuario = []; 
-    indiceActual = 0;
-    setupScreen.classList.add('hidden');
-    quizScreen.classList.remove('hidden');
-    cargarPregunta();
+    if (tiempo !== 'infinity') { tiempoRestante = parseInt(tiempo) * 60; iniciarReloj(); } 
+    else { document.getElementById('timer-display').innerText = "--:--"; }
+    
+    // Lógica de Modo
+    if (modo === 'study') {
+        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
+    } else {
+        // MODO EXAMEN: Carga 20 preguntas aleatorias
+        preguntasExamen = [...bancoPreguntas]
+            .sort(() => 0.5 - Math.random()) 
+            .slice(0, 20); // 20 PREGUNTAS
+    }
+    
+    respuestasUsuario = []; 
+    indiceActual = 0;
+    setupScreen.classList.add('hidden');
+    quizScreen.classList.remove('hidden');
+    cargarPregunta();
 });
 
-// --- 11. FUNCIONES DE QUIZ ---
 function cargarPregunta() {
-    seleccionTemporal = null; 
-    btnNextQuestion.classList.add('hidden'); 
-    
-    if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
-    
-    const data = preguntasExamen[indiceActual];
-    document.getElementById('question-text').innerText = `${indiceActual + 1}. ${data.texto}`;
-    const cont = document.getElementById('options-container'); cont.innerHTML = '';
-    
-    data.opciones.forEach((opcion, index) => {
-        const btn = document.createElement('button');
-        btn.innerText = opcion;
-        btn.onclick = () => seleccionarOpcion(index, btn); 
-        cont.appendChild(btn);
-    });
-    document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntasExamen.length}`;
+    seleccionTemporal = null; 
+    btnNextQuestion.classList.add('hidden'); 
+    
+    if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
+    
+    const data = preguntasExamen[indiceActual];
+    document.getElementById('question-text').innerText = `${indiceActual + 1}. ${data.texto}`;
+    const cont = document.getElementById('options-container'); cont.innerHTML = '';
+    
+    data.opciones.forEach((opcion, index) => {
+        const btn = document.createElement('button');
+        btn.innerText = opcion;
+        btn.onclick = () => seleccionarOpcion(index, btn); 
+        cont.appendChild(btn);
+    });
+    document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntasExamen.length}`;
 
-    if(indiceActual === preguntasExamen.length - 1) {
-        btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
-    } else {
-        btnNextQuestion.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
-    }
+    if(indiceActual === preguntasExamen.length - 1) {
+        btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
+    } else {
+        btnNextQuestion.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
+    }
 }
 
+// --- FUNCIÓN MODIFICADA PARA SEPARAR EL MODO ESTUDIO/EXAMEN ---
 function seleccionarOpcion(index, btnClickeado) {
-    const isStudyMode = document.getElementById('mode-select').value === 'study';
+    const isStudyMode = document.getElementById('mode-select').value === 'study';
 
-    if (isStudyMode && seleccionTemporal !== null) {
-        return;
-    }
-    
-    seleccionTemporal = index;
-    const botones = document.getElementById('options-container').querySelectorAll('button');
-    botones.forEach(b => b.classList.remove('option-selected'));
-    btnClickeado.classList.add('option-selected');
-    
-    if (isStudyMode) {
-        mostrarResultadoInmediato(index);
-    } else {
-        btnNextQuestion.classList.remove('hidden');
-    }
+    // Si ya se ha seleccionado una opción en el modo estudio, no permitir cambiar
+    if (isStudyMode && seleccionTemporal !== null) {
+        return;
+    }
+    
+    seleccionTemporal = index;
+    const botones = document.getElementById('options-container').querySelectorAll('button');
+    botones.forEach(b => b.classList.remove('option-selected'));
+    btnClickeado.classList.add('option-selected');
+    
+    if (isStudyMode) {
+        mostrarResultadoInmediato(index);
+    } else {
+        // MODO EXAMEN: Solo guarda la selección temporal y muestra el botón Siguiente
+        btnNextQuestion.classList.remove('hidden');
+    }
 }
 
+// --- NUEVA FUNCIÓN: Muestra respuesta y explicación en modo Estudio ---
 function mostrarResultadoInmediato(seleccionada) {
-    const pregunta = preguntasExamen[indiceActual];
-    const correcta = pregunta.respuesta;
-    const cont = document.getElementById('options-container');
-    const botones = cont.querySelectorAll('button');
-    
-    botones.forEach(btn => btn.disabled = true);
+    const pregunta = preguntasExamen[indiceActual];
+    const correcta = pregunta.respuesta;
+    const cont = document.getElementById('options-container');
+    const botones = cont.querySelectorAll('button');
+    
+    // Deshabilitar todos los botones para que no se pueda cambiar la respuesta
+    botones.forEach(btn => btn.disabled = true);
 
-    botones.forEach((btn, index) => {
-        btn.classList.remove('option-selected');
-        if (index === correcta) {
-            btn.classList.add('ans-correct', 'feedback-visible');
-        } else if (index === seleccionada) {
-            btn.classList.add('ans-wrong', 'feedback-visible');
-        }
-    });
+    // Iterar para mostrar el feedback visual (verde/rojo)
+    botones.forEach((btn, index) => {
+        btn.classList.remove('option-selected'); // Quitar selección temporal
+        
+        if (index === correcta) {
+            btn.classList.add('ans-correct', 'feedback-visible');
+        } else if (index === seleccionada) {
+            btn.classList.add('ans-wrong', 'feedback-visible');
+        }
+    });
 
-    const divExplicacion = document.createElement('div');
-    divExplicacion.className = 'explanation-feedback';
-    divExplicacion.innerHTML = `<strong>Explicación:</strong> ${pregunta.explicacion}`;
-    cont.appendChild(divExplicacion);
-    
-    respuestasUsuario.push(seleccionada);
-    btnNextQuestion.classList.remove('hidden');
+    // Añadir la explicación
+    const divExplicacion = document.createElement('div');
+    divExplicacion.className = 'explanation-feedback';
+    divExplicacion.innerHTML = `<strong>Explicación:</strong> ${pregunta.explicacion}`;
+    cont.appendChild(divExplicacion);
+    
+    // Registrar la respuesta y mostrar el botón Siguiente
+    respuestasUsuario.push(seleccionada);
+    btnNextQuestion.classList.remove('hidden');
 }
 
 
+// --- EVENTO MODIFICADO para el botón Siguiente ---
 btnNextQuestion.addEventListener('click', () => {
-    const isStudyMode = document.getElementById('mode-select').value === 'study';
-    
-    if (isStudyMode && seleccionTemporal !== null) {
-        indiceActual++;
-        cargarPregunta();
-        return; 
-    }
-    
-    if (seleccionTemporal !== null) {
-        respuestasUsuario.push(seleccionTemporal);
-        indiceActual++;
-        cargarPregunta();
-    }
+    const isStudyMode = document.getElementById('mode-select').value === 'study';
+    
+    // En modo estudio, simplemente avanza a la siguiente pregunta (la respuesta ya fue registrada en mostrarResultadoInmediato)
+    if (isStudyMode && seleccionTemporal !== null) {
+        indiceActual++;
+        cargarPregunta();
+        return; 
+    }
+    
+    // MODO EXAMEN: Registra la respuesta y avanza (sin feedback inmediato)
+    if (seleccionTemporal !== null) {
+        respuestasUsuario.push(seleccionTemporal);
+        indiceActual++;
+        cargarPregunta();
+    }
 });
 
 
 function iniciarReloj() {
-    intervaloTiempo = setInterval(() => {
-        tiempoRestante--;
-        let m = Math.floor(tiempoRestante / 60), s = tiempoRestante % 60;
-        document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-        if (tiempoRestante <= 0) { clearInterval(intervaloTiempo); terminarQuiz(); }
-    }, 1000);
+    intervaloTiempo = setInterval(() => {
+        tiempoRestante--;
+        let m = Math.floor(tiempoRestante / 60), s = tiempoRestante % 60;
+        document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        if (tiempoRestante <= 0) { clearInterval(intervaloTiempo); terminarQuiz(); }
+    }, 1000);
 }
 
 function terminarQuiz() {
-    clearInterval(intervaloTiempo);
-    let aciertos = 0;
-    const totalPreguntas = preguntasExamen.length;
-    
-    preguntasExamen.forEach((p, i) => { if (respuestasUsuario[i] === p.respuesta) aciertos++; });
-    quizScreen.classList.add('hidden');
-    resultScreen.classList.remove('hidden');
-    document.getElementById('score-final').innerText = `${aciertos} / ${totalPreguntas}`;
-    
-    const modeSelect = document.getElementById('mode-select');
-    if (modeSelect && modeSelect.value === 'study') {
-        document.getElementById('btn-review').classList.add('hidden');
-    } else {
-        document.getElementById('btn-review').classList.remove('hidden');
-    }
+    clearInterval(intervaloTiempo);
+    let aciertos = 0;
+    preguntasExamen.forEach((p, i) => { if (respuestasUsuario[i] === p.respuesta) aciertos++; });
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+    document.getElementById('score-final').innerText = `${aciertos} / ${preguntasExamen.length}`;
+    
+    // --- Ocultar botón Revisar Respuestas si es modo Estudio ---
+    const modeSelect = document.getElementById('mode-select');
+    if (modeSelect && modeSelect.value === 'study') {
+        document.getElementById('btn-review').classList.add('hidden');
+    } else {
+        document.getElementById('btn-review').classList.remove('hidden');
+    }
+    // --------------------------------------------------------
 }
 
-// --- 12. REVISIÓN ---
+// --- 9. REVISIÓN ---
 document.getElementById('btn-review').addEventListener('click', () => {
-    resultScreen.classList.add('hidden');
-    reviewScreen.classList.remove('hidden');
-    const cont = document.getElementById('review-container'); cont.innerHTML = '';
-    
-    preguntasExamen.forEach((p, i) => {
-        const dada = respuestasUsuario[i], ok = (dada === p.respuesta);
-        const card = document.createElement('div'); card.className = 'review-item';
-        let ops = '';
-        p.opciones.forEach((o, x) => {
-            let c = (x === p.respuesta) ? 'ans-correct' : (x === dada && !ok ? 'ans-wrong' : '');
-            let ico = (x === p.respuesta) ? '✅ ' : (x === dada && !ok ? '❌ ' : '');
-            let b = (x === dada) ? 'user-selected' : '';
-            ops += `<div class="review-answer ${c} ${b}">${ico}${o}</div>`;
-        });
-        card.innerHTML = `<div class="review-question">${i+1}. ${p.texto}</div>${ops}<div class="review-explanation"><strong>Explicación:</strong> ${p.explicacion}</div>`;
-        cont.appendChild(card);
-    });
+    resultScreen.classList.add('hidden');
+    reviewScreen.classList.remove('hidden');
+    const cont = document.getElementById('review-container'); cont.innerHTML = '';
+    
+    preguntasExamen.forEach((p, i) => {
+        const dada = respuestasUsuario[i], ok = (dada === p.respuesta);
+        const card = document.createElement('div'); card.className = 'review-item';
+        let ops = '';
+        p.opciones.forEach((o, x) => {
+            let c = (x === p.respuesta) ? 'ans-correct' : (x === dada && !ok ? 'ans-wrong' : '');
+            let ico = (x === p.respuesta) ? '✅ ' : (x === dada && !ok ? '❌ ' : '');
+            let b = (x === dada) ? 'user-selected' : '';
+            ops += `<div class="review-answer ${c} ${b}">${ico}${o}</div>`;
+        });
+        card.innerHTML = `<div class="review-question">${i+1}. ${p.texto}</div>${ops}<div class="review-explanation"><strong>Explicación:</strong> ${p.explicacion}</div>`;
+        cont.appendChild(card);
+    });
 });
