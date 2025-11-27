@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://api.dicebear.com">
     
-    <link rel="stylesheet" href="style.css?v=180">
+    <link rel="stylesheet" href="style.css?v=190">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -50,8 +50,14 @@
     <div class="container hidden" id="auth-screen" style="border: none; box-shadow: none; padding-top: 20px;">
         <h1 class="auth-title">Bienvenido</h1>
         <p class="auth-subtitle">Accede con tu cuenta institucional</p>
+        
         <button id="btn-google" class="btn-google-style">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style="width: 18px; height: 18px;">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="width: 20px; height: 20px; display: block;">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+            </svg>
             Ingresar con Google
         </button>
     </div>
@@ -60,7 +66,7 @@
         
         <div style="text-align: center; margin-bottom: 20px;">
             <div class="profile-row">
-                <p style="font-size: 0.95rem; color: #555; margin: 0;">
+                <p style="font-size: 1rem; color: #333; margin: 0;">
                     Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">...</span>
                 </p>
                 <img id="user-google-photo" src="" alt="Foto" class="google-profile-pic hidden" referrerpolicy="no-referrer">
@@ -68,15 +74,6 @@
             <div class="verified-badge">
                 <i class="fa-solid fa-square-check"></i> Dispositivo verificado
             </div>
-        </div>
-
-        <div class="control-group" style="text-align: center;">
-            <label style="margin-bottom: 10px; display: block;">¿Cuál es tu género?</label>
-            <div class="gender-selector">
-                <button class="gender-btn selected" data-gender="male"><i class="fa-solid fa-person"></i> Hombre</button>
-                <button class="gender-btn" data-gender="female"><i class="fa-solid fa-person-dress"></i> Mujer</button>
-            </div>
-            <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">* El sistema te hablará con la voz opuesta.</p>
         </div>
 
         <div class="control-group">
@@ -103,7 +100,7 @@
             </select>
         </div>
 
-        <button id="btn-start" class="btn-primary" style="margin-top: 10px;">EMPEZAR</button>
+        <button id="btn-start" class="btn-primary" style="margin-top: 20px;">EMPEZAR</button>
     </div>
 
     <div class="container hidden" id="avatar-screen">
@@ -170,6 +167,7 @@
             <button id="close-stats" class="close-btn">&times;</button>
             <h2 style="color: #1a73e8;">Mi Historial</h2>
             <canvas id="progressChart"></canvas>
+            <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">* Solo exámenes finalizados.</p>
         </div>
     </div>
 
@@ -181,6 +179,16 @@
         </div>
     </div>
 
+    <div id="battle-results-modal" class="hidden modal-overlay">
+        <div class="modal-card" style="max-width: 700px; width: 95%;">
+            <h2 style="color: #fbbc04; text-transform: uppercase;">🏆 Resultados de la Guerra</h2>
+            <div id="podium-container" class="podium-container"><div class="spinner"></div></div>
+            <div style="margin-top: 20px;">
+                <button onclick="location.reload()" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">Salir de la Guerra</button>
+            </div>
+        </div>
+    </div>
+
     <audio id="bg-music" loop preload="auto"><source src="https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=science-documentary-123270.mp3" type="audio/mpeg"></audio>
     <audio id="success-sound" preload="auto"><source src="https://www.soundjay.com/human/applause-01.mp3" type="audio/mpeg"></audio>
     <audio id="fail-sound" preload="auto"><source src="https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3" type="audio/mpeg"></audio>
@@ -189,6 +197,6 @@
     
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=180"></script>
+    <script type="module" src="script.js?v=190"></script>
 </body>
 </html>
