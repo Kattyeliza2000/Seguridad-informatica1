@@ -52,7 +52,7 @@ const bancoPreguntas = [
     { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán." },
     { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap." },
     { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
-    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad", "Integridad", "Disponibilidad"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
+    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
     { texto: "El término SSRF significa:", opciones: ["Safe Session Reset Form", "Simple Service Relay Feature", "Secure Software Risk Framework", "Server-Side Request Forgery"], respuesta: 3, explicacion: "Respuesta correcta: Server-Side Request Forgery." },
     { texto: "El proyecto OWASP tiene como finalidad principal:", opciones: ["Vender cortafuegos", "Producir malware de prueba", "Crear estándares de hardware", "Mejorar la seguridad de aplicaciones web de forma abierta"], respuesta: 3, explicacion: "Respuesta correcta: Mejorar la seguridad de aplicaciones web de forma abierta." },
     { texto: "La gestión de activos se considera importante porque:", opciones: ["Genera llaves criptográficas", "Reduce el jitter", "Actualiza antivirus", "Mantiene control sobre hardware, software y datos"], respuesta: 3, explicacion: "Respuesta correcta: Mantiene control sobre hardware, software y datos." },
@@ -132,6 +132,7 @@ function playClick() {
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
+    
     grid.innerHTML = '';
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
@@ -256,9 +257,11 @@ onAuthStateChanged(auth, async (user) => {
                 document.getElementById('player-nickname').value = nombreReal;
                 
                 if (user.photoURL) {
-                    document.getElementById('user-google-photo').src = user.photoURL;
-                    document.getElementById('user-google-photo').classList.remove('hidden');
-                    document.getElementById('header-photo').src = user.photoURL;
+                    const profilePic = document.getElementById('user-google-photo');
+                    profilePic.src = user.photoURL;
+                    profilePic.classList.remove('hidden');
+                    const headerPic = document.getElementById('header-photo');
+                    if(headerPic) headerPic.src = user.photoURL;
                 }
                 
                 toggleHeaderButtons();
@@ -704,7 +707,7 @@ async function cargarGraficoFirebase() {
             data: { labels: history.map((_, i) => `Intento ${i+1}`), datasets: [{ label: 'Nota', data: history.map(x => x.score), borderColor: '#1a73e8', tension: 0.3, fill: true, backgroundColor: 'rgba(26,115,232,0.1)' }] },
             options: { scales: { y: { beginAtZero: true, max: 100 } } }
         });
-    } catch(e) { console.warn("Error gráfico (posible falta de índice):", e); }
+    } catch(e) { console.error("Error gráfico (posible falta de índice):", e); }
 }
 
 async function cargarRankingGlobal() {
