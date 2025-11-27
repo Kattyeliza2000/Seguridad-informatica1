@@ -56,6 +56,7 @@ const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 
+
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica (Fallo técnico/suministro)." },
@@ -157,6 +158,10 @@ async function iniciarBatalla() {
     console.log("Modo Batalla iniciado (Lógica de sala simulada).");
     tempBattleID = generarIDTemporal();
     currentMode = 'multiplayer';
+    
+    // MOSTRAR PERFIL AL INICIAR BATALLA
+    document.getElementById('header-user-info').classList.remove('hidden'); 
+    
     iniciarJuegoReal();
 }
 async function crearSala() { /* Simulada */ }
@@ -215,8 +220,13 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             
-            const nombreCompleto = user.displayName || user.email.split('@')[0];
-            const nombreCorto = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
+            // LÓGICA DE NOMBRE CON CAPITALIZACIÓN: "Katty"
+            let nombre = user.displayName || user.email.split('@')[0];
+            const partes = nombre.toLowerCase().split(' ');
+            const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+            
+            // Tomar solo el primer nombre para el header
+            const nombreCorto = nombreCompletoCorregido.split(' ')[0];
             
             uidJugadorPermanente = user.uid;
             currentUserEmail = user.email;
@@ -229,20 +239,15 @@ onAuthStateChanged(auth, async (user) => {
                 setupScreen.classList.remove('hidden');
                 btnLogout.classList.remove('hidden');
 
-                // Mostrar Nombre y Foto en la cabecera (Header) - Mejora solicitada
-                document.getElementById('header-username').innerText = nombreCorto;
-                document.getElementById('header-user-info').classList.remove('hidden');
-
-                if (user.photoURL) {
-                    document.getElementById('header-photo').src = user.photoURL;
-                }
-
-                // Mostrar Nombre y Foto/Verificación en la pantalla de Setup - Mejora solicitada
-                document.getElementById('user-display').innerText = nombreCompleto;
+                // Mostrar Nombre y Foto en el SETUP
+                document.getElementById('user-display').innerText = nombreCompletoCorregido;
                 if (user.photoURL) {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
+                
+                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
+                document.getElementById('header-user-info').classList.add('hidden'); 
 
                 // Audio de bienvenida (TTS)
                 setTimeout(() => {
@@ -257,7 +262,8 @@ onAuthStateChanged(auth, async (user) => {
         // PANTALLA DE LOGOUT/NO LOGUEADO
         authScreen.classList.remove('hidden');
         setupScreen.classList.add('hidden');
-        // ... (resto de lógica de ocultar pantallas) ...
+        document.getElementById('header-user-info').classList.add('hidden');
+        // ... (resto de lógica) ...
     }
 });
 
@@ -278,9 +284,15 @@ btnLogout.addEventListener('click', () => {
 
 // --- 10. LÓGICA DEL JUEGO / SETUP ---
 document.getElementById('btn-start').addEventListener('click', () => {
-    const mode = modeSelect.value;
+    const modo = modeSelect.value;
     
-    if (mode === 'multiplayer') {
+    // MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR
+    document.getElementById('header-user-info').classList.remove('hidden');
+    document.getElementById('header-username').innerText = document.getElementById('user-display').innerText.split(' ')[0];
+    document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
+
+
+    if (modo === 'multiplayer') {
         const alias = aliasInput.value.trim();
         if (alias.length < 3) {
             hablar("Por favor, introduce un alias de al menos tres letras para la batalla.");
@@ -290,7 +302,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
         currentAlias = alias;
         hablar(`¡Excelente, ${alias}! Preparando la zona de batalla.`);
         iniciarBatalla(); 
-    } else if (mode === 'exam') {
+    } else if (modo === 'exam') {
         hablar("Mucha suerte en tu examen. El tiempo ha comenzado.");
         iniciarJuegoReal();
     } else { // study
@@ -539,7 +551,7 @@ function createConfetti() {
     }
 }
 
-// --- 16. REVISIÓN Y MÁS FUNCIONES AUXILIARES (Debe existir en tu script) ---
+// --- 16. REVISIÓN Y MÁS FUNCIONES AUXILIARES ---
 document.getElementById('btn-review').addEventListener('click', () => {
     resultScreen.classList.add('hidden');
     reviewScreen.classList.remove('hidden');
@@ -560,10 +572,10 @@ document.getElementById('btn-review').addEventListener('click', () => {
     });
 });
 
-// --- Funciones de Ranking/Historial (Mantenidas para Firebase) ---
 async function guardarHistorialFirebase(nota) {
     // ... [código de Firebase] ...
 }
+
 async function guardarPuntajeGlobal(nota) {
     // ... [código de Firebase] ...
 }
