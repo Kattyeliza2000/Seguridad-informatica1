@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 // Mantenemos imports de Firestore para Ranking, Historial y Batalla
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
 const firebaseConfig = {
@@ -56,8 +56,9 @@ const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 const headerUserInfo = document.getElementById('header-user-info');
-const playerNickname = document.getElementById('player-nickname'); // Nueva ref
-const avatarGrid = document.getElementById('avatar-grid'); // Nueva ref
+const playerNickname = document.getElementById('player-nickname'); 
+const avatarGrid = document.getElementById('avatar-grid'); 
+
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
@@ -183,10 +184,10 @@ async function iniciarBatalla() {
     tempBattleID = generarIDTemporal();
     currentMode = 'multiplayer';
     
-    // MOSTRAR PERFIL EN ENCABEZADO (PUNTO DE ACTIVACIÓN DE PERFIL)
+    // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA (PUNTO DE ACTIVACIÓN DE PERFIL)
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    // REDIRECCIÓN INTERMEDIA: Ir a selección de Avatar/Alias
+    // ** FLUJO: Va a la pantalla de Avatar/Alias **
     showScreen('avatar-screen'); 
     initAvatars(); // Inicia la grilla de avatares
 }
@@ -202,12 +203,21 @@ function initAvatars() {
     if(!grid) return; 
     grid.innerHTML = '';
     
+    // Asegurarse de que el avatar por defecto sea Katty
+    const defaultName = document.getElementById('user-display').innerText.split(' ')[0];
+    
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
         const img = document.createElement('img');
         img.src = url;
         img.className = 'avatar-option';
-        if(index === 0) { img.classList.add('avatar-selected'); currentAvatarUrl = url; }
+        
+        // Determinar si este es el avatar por defecto para la primera carga
+        if(index === 0) { 
+            img.classList.add('avatar-selected'); 
+            currentAvatarUrl = url; 
+        }
+        
         img.onclick = () => {
             playClick();
             document.querySelectorAll('.avatar-option').forEach(x => x.classList.remove('avatar-selected'));
@@ -216,6 +226,9 @@ function initAvatars() {
         };
         grid.appendChild(img);
     });
+    
+    // Establecer el apodo inicial si está disponible
+    document.getElementById('player-nickname').value = defaultName;
 }
 
 // --- FUNCIÓN: Muestra la pantalla de selección de salas ---
@@ -230,7 +243,7 @@ function mostrarSelectorSalas() {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
         const iconClass = ROOM_ICONS[salaId] || 'fa-users';
-        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">4 Agentes</span>`; 
+        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">4 Agentes</span>`; // Simulación de contador
         
         btn.onclick = () => { 
             playClick(); 
@@ -368,7 +381,6 @@ document.getElementById('btn-start').addEventListener('click', () => {
 
     if (modo === 'multiplayer') {
         const alias = aliasInput.value.trim();
-        // ** FLUJO: Va a la pantalla de Avatar/Salas **
         if (alias.length < 3) {
             hablar("Por favor, introduce un alias de al menos tres letras para la batalla.");
             aliasInput.focus();
@@ -376,8 +388,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
         }
         currentAlias = alias;
         hablar(`¡Excelente, ${alias}! Elige tu avatar y tu zona de guerra.`);
-        iniciarBatalla(); // Redirige a la pantalla de avatar/salas
-        
+        iniciarBatalla(); 
     } else {
         // TTS AL INICIAR EXAMEN/ESTUDIO
         hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
@@ -389,28 +400,42 @@ document.getElementById('btn-start').addEventListener('click', () => {
     if(bgMusic) { bgMusic.volume = obtenerVolumen(); bgMusic.play().catch(()=>{}); }
 });
 
+// --- LÓGICA DE VISUALIZACIÓN DE ALIAS EN SETUP ---
+modeSelect.addEventListener('change', () => {
+    const isMultiplayer = modeSelect.value === 'multiplayer';
+    
+    if (isMultiplayer) {
+        aliasInputGroup.classList.remove('hidden');
+        btnStart.innerText = '⚔️ Unirse a Batalla';
+    } else {
+        aliasInputGroup.classList.add('hidden');
+        btnStart.innerText = 'Empezar';
+    }
+});
 
-// --- LÓGICA DE AVANZAR DESDE LA PANTALLA DE AVATAR (NUEVO) ---
 document.addEventListener('DOMContentLoaded', () => {
     const btnConfirmIdentity = document.getElementById('btn-confirm-identity');
+    
     if (btnConfirmIdentity) {
         btnConfirmIdentity.addEventListener('click', () => {
             const nick = document.getElementById('player-nickname').value.trim();
             
-            // Validar que se haya puesto un apodo
             if (nick.length < 3) {
                  hablar("Por favor, introduce un apodo de al menos tres letras.");
                  return;
             }
             
-            // Si todo está bien, pasamos a seleccionar la sala
+            // SIMULAR: Pasamos a seleccionar la sala
             mostrarSelectorSalas();
         });
     }
     
     // Navegación hacia atrás
-    document.getElementById('back-to-setup').addEventListener('click', () => showScreen('setup-screen'));
-    document.getElementById('back-to-avatar').addEventListener('click', () => showScreen('avatar-screen'));
+    const backToSetup = document.getElementById('back-to-setup');
+    const backToAvatar = document.getElementById('back-to-avatar');
+    
+    if(backToSetup) backToSetup.addEventListener('click', () => showScreen('setup-screen'));
+    if(backToAvatar) backToAvatar.addEventListener('click', () => showScreen('avatar-screen'));
 });
 
 
@@ -496,7 +521,7 @@ function mostrarResultadoInmediato(seleccionada) {
     const cont = document.getElementById('options-container');
     const botones = cont.querySelectorAll('button');
     
-    // 2. TTS FEEDBACK ELIMINADO de aquí (Solo va en el inicio)
+    // 2. Control de sonido por respuesta
     const esCorrecta = (seleccionada === correcta);
     if (esCorrecta) {
         document.getElementById('correct-sound').play().catch(()=>{});
@@ -666,7 +691,6 @@ document.getElementById('btn-review').addEventListener('click', () => {
 // --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (Corregidos) ---
 
 function obtenerVolumen() {
-    // Asegura que el valor sea un número entre 0 y 1
     return parseFloat(document.getElementById('volume-slider').value);
 }
 
