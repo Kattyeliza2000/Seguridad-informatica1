@@ -1,17 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Se mantienen los imports de Firestore para Ranking, Historial y Dispositivos
+// Mantener todos los imports de Firestore para Ranking, Historial y Dispositivos
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, onSnapshot, where, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN INICIAL Y FIREBASE ---
 const firebaseConfig = {
-    apiKey: "AIzaSyAMQpnPJSdicgo5gungVOE0M7OHwkz4P9Y",
-    authDomain: "autenticacion-8faac.firebaseapp.com",
-    projectId: "autenticacion-8faac",
-    storageBucket: "autenticacion-8faac.firebasestorage.app",
-    messagingSenderId: "939518706600",
-    appId: "1:939518706600:web:d28c3ec7de21da8379939d",
-    measurementId: "G-8LXM9VS1M0"
+    apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
+    authDomain: "simulador-c565e.firebaseapp.com",
+    projectId: "simulador-c565e",
+    storageBucket: "simulador-c565e.firebasestorage.app",
+    messagingSenderId: "673284794982",
+    appId: "1:673284794982:web:3c21cf20e04798a647dba7",
+    measurementId: "G-W715QQWGY1"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -23,7 +23,7 @@ const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec
 const correosUnDispositivo = ["cnavarretem4@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
-// --- 3. CONFIGURACIÓN DE AVATARES (Mantenido) ---
+// --- 3. CONFIGURACIÓN DE AVATARES (Mantenido si el HTML lo usa) ---
 const AVATAR_CONFIG = [
     { seed: 'Felix', style: 'avataaars', bg: 'b6e3f4' },
     { seed: 'Aneka', style: 'avataaars', bg: 'c0aede' },
@@ -36,12 +36,12 @@ const AVATAR_CONFIG = [
 ];
 
 // **************************************************************************************
-// ** 4. VARIABLES GLOBALES UNIFICADAS (Se elimina la sección duplicada que causaba el error) **
+// ** 4. VARIABLES GLOBALES UNIFICADAS (SOLO UNA DECLARACIÓN PARA CADA VARIABLE) **
 // **************************************************************************************
 let currentAvatarUrl = null;
 let currentStreak = 0;
 let startTime = 0; 
-let preguntasExamen = []; // <<== Declaración única aquí
+let preguntasExamen = []; // <<== Declaración única
 let indiceActual = 0;
 let respuestasUsuario = []; 
 let seleccionTemporal = null; 
@@ -50,6 +50,8 @@ let intervaloTiempo;
 let currentUserEmail = "";
 let currentMode = 'individual';
 let uidJugadorPermanente = null; 
+let jugadorActualData = null; // Mantenemos la estructura de la variable si es necesaria
+let jugadorActualId = null; // Mantenemos la estructura de la variable si es necesaria
 
 // REFERENCIAS HTML (Estas variables deben declararse aquí y solo aquí)
 const authScreen = document.getElementById('auth-screen');
@@ -63,6 +65,7 @@ const btnRanking = document.getElementById('btn-ranking');
 const btnStats = document.getElementById('btn-stats');
 // **************************************************************************************
 
+
 // --- 5. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica (Fallo técnico/suministro)." },
@@ -70,7 +73,7 @@ const bancoPreguntas = [
     { texto: "El término SSRF significa:", opciones: ["Safe Session Reset Form", "Simple Service Relay Feature", "Secure Software Risk Framework", "Server-Side Request Forgery"], respuesta: 3, explicacion: "Respuesta correcta: Server-Side Request Forgery" },
     { texto: "El proyecto OWASP tiene como finalidad principal:", opciones: ["Vender cortafuegos", "Producir malware de prueba", "Crear estándares de hardware", "Mejorar la seguridad de aplicaciones web de forma abierta"], respuesta: 3, explicacion: "Respuesta correcta: Mejorar la seguridad de aplicaciones web de forma abierta" },
     { texto: "La gestión de activos se considera importante porque:", opciones: ["Genera llaves criptográficas", "Reduce el jitter", "Actualiza antivirus", "Mantiene control sobre hardware, software y datos"], respuesta: 3, explicacion: "Respuesta correcta: Mantiene control sobre hardware, software y datos" },
-    { texto: "El operador “eq” en una regla de firewall sirve para:", opciones: ["Cambiar protocolo", "Hacer ping", "Filtrar un número de puerto específico", "Denegar IPs"], respuesta: 2, explicacion: "Respuesta correcta: Filtrar un número de puerto específico" },
+    { texto: "El operador 'eq' en una regla de firewall sirve para:", opciones: ["Cambiar protocolo", "Hacer ping", "Filtrar un número de puerto específico", "Denegar IPs"], respuesta: 2, explicacion: "Respuesta correcta: Filtrar un número de puerto específico" },
     { texto: "Una falla criptográfica puede conducir principalmente a:", opciones: ["Exposición de datos confidenciales", "Jitter elevando", "DoS", "Aumento de latencia"], respuesta: 0, explicacion: "Respuesta correcta: Exposición de datos confidenciales" },
     { texto: "¿Qué categoría de activo abarca servidores, routers y estaciones de trabajo?", opciones: ["Data", "Lines & Networks", "Hardware", "Software"], respuesta: 2, explicacion: "Respuesta correcta: Hardware" },
     { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán (Desastre natural/climático)." },
@@ -81,7 +84,7 @@ const bancoPreguntas = [
     { texto: "Un Sombrero gris (Gray Hat) se define como alguien que:", opciones: ["Actúa a veces como White Hat y a veces como Black Hat", "Sólo ataca redes bancarias", "Es siempre malicioso", "Trabaja para la NSA"], respuesta: 0, explicacion: "Respuesta correcta: Actúa a veces como White Hat y a veces como Black Hat" },
     { texto: "¿Cuál de los siguientes es un ejemplo de ataque activo listado en el material?", opciones: ["Shoulder surfing", "Footprinting", "Inyección SQL", "Sniffing"], respuesta: 2, explicacion: "Respuesta correcta: Inyección SQL" },
     { texto: "Dentro de las fases del hacking ético, la primera etapa es:", opciones: ["Reconocimiento (recon)", "Mantenimiento de acceso", "Escalada de privilegios", "Borrado de huellas"], respuesta: 0, explicacion: "Respuesta correcta: Reconocimiento (recon)" },
-    { texto: "El principio “C” del trípode CIA significa:", opciones: ["Confidencialidad", "Conectividad", "Capacidad", "Continuidad"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad" },
+    { texto: "El principio 'C' del trípode CIA significa:", opciones: ["Confidencialidad", "Conectividad", "Capacidad", "Continuidad"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad" },
     { texto: "El algoritmo RSA fue propuesto por:", opciones: ["Diffie & Hellman", "Rivest, Shamir y Adleman", "ElGamal", "Miller & Koblitz"], respuesta: 1, explicacion: "Respuesta correcta: Rivest, Shamir y Adleman" },
     { texto: "El método de transposición se basa en:", opciones: ["Usar claves públicas", "Reordenar las letras del mensaje", "Sustituir letras por números", "Generar firmas digitales"], respuesta: 1, explicacion: "Respuesta correcta: Reordenar las letras del mensaje" },
     { texto: "DES trabaja con bloques de:", opciones: ["32 bits", "256 bits", "64 bits", "128 bits"], respuesta: 2, explicacion: "Respuesta correcta: 64 bits" },
@@ -131,24 +134,7 @@ const bancoPreguntas = [
     { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: CIA." }
 ];
 
-// VARIABLES GLOBALES
-let preguntasExamen = []; // Se llena aleatoriamente con 20 preguntas
-let indiceActual = 0;
-let respuestasUsuario = []; 
-let seleccionTemporal = null; 
-let tiempoRestante = 0;
-let intervaloTiempo;
-
-// REFERENCIAS HTML
-const authScreen = document.getElementById('auth-screen');
-const setupScreen = document.getElementById('setup-screen');
-const quizScreen = document.getElementById('quiz-screen');
-const resultScreen = document.getElementById('result-screen');
-const reviewScreen = document.getElementById('review-screen');
-const btnLogout = document.getElementById('btn-logout');
-const btnNextQuestion = document.getElementById('btn-next-question');
-
-// --- 4. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
+// --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
 function obtenerDeviceId() {
     let deviceId = localStorage.getItem('device_id_seguro');
     if (!deviceId) {
@@ -158,19 +144,29 @@ function obtenerDeviceId() {
     return deviceId;
 }
 
-// --- 5. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS) ---
+// --- 6. FUNCIÓN DE VOZ ---
+function hablar(texto) {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = 'es-ES';
+    utterance.rate = 1.0;
+    synth.speak(utterance);
+}
+
+// --- 7. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS y SESIÓN EXCLUSIVA) ---
 async function validarDispositivo(user) {
-    const email = user.email;
+    currentUserEmail = user.email;
+    uidJugadorPermanente = user.uid;
     const miDeviceId = obtenerDeviceId(); 
     
-    // Determinar el límite de dispositivos para este usuario
     let limiteDispositivos = 1;
-    if (correosDosDispositivos.includes(email)) {
+    if (correosDosDispositivos.includes(currentUserEmail)) {
         limiteDispositivos = 2;
     }
 
-    // Consultar la base de datos
-    const docRef = doc(db, "usuarios_seguros", email);
+    const docRef = doc(db, "usuarios_seguros", currentUserEmail);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -178,23 +174,14 @@ async function validarDispositivo(user) {
         let listaDispositivos = datos.dispositivos || []; 
         
         if (listaDispositivos.includes(miDeviceId)) {
-            return true; // Dispositivo ya registrado
+            return true;
         } else {
-            if (listaDispositivos.length < limiteDispositivos) {
-                // Registrar nuevo dispositivo
-                listaDispositivos.push(miDeviceId);
-                await setDoc(docRef, { dispositivos: listaDispositivos }, { merge: true });
-                return true;
-            } else {
-                // Acceso denegado por exceder el límite
-                alert(`⛔ ACCESO DENEGADO ⛔\n\nHas excedido tu límite de ${limiteDispositivos} dispositivos registrados. Debes cerrar sesión en otro equipo para continuar.`);
-                await signOut(auth);
-                location.reload();
-                return false;
-            }
+            const nuevaLista = [miDeviceId];
+            await setDoc(docRef, { dispositivos: nuevaLista }, { merge: true });
+            alert("Se ha detectado un inicio de sesión en un nuevo dispositivo. Su sesión anterior ha sido invalidada (Sesión Exclusiva).");
+            return true;
         }
     } else {
-        // Primer inicio de sesión: registrar el dispositivo con su límite
         await setDoc(docRef, {
             dispositivos: [miDeviceId],
             fecha_registro: new Date().toISOString()
@@ -203,7 +190,7 @@ async function validarDispositivo(user) {
     }
 }
 
-// --- 6. MONITOR DE AUTENTICACIÓN ---
+// --- 8. MONITOR DE AUTENTICACIÓN ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
@@ -216,8 +203,17 @@ onAuthStateChanged(auth, async (user) => {
                 authScreen.classList.add('hidden');
                 setupScreen.classList.remove('hidden');
                 btnLogout.classList.remove('hidden');
-                document.getElementById('user-display').innerText = user.email;
+                
+                const nombreReal = user.displayName || user.email.split('@')[0];
+                document.getElementById('user-display').innerText = nombreReal;
+                document.getElementById('header-username').innerText = nombreReal;
+                if(user.photoURL) document.getElementById('header-photo').src = user.photoURL;
+
                 if(titulo) titulo.innerText = "Bienvenido";
+                
+                setTimeout(() => {
+                    hablar(`Bienvenido ${nombreReal}, elija la opción que necesite.`);
+                }, 500); 
             }
         } else {
             alert("ACCESO RESTRINGIDO: Tu correo no está autorizado.");
@@ -233,29 +229,37 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- 7. EVENTOS ---
+// --- 9. EVENTOS DE AUTENTICACIÓN ---
 document.getElementById('btn-google').addEventListener('click', () => {
-    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert("Error Google: " + e.message));
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
+        console.error("Error Google:", e);
+        alert("Error de inicio de sesión. Revisa la consola o permisos de pop-ups.");
+    });
 });
 
-btnLogout.addEventListener('click', () => { signOut(auth); location.reload(); });
+btnLogout.addEventListener('click', () => { 
+    if(confirm("¿Cerrar sesión?")) {
+        signOut(auth); 
+        location.reload(); 
+    }
+});
 
-// --- 8. LÓGICA DEL EXAMEN (Aleatorio 20 o Estudio todas) ---
+// --- 10. LÓGICA DEL EXAMEN ---
 document.getElementById('btn-start').addEventListener('click', () => {
     const tiempo = document.getElementById('time-select').value;
     const modo = document.getElementById('mode-select').value;
 
-    if (tiempo !== 'infinity') { tiempoRestante = parseInt(tiempo) * 60; iniciarReloj(); } 
-    else { document.getElementById('timer-display').innerText = "--:--"; }
+    if (tiempo !== 'infinity') { 
+        tiempoRestante = parseInt(tiempo) * 60; 
+        iniciarReloj(); 
+    } else { 
+        document.getElementById('timer-display').innerText = "--:--"; 
+    }
     
-    // Lógica de Modo
     if (modo === 'study') {
         preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
     } else {
-        // MODO EXAMEN: Carga 20 preguntas aleatorias
-        preguntasExamen = [...bancoPreguntas]
-            .sort(() => 0.5 - Math.random()) 
-            .slice(0, 20); // 20 PREGUNTAS
+        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
     }
     
     respuestasUsuario = []; 
