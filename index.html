@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://api.dicebear.com">
     
-    <link rel="stylesheet" href="style.css?v=145">
+    <link rel="stylesheet" href="style.css?v=180">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -17,7 +17,7 @@
 
     <div id="app-loader">
         <div class="spinner"></div>
-        <p>Cargando...</p>
+        <p>Cargando Sistema...</p>
     </div>
 
     <header>
@@ -27,33 +27,58 @@
         </div>
         
         <div style="display: flex; align-items: center; gap: 10px;">
-            <img id="header-photo" src="" class="header-profile-pic hidden" alt="Perfil">
-            
-            <button id="btn-ranking" class="btn-icon hidden locked-btn" title="Ranking Global"><i class="fa-solid fa-trophy"></i></button>
-            <button id="btn-stats" class="btn-icon hidden locked-btn" title="Mis Estadísticas"><i class="fa-solid fa-chart-pie"></i></button>
-            
-            <div class="volume-control-box">
-                <button id="btn-mute" class="btn-icon"><i class="fa-solid fa-volume-high" id="vol-icon"></i></button>
-                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.4">
+            <div id="header-user-info" class="header-user-info hidden">
+                <span id="header-username" class="header-username-text">Usuario</span>
+                <img id="header-photo" src="" class="header-profile-pic" alt="Perfil">
             </div>
-            <button id="btn-logout" class="btn-secondary hidden" style="font-size: 0.8rem; padding: 5px 15px;">Salir</button>
+            
+            <div class="header-controls">
+                <button id="btn-ranking" class="btn-icon hidden locked-btn" title="Ranking Global"><i class="fa-solid fa-trophy"></i></button>
+                <button id="btn-stats" class="btn-icon hidden locked-btn" title="Mis Estadísticas"><i class="fa-solid fa-chart-pie"></i></button>
+                
+                <div class="volume-control-box">
+                    <button id="btn-mute" class="btn-icon"><i class="fa-solid fa-volume-high" id="vol-icon"></i></button>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.4">
+                </div>
+                <button id="btn-logout" class="btn-secondary hidden" style="font-size: 0.8rem; padding: 5px 15px;">Salir</button>
+            </div>
         </div>
     </header>
 
     <div id="combo-display" class="hidden">¡RACHA x3! 🔥</div>
 
-    <div class="container hidden" id="auth-screen" style="border: none; box-shadow: none; padding-top: 0;">
-        <h1 style="color: #1a73e8; font-size: 2.5rem; font-weight: 800; margin-bottom: 10px;">Bienvenido</h1>
-        
-        <p style="color: #5f6368; font-size: 1.1rem; margin-bottom: 30px;">Accede con tu cuenta institucional</p>
-        
+    <div class="container hidden" id="auth-screen" style="border: none; box-shadow: none; padding-top: 20px;">
+        <h1 class="auth-title">Bienvenido</h1>
+        <p class="auth-subtitle">Accede con tu cuenta institucional</p>
         <button id="btn-google" class="btn-google-style">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style="width: 20px; height: 20px;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style="width: 18px; height: 18px;">
             Ingresar con Google
         </button>
     </div>
 
     <div class="container hidden" id="setup-screen" style="text-align: left;">
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div class="profile-row">
+                <p style="font-size: 0.95rem; color: #555; margin: 0;">
+                    Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">...</span>
+                </p>
+                <img id="user-google-photo" src="" alt="Foto" class="google-profile-pic hidden" referrerpolicy="no-referrer">
+            </div>
+            <div class="verified-badge">
+                <i class="fa-solid fa-square-check"></i> Dispositivo verificado
+            </div>
+        </div>
+
+        <div class="control-group" style="text-align: center;">
+            <label style="margin-bottom: 10px; display: block;">¿Cuál es tu género?</label>
+            <div class="gender-selector">
+                <button class="gender-btn selected" data-gender="male"><i class="fa-solid fa-person"></i> Hombre</button>
+                <button class="gender-btn" data-gender="female"><i class="fa-solid fa-person-dress"></i> Mujer</button>
+            </div>
+            <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">* El sistema te hablará con la voz opuesta.</p>
+        </div>
+
         <div class="control-group">
             <label>Materia</label>
             <select disabled style="background-color: #f1f3f4; color: #888;"><option>Seguridad Informática</option></select>
@@ -78,20 +103,7 @@
             </select>
         </div>
 
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-            <img id="user-google-photo" src="" alt="Foto" class="google-profile-pic hidden" referrerpolicy="no-referrer">
-            
-            <p style="font-size: 0.9rem; color: #555; margin: 0;">
-                Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">...</span>
-            </p>
-            <div class="verified-badge">
-                <i class="fa-solid fa-square-check"></i> Dispositivo verificado
-            </div>
-        </div>
-
-        <button id="btn-start" class="btn-primary" style="margin-top: 20px;">Empezar</button>
+        <button id="btn-start" class="btn-primary" style="margin-top: 10px;">EMPEZAR</button>
     </div>
 
     <div class="container hidden" id="avatar-screen">
@@ -158,7 +170,6 @@
             <button id="close-stats" class="close-btn">&times;</button>
             <h2 style="color: #1a73e8;">Mi Historial</h2>
             <canvas id="progressChart"></canvas>
-            <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">* Solo exámenes finalizados.</p>
         </div>
     </div>
 
@@ -170,22 +181,14 @@
         </div>
     </div>
 
-    <div id="battle-results-modal" class="hidden modal-overlay">
-        <div class="modal-card" style="max-width: 700px; width: 95%;">
-            <h2 style="color: #fbbc04; text-transform: uppercase;">🏆 Resultados de la Guerra</h2>
-            <div id="podium-container" class="podium-container"><div class="spinner"></div></div>
-            <div style="margin-top: 20px;">
-                <button onclick="location.reload()" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">Salir de la Guerra</button>
-            </div>
-        </div>
-    </div>
-
     <audio id="bg-music" loop preload="auto"><source src="https://cdn.pixabay.com/download/audio/2022/11/22/audio_febc508520.mp3?filename=science-documentary-123270.mp3" type="audio/mpeg"></audio>
     <audio id="success-sound" preload="auto"><source src="https://www.soundjay.com/human/applause-01.mp3" type="audio/mpeg"></audio>
     <audio id="fail-sound" preload="auto"><source src="https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3" type="audio/mpeg"></audio>
     <audio id="correct-sound" preload="auto"><source src="https://www.soundjay.com/buttons/sounds/button-3.mp3" type="audio/mpeg"></audio>
+    <audio id="click-sound" preload="auto"><source src="https://www.soundjay.com/buttons/sounds/button-16.mp3" type="audio/mpeg"></audio>
+    
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=145"></script>
+    <script type="module" src="script.js?v=180"></script>
 </body>
 </html>
