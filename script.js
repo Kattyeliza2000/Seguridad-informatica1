@@ -129,6 +129,7 @@ function playClick() {
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
+    
     grid.innerHTML = '';
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
@@ -217,7 +218,6 @@ function toggleHeaderButtons() {
     const btnRanking = document.getElementById('btn-ranking');
     const btnStats = document.getElementById('btn-stats');
     
-    // El modo estudio no debe mostrar nada
     if (modo === 'exam') {
         btnRanking.classList.remove('hidden');
         btnStats.classList.remove('hidden');
@@ -483,8 +483,11 @@ function seleccionarOpcion(index, btn) {
     btns.forEach(b => b.classList.remove('option-selected'));
     btn.classList.add('option-selected');
     
-    if (currentMode === 'study') mostrarResultadoInmediato(index);
-    else document.getElementById('btn-next-question').classList.remove('hidden');
+    if (currentMode === 'study') {
+        mostrarResultadoInmediato(index);
+    } else {
+        document.getElementById('btn-next-question').classList.remove('hidden');
+    }
 }
 
 function mostrarResultadoInmediato(sel) {
