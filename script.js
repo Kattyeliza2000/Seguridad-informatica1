@@ -171,7 +171,7 @@ function hablar(texto, callback) {
 
 // ** SE ELIMINÓ EL EVENT LISTENER DE CARGA CON TIMEOUT **
 window.addEventListener('load', () => {
-    // Ya no se usa un timeout fijo aquí. La carga es manejada por el script principal.
+    // Ya no se usa un timeout fijo aquí.
 });
 
 // Lógica para limpiar la sala al cerrar la ventana
@@ -260,11 +260,10 @@ function toggleHeaderButtons() {
 
 document.getElementById('mode-select').addEventListener('change', toggleHeaderButtons);
 
-// *** ON AUTH STATE CHANGED ***
+// *** ON AUTH STATE CHANGED (SIN OCULTAMIENTO, SE ASUME QUE EL HTML OCULTA LA CARGA) ***
 onAuthStateChanged(auth, async (user) => {
     
-    // Si el usuario persiste el loader después de las correcciones de HTML, esta línea lo oculta.
-    // Es el mecanismo de ocultamiento lógico.
+    // Si el loader es visible, esta línea lo ocultará después de la autenticación.
     document.getElementById('app-loader').classList.add('hidden');
 
     if (user) {
