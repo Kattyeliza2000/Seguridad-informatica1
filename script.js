@@ -52,7 +52,7 @@ const bancoPreguntas = [
     { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán." },
     { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap." },
     { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
-    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
+    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad", "Integridad", "Disponibilidad"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
     { texto: "El término SSRF significa:", opciones: ["Safe Session Reset Form", "Simple Service Relay Feature", "Secure Software Risk Framework", "Server-Side Request Forgery"], respuesta: 3, explicacion: "Respuesta correcta: Server-Side Request Forgery." },
     { texto: "El proyecto OWASP tiene como finalidad principal:", opciones: ["Vender cortafuegos", "Producir malware de prueba", "Crear estándares de hardware", "Mejorar la seguridad de aplicaciones web de forma abierta"], respuesta: 3, explicacion: "Respuesta correcta: Mejorar la seguridad de aplicaciones web de forma abierta." },
     { texto: "La gestión de activos se considera importante porque:", opciones: ["Genera llaves criptográficas", "Reduce el jitter", "Actualiza antivirus", "Mantiene control sobre hardware, software y datos"], respuesta: 3, explicacion: "Respuesta correcta: Mantiene control sobre hardware, software y datos." },
@@ -132,7 +132,6 @@ function playClick() {
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
-    
     grid.innerHTML = '';
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
@@ -210,7 +209,7 @@ async function validarDispositivo(user) {
             } else {
                 // SOLUCIÓN DE REEMPLAZO INTELIGENTE (FIFO):
                 if (limite > 0) {
-                    const oldDeviceId = lista.shift(); 
+                    const oldDeviceId = lista.shift(); // Eliminar el más antiguo (FIFO)
                     lista.push(miDeviceId);
                     await setDoc(docRef, { dispositivos: lista }, { merge: true });
                     alert(`✅ Acceso concedido. Su dispositivo anterior ha sido reemplazado para cumplir con el límite de ${limite} dispositivos.`);
@@ -687,16 +686,6 @@ async function guardarHistorialFirebase(nota) {
             email: currentUserEmail,
             score: nota,
             date: new Date()
-        });
-    } catch (e) { console.error(e); }
-}
-
-async function guardarPuntajeGlobal(nota) {
-    try {
-        await addDoc(collection(db, "ranking_global"), {
-            email: currentUserEmail,
-            score: nota,
-            dateString: new Date().toLocaleDateString() 
         });
     } catch (e) { console.error(e); }
 }
