@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Mantenemos imports de Firestore para Ranking, Historial y Dispositivos
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+// Mantenemos imports de Firestore para Ranking, Historial y Batalla
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
 const firebaseConfig = {
@@ -55,6 +55,9 @@ const aliasInputGroup = document.getElementById('alias-input-group');
 const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
+const headerUserInfo = document.getElementById('header-user-info');
+const playerNickname = document.getElementById('player-nickname'); // Nueva ref
+const avatarGrid = document.getElementById('avatar-grid'); // Nueva ref
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
@@ -150,6 +153,28 @@ function generarIDTemporal() {
     return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
 }
 
+// --- CONSTANTES DE AVATAR Y SALAS (Necesarias para la interfaz) ---
+const AVATAR_CONFIG = [
+    { seed: 'Felix', style: 'avataaars', bg: 'b6e3f4' },
+    { seed: 'Aneka', style: 'avataaars', bg: 'c0aede' },
+    { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9' },
+    { seed: 'Bear', style: 'avataaars', bg: 'ffdfbf' },
+    { seed: 'Chester', style: 'avataaars', bg: 'ffd5dc' },
+    { seed: 'Bandit', style: 'lorelei', bg: 'c0aede' },
+    { seed: 'Molly', style: 'lorelei', bg: 'b6e3f4' },
+    { seed: 'Buster', style: 'lorelei', bg: 'ffdfbf' }
+];
+
+const ROOM_ICONS = {
+    "SALA_FIREWALL": "fa-fire",
+    "SALA_ENCRIPTADO": "fa-lock",
+    "SALA_ZERO_DAY": "fa-bug",
+    "SALA_PHISHING": "fa-fish",
+    "SALA_RANSOMWARE": "fa-skull-crossbones",
+    "SALA_BOTNET": "fa-robot"
+};
+
+
 // --- FUNCIONES DE BATALLA (SIMPLIFICADAS/SIMULADAS) ---
 const salasRef = collection(db, 'salas');
 
@@ -158,15 +183,64 @@ async function iniciarBatalla() {
     tempBattleID = generarIDTemporal();
     currentMode = 'multiplayer';
     
-    // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA (PUNTO DE ACTIVACIÓN)
+    // MOSTRAR PERFIL EN ENCABEZADO (PUNTO DE ACTIVACIÓN DE PERFIL)
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    iniciarJuegoReal();
+    // REDIRECCIÓN INTERMEDIA: Ir a selección de Avatar/Alias
+    showScreen('avatar-screen'); 
+    initAvatars(); // Inicia la grilla de avatares
 }
 async function crearSala() { /* Simulada */ }
 async function unirseASala(salaDoc) { /* Simulada */ }
 async function limpiarSalaBatalla() { /* Simulada */ }
 async function verificarSesionActivaEnBatalla(uid) { return null; /* Simulada */ }
+
+
+// --- FUNCIÓN: Inicializa la grilla de avatares ---
+function initAvatars() {
+    const grid = document.getElementById('avatar-grid');
+    if(!grid) return; 
+    grid.innerHTML = '';
+    
+    AVATAR_CONFIG.forEach((av, index) => {
+        const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'avatar-option';
+        if(index === 0) { img.classList.add('avatar-selected'); currentAvatarUrl = url; }
+        img.onclick = () => {
+            playClick();
+            document.querySelectorAll('.avatar-option').forEach(x => x.classList.remove('avatar-selected'));
+            img.classList.add('avatar-selected');
+            currentAvatarUrl = url;
+        };
+        grid.appendChild(img);
+    });
+}
+
+// --- FUNCIÓN: Muestra la pantalla de selección de salas ---
+function mostrarSelectorSalas() {
+    showScreen('rooms-screen');
+    const list = document.getElementById('rooms-list');
+    list.innerHTML = '';
+    
+    const SALAS_PREDEFINIDAS = ["SALA_FIREWALL", "SALA_ENCRIPTADO", "SALA_ZERO_DAY", "SALA_PHISHING", "SALA_RANSOMWARE", "SALA_BOTNET"];
+
+    SALAS_PREDEFINIDAS.forEach(salaId => {
+        const btn = document.createElement('div');
+        btn.className = 'room-btn';
+        const iconClass = ROOM_ICONS[salaId] || 'fa-users';
+        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">4 Agentes</span>`; 
+        
+        btn.onclick = () => { 
+            playClick(); 
+            // SIMULAMOS EL INICIO DEL QUIZ AL SELECCIONAR LA SALA
+            hablar(`Uniéndose a ${salaId.replace('SALA_', '').replace(/_/g, ' ')}. ¡Comenzando desafío!`);
+            iniciarJuegoReal(); // Inicia el quiz
+        };
+        list.appendChild(btn);
+    });
+}
 
 
 // --- 7. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS) ---
@@ -224,7 +298,6 @@ onAuthStateChanged(auth, async (user) => {
             const partes = nombre.toLowerCase().split(' ');
             const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
             
-            // Tomar solo el primer nombre para el header
             const nombreCorto = nombreCompletoCorregido.split(' ')[0];
             
             uidJugadorPermanente = user.uid;
@@ -245,7 +318,7 @@ onAuthStateChanged(auth, async (user) => {
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
                 
-                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO (Se mostrará al presionar Empezar)
+                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
                 document.getElementById('header-user-info').classList.add('hidden'); 
 
                 // Audio de bienvenida (TTS)
@@ -295,14 +368,16 @@ document.getElementById('btn-start').addEventListener('click', () => {
 
     if (modo === 'multiplayer') {
         const alias = aliasInput.value.trim();
+        // ** FLUJO: Va a la pantalla de Avatar/Salas **
         if (alias.length < 3) {
             hablar("Por favor, introduce un alias de al menos tres letras para la batalla.");
             aliasInput.focus();
             return;
         }
         currentAlias = alias;
-        hablar(`¡Excelente, ${alias}! Preparando la zona de batalla.`);
-        iniciarBatalla(); 
+        hablar(`¡Excelente, ${alias}! Elige tu avatar y tu zona de guerra.`);
+        iniciarBatalla(); // Redirige a la pantalla de avatar/salas
+        
     } else {
         // TTS AL INICIAR EXAMEN/ESTUDIO
         hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
@@ -314,18 +389,30 @@ document.getElementById('btn-start').addEventListener('click', () => {
     if(bgMusic) { bgMusic.volume = obtenerVolumen(); bgMusic.play().catch(()=>{}); }
 });
 
-// --- LÓGICA DE VISUALIZACIÓN DE ALIAS EN SETUP ---
-modeSelect.addEventListener('change', () => {
-    const isMultiplayer = modeSelect.value === 'multiplayer';
-    
-    if (isMultiplayer) {
-        aliasInputGroup.classList.remove('hidden');
-        btnStart.innerText = '⚔️ Unirse a Batalla';
-    } else {
-        aliasInputGroup.classList.add('hidden');
-        btnStart.innerText = 'Empezar';
+
+// --- LÓGICA DE AVANZAR DESDE LA PANTALLA DE AVATAR (NUEVO) ---
+document.addEventListener('DOMContentLoaded', () => {
+    const btnConfirmIdentity = document.getElementById('btn-confirm-identity');
+    if (btnConfirmIdentity) {
+        btnConfirmIdentity.addEventListener('click', () => {
+            const nick = document.getElementById('player-nickname').value.trim();
+            
+            // Validar que se haya puesto un apodo
+            if (nick.length < 3) {
+                 hablar("Por favor, introduce un apodo de al menos tres letras.");
+                 return;
+            }
+            
+            // Si todo está bien, pasamos a seleccionar la sala
+            mostrarSelectorSalas();
+        });
     }
+    
+    // Navegación hacia atrás
+    document.getElementById('back-to-setup').addEventListener('click', () => showScreen('setup-screen'));
+    document.getElementById('back-to-avatar').addEventListener('click', () => showScreen('avatar-screen'));
 });
+
 
 function iniciarJuegoReal() {
     const tiempo = document.getElementById('time-select').value;
@@ -409,7 +496,7 @@ function mostrarResultadoInmediato(seleccionada) {
     const cont = document.getElementById('options-container');
     const botones = cont.querySelectorAll('button');
     
-    // 2. Control de sonido por respuesta
+    // 2. TTS FEEDBACK ELIMINADO de aquí (Solo va en el inicio)
     const esCorrecta = (seleccionada === correcta);
     if (esCorrecta) {
         document.getElementById('correct-sound').play().catch(()=>{});
@@ -577,7 +664,9 @@ document.getElementById('btn-review').addEventListener('click', () => {
 });
 
 // --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (Corregidos) ---
+
 function obtenerVolumen() {
+    // Asegura que el valor sea un número entre 0 y 1
     return parseFloat(document.getElementById('volume-slider').value);
 }
 
