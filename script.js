@@ -23,7 +23,7 @@ const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec
 const correosUnDispositivo = ["cnavarretem4@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
-// --- 3. VARIABLES GLOBALES (Limpias de duplicación) ---
+// --- 3. VARIABLES GLOBALES (Limpias y Unificadas) ---
 let preguntasExamen = []; 
 let indiceActual = 0;
 let respuestasUsuario = []; 
@@ -40,7 +40,7 @@ let battleRoomID = null;
 let currentAlias = null;    
 let tempBattleID = null;    
 
-// --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
+// --- CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
     // MUJERES (7)
     { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff', tags: 'Femenino' },
@@ -86,7 +86,7 @@ const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 const headerUserInfo = document.getElementById('header-user-info');
-
+const avatarGrid = document.getElementById('avatar-grid');
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
