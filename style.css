@@ -1,4 +1,4 @@
-/* === ESTILOS v210 === */
+/* === ESTILOS v230 === */
 * { box-sizing: border-box; }
 body { font-family: 'Segoe UI', 'Roboto', sans-serif; background-color: #eef2f6; color: #333; margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-x: hidden; }
 
@@ -8,7 +8,7 @@ header { width: 100%; padding: 12px 20px; background: #fff; box-shadow: 0 4px 12
 .logo { display: flex; align-items: center; gap: 8px; }
 .logo h1 { margin: 0; font-size: 1rem; color: #1a73e8; font-weight: 700; }
 
-/* HEADER USER INFO */
+/* HEADER USER */
 .header-user-info { display: flex; align-items: center; gap: 10px; margin-right: 15px; padding-right: 15px; border-right: 1px solid #eee; }
 .header-username-text { font-size: 0.85rem; font-weight: 600; color: #555; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .header-profile-pic { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #ddd; object-fit: cover; }
@@ -16,20 +16,25 @@ header { width: 100%; padding: 12px 20px; background: #fff; box-shadow: 0 4px 12
 
 .container { width: 95%; max-width: 380px; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 70px; margin-bottom: 20px; position: relative; z-index: 10; border: 1px solid #e1e4e8; }
 
-/* LOGIN SUTIL */
+/* ESTADO BLOQUEADO (GRIS Y NO CLICKEABLE) */
+.locked-btn { 
+    opacity: 0.3; 
+    pointer-events: none; 
+    filter: grayscale(100%); 
+    cursor: not-allowed; 
+}
+/* ESTADO DESBLOQUEADO (COLOR) */
+#btn-ranking:not(.locked-btn) i { color: #fbbc04; transform: scale(1.1); }
+#btn-stats:not(.locked-btn) i { color: #1a73e8; transform: scale(1.1); }
+
 .auth-title { color: #1a73e8; font-size: 1.6rem; font-weight: 600; margin: 0 0 8px 0; letter-spacing: -0.5px; }
 .auth-subtitle { color: #5f6368; font-size: 0.9rem; margin: 0 0 25px 0; }
-.btn-google-style { background: white; color: #3c4043; border: 1px solid #dadce0; padding: 12px 20px; width: 100%; border-radius: 50px; display: flex; align-items: center; justify-content: center; gap: 12px; cursor: pointer; font-weight: 500; transition: all 0.2s; font-size: 0.95rem; font-family: 'Google Sans', 'Roboto', arial, sans-serif; }
+.btn-google-style { background: white; color: #3c4043; border: 1px solid #dadce0; padding: 12px 20px; width: 100%; border-radius: 50px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.95rem; font-family: 'Google Sans', 'Roboto', arial, sans-serif; }
 .btn-google-style:hover { background-color: #f7fafe; box-shadow: 0 1px 3px rgba(60,64,67,0.3); border-color: #d2e3fc; }
 
-/* PERFIL ALINEADO */
 .profile-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; }
 .google-profile-pic { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #1a73e8; padding: 1px; object-fit: cover; }
 .verified-badge { display: inline-flex; align-items: center; gap: 5px; background-color: #e6f4ea; color: #137333; border: 1px solid #1e8e3e; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
-
-.locked-btn { opacity: 0.3; pointer-events: none; filter: grayscale(100%); cursor: not-allowed; }
-#btn-ranking:not(.locked-btn) i { color: #fbbc04; }
-#btn-stats:not(.locked-btn) i { color: #1a73e8; }
 
 .avatar-section { margin: 10px 0; }
 .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; justify-items: center; }
@@ -73,7 +78,6 @@ select:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 2px rgba(
 .btn-text { background: none; border: none; cursor: pointer; color: #666; font-weight: 600; }
 .btn-icon { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #555; transition: 0.2s; }
 .btn-icon:hover:not(.locked-btn) { transform: scale(1.2); }
-
 .volume-control-box { display: flex; align-items: center; gap: 5px; background-color: #f1f3f4; padding: 4px 10px; border-radius: 20px; }
 input[type=range] { width: 60px; accent-color: #1a73e8; }
 .final-avatar { width: 100px; height: 100px; margin-bottom: 15px; border-radius: 50%; border: 4px solid #1a73e8; background: #fff; padding: 4px; display: block; margin-left: auto; margin-right: auto; }
