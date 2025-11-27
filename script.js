@@ -132,6 +132,7 @@ function playClick() {
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
+    
     grid.innerHTML = '';
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
@@ -198,16 +199,29 @@ async function validarDispositivo(user) {
     if (docSnap.exists()) {
         const datos = docSnap.data();
         let lista = datos.dispositivos || [];
-        if (lista.includes(miDeviceId)) return true;
-        if (lista.length < limite) {
-            lista.push(miDeviceId);
-            await setDoc(docRef, { dispositivos: lista }, { merge: true });
-            return true;
+        
+        if (lista.includes(miDeviceId)) {
+            return true; 
         } else {
-            alert(`⛔ ACCESO DENEGADO\nLímite de ${limite} dispositivos alcanzado.`);
-            await signOut(auth);
-            location.reload();
-            return false;
+            if (lista.length < limite) {
+                lista.push(miDeviceId);
+                await setDoc(docRef, { dispositivos: lista }, { merge: true });
+                return true;
+            } else {
+                // SOLUCIÓN DE REEMPLAZO INTELIGENTE (FIFO):
+                if (limite > 0) {
+                    const oldDeviceId = lista.shift(); 
+                    lista.push(miDeviceId);
+                    await setDoc(docRef, { dispositivos: lista }, { merge: true });
+                    alert(`✅ Acceso concedido. Su dispositivo anterior ha sido reemplazado para cumplir con el límite de ${limite} dispositivos.`);
+                    return true;
+                }
+                
+                alert(`⛔ ACCESO DENEGADO ⛔\nLímite de ${limite} dispositivos alcanzado.`);
+                await signOut(auth);
+                location.reload();
+                return false;
+            }
         }
     } else {
         await setDoc(docRef, { dispositivos: [miDeviceId], fecha: new Date().toISOString() });
@@ -243,11 +257,9 @@ onAuthStateChanged(auth, async (user) => {
                 document.getElementById('player-nickname').value = nombreReal;
                 
                 if (user.photoURL) {
-                    const profilePic = document.getElementById('user-google-photo');
-                    profilePic.src = user.photoURL;
-                    profilePic.classList.remove('hidden');
-                    const headerPic = document.getElementById('header-photo');
-                    if(headerPic) headerPic.src = user.photoURL;
+                    document.getElementById('user-google-photo').src = user.photoURL;
+                    document.getElementById('user-google-photo').classList.remove('hidden');
+                    document.getElementById('header-photo').src = user.photoURL;
                 }
                 
                 toggleHeaderButtons();
@@ -256,7 +268,7 @@ onAuthStateChanged(auth, async (user) => {
                 }, 500);
             }
         } else {
-            alert("No autorizado.");
+            alert(`ACCESO DENEGADO\nEmail no autorizado: ${user.email}`);
             signOut(auth);
         }
     } else {
@@ -268,7 +280,11 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-document.getElementById('btn-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
+document.getElementById('btn-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
+    console.error("Error al iniciar sesión:", e);
+    alert("Error de inicio de sesión. Revisa la consola y permisos de pop-ups.");
+}));
+
 document.getElementById('btn-logout').addEventListener('click', () => { if(confirm("¿Salir?")) { signOut(auth); location.reload(); } });
 
 document.getElementById('btn-start').addEventListener('click', () => {
@@ -297,11 +313,13 @@ function iniciarJuegoReal() {
     } 
     else if (modo === 'study') {
         currentMode = 'study';
+        // MODO ESTUDIO: 64 PREGUNTAS ALEATORIAS
         preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
         iniciarInterfazQuiz();
     } 
     else {
         currentMode = 'exam';
+        // MODO EXAMEN: 20 PREGUNTAS ALEATORIAS
         preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
         iniciarInterfazQuiz();
     }
@@ -316,13 +334,13 @@ document.getElementById('back-to-setup').addEventListener('click', () => showScr
 document.getElementById('back-to-avatar').addEventListener('click', () => showScreen('avatar-screen'));
 
 document.getElementById('btn-stats').addEventListener('click', async () => { 
-    try { await cargarGraficoFirebase(); document.getElementById('stats-modal').classList.remove('hidden'); } 
-    catch (e) { console.log(e); }
+    try { document.getElementById('stats-modal').classList.remove('hidden'); await cargarGraficoFirebase(); } 
+    catch (e) { console.error("Error al cargar historial:", e); }
 });
 
 document.getElementById('btn-ranking').addEventListener('click', async () => {
     try { document.getElementById('ranking-modal').classList.remove('hidden'); await cargarRankingGlobal(); } 
-    catch (e) { console.log(e); }
+    catch (e) { console.error("Error al cargar ranking:", e); }
 });
 
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -589,7 +607,8 @@ async function terminarQuiz(abandono = false) {
             document.getElementById('btn-ranking').classList.remove('locked-btn');
             document.getElementById('btn-stats').classList.remove('locked-btn');
             
-            // ELIMINADO EL GUARDADO DE HISTORIAL Y RANKING GLOBAL POR ESTABILIDAD
+            await guardarHistorialFirebase(nota);
+            await guardarPuntajeGlobal(nota);
         }
         showScreen('result-screen');
         document.getElementById('score-final').innerText = `${nota}/100`;
@@ -662,7 +681,59 @@ function renderBattlePodium() {
     });
 }
 
-// FUNCIONES DE RANKING GLOBAL ELIMINADAS (No se usan en esta versión por estabilidad)
+async function guardarHistorialFirebase(nota) {
+    try {
+        await addDoc(collection(db, "historial_academico"), {
+            email: currentUserEmail,
+            score: nota,
+            date: new Date()
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function guardarPuntajeGlobal(nota) {
+    try {
+        await addDoc(collection(db, "ranking_global"), {
+            email: currentUserEmail,
+            score: nota,
+            dateString: new Date().toLocaleDateString() 
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function cargarGraficoFirebase() {
+    try {
+        const q = query(collection(db, "historial_academico"), where("email", "==", currentUserEmail), orderBy("date", "desc"), limit(10));
+        const querySnapshot = await getDocs(q);
+        let history = [];
+        querySnapshot.forEach((doc) => { history.push(doc.data()); });
+        history.reverse();
+        const ctx = document.getElementById('progressChart').getContext('2d');
+        if(window.myChart) window.myChart.destroy();
+        window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: history.map((_, i) => `Intento ${i+1}`), datasets: [{ label: 'Nota', data: history.map(x => x.score), borderColor: '#1a73e8', tension: 0.3, fill: true, backgroundColor: 'rgba(26,115,232,0.1)' }] },
+            options: { scales: { y: { beginAtZero: true, max: 100 } } }
+        });
+    } catch(e) { console.warn("Error gráfico (posible falta de índice):", e); }
+}
+
+async function cargarRankingGlobal() {
+    try {
+        const today = new Date().toLocaleDateString();
+        const q = query(collection(db, "ranking_global"), where("dateString", "==", today), orderBy("score", "desc"), limit(10));
+        const querySnapshot = await getDocs(q);
+        const list = document.getElementById('ranking-list');
+        list.innerHTML = "";
+        let pos = 1;
+        querySnapshot.forEach((doc) => {
+            const d = doc.data();
+            list.innerHTML += `<div class="rank-row"><span class="rank-pos">#${pos}</span><span class="rank-name">${d.email.split('@')[0]}</span><span class="rank-score">${d.score} pts</span></div>`;
+            pos++;
+        });
+        if(pos === 1) list.innerHTML = "<p style='text-align:center; padding:20px;'>Aún no hay puntajes hoy. ¡Sé el primero!</p>";
+    } catch(e) { console.error("Error ranking:", e); }
+}
 
 function createConfetti() {
     const w = document.getElementById('confetti-wrapper'); w.classList.remove('hidden'); w.innerHTML = '';
