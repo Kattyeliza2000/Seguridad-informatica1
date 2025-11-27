@@ -126,6 +126,18 @@
         <h2 style="text-align: center;">Zonas de Guerra</h2>
         <div id="rooms-list" class="rooms-grid"></div>
     </div>
+
+    <div class="container hidden" id="lobby-screen">
+        <h2 id="lobby-title" style="color: #1a73e8; text-align: center;">SALA: FIREWALL</h2>
+        <div class="lobby-status">
+            <div class="spinner"></div>
+            <p id="lobby-status-text">Esperando al anfitrión...</p>
+        </div>
+        <div id="lobby-players" class="lobby-list">
+             </div>
+        <button id="btn-start-war" class="btn-primary hidden" style="background: #28a745; margin-top: 20px;">¡INICIAR BATALLA!</button>
+        <button id="btn-leave-lobby" class="btn-secondary" style="margin-top: 10px; color: #ea4335;">Abandonar Sala</button>
+    </div>
     
     <div class="container hidden" id="quiz-screen" style="max-width: 700px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
@@ -186,6 +198,6 @@
 
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=301"></script> 
+    <script type="module" src="app.js?v=301"></script> 
 </body>
 </html>
