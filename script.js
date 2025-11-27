@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Mantenemos imports de Firestore para Ranking, Historial y Batalla
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
@@ -86,13 +85,19 @@ const btnQuitQuiz = document.getElementById('btn-quit-quiz');
 const headerUserInfo = document.getElementById('header-user-info');
 const avatarGrid = document.getElementById('avatar-grid');
 
-// --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA (CORREGIDO: Ubicación al inicio) ---
+// --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA ---
 function showScreen(screenId) {
     document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
     const screenElement = document.getElementById(screenId);
     if(screenElement) {
         screenElement.classList.remove('hidden');
     }
+}
+
+// --- FUNCIÓN UTILITARIA: SONIDO CLIC (CORREGIDO: Definido tempranamente) ---
+function playClick() {
+    const sfx = document.getElementById('click-sound');
+    if(sfx) { sfx.currentTime = 0; sfx.play().catch(()=>{}); }
 }
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
@@ -261,12 +266,60 @@ function mostrarSelectorSalas() {
         // EVENTO DE CLICK: Inicia el juego
         btn.onclick = () => { 
             playClick(); 
-            // SIMULAMOS EL INICIO DEL QUIZ AL SELECCIONAR LA SALA
-            hablar(`Uniéndose a ${salaId.replace('SALA_', '').replace(/_/g, ' ')}. ¡Comenzando desafío!`);
-            iniciarJuegoReal(); // Inicia el quiz
+            // ** FLUJO: Va al Lobby (Espera) **
+            iniciarLobbySimulado(salaId);
         };
         list.appendChild(btn);
     });
+}
+
+// --- FUNCIÓN ADICIONAL: Iniciar Lobby (Espera) ---
+async function iniciarLobbySimulado(salaId) {
+    showScreen('lobby-screen');
+    const lobbyTitle = document.getElementById('lobby-title');
+    const lobbyPlayers = document.getElementById('lobby-players');
+    const btnStartWar = document.getElementById('btn-start-war');
+
+    if (lobbyTitle) lobbyTitle.innerText = `SALA: ${salaId.replace('SALA_', '').replace(/_/g, ' ')}`;
+    if (lobbyPlayers) lobbyPlayers.innerHTML = '';
+
+    const nick = currentAlias || "Agente";
+
+    // SIMULACIÓN DE JUGADORES:
+    const jugadoresSimulados = [
+        { name: nick, isHost: true },
+        { name: 'Oponente_007', isHost: false }
+    ];
+    
+    jugadoresSimulados.forEach(p => {
+        const name = p.name;
+        if (lobbyPlayers) lobbyPlayers.innerHTML += `<div class="player-badge"> ${name}</div>`;
+    });
+
+    // REGLA DE INICIO: Se simula la condición de dos jugadores
+    if (btnStartWar) {
+        if (jugadoresSimulados.length >= 2) {
+            btnStartWar.classList.remove('hidden');
+            document.getElementById('lobby-status-text').innerText = 'Listo para iniciar. Presiona INICIAR BATALLA.';
+            hablar(`Oponente encontrado. Listo para iniciar.`);
+        } else {
+            btnStartWar.classList.add('hidden');
+            document.getElementById('lobby-status-text').innerText = 'Esperando oponente...';
+        }
+
+        // Evento para el botón INICIAR BATALLA
+        btnStartWar.onclick = () => {
+            hablar("Iniciando la secuencia de examen. ¡Que gane el mejor agente!");
+            iniciarJuegoReal(); // Inicia el quiz
+        };
+    }
+    
+    // Evento para abandonar la sala
+    document.getElementById('btn-leave-lobby').onclick = () => {
+        if (confirm("¿Seguro que quieres abandonar la sala de batalla?")) {
+            showScreen('setup-screen');
+        }
+    };
 }
 
 
