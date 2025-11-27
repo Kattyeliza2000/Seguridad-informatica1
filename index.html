@@ -29,7 +29,7 @@
         <div style="display: flex; align-items: center; gap: 10px;">
             <div id="header-user-info" class="header-user-info hidden">
                 <span id="header-username" class="header-username-text">Usuario</span>
-                <img id="header-photo" src="" class="header-profile-pic" alt="Perfil">
+                <img id="header-photo" src="" class="header-profile-pic" alt="Perfil" referrerpolicy="no-referrer">
             </div>
             
             <div class="header-controls">
@@ -72,7 +72,14 @@
             <select id="mode-select">
                 <option value="exam">📝 Examen (20 Preguntas)</option>
                 <option value="study">📚 Estudio (Todas las preguntas)</option>
-                </select>
+                <option value="multiplayer">⚔️ Batalla Multiusuarios (64 Preguntas)</option>
+            </select>
+        </div>
+
+        <div class="control-group hidden" id="alias-input-group" style="margin-top: 15px;">
+            <label for="alias-input">Alias para Batalla</label>
+            <input type="text" id="alias-input" placeholder="Ej: Agente Secreto" maxlength="15">
+            <small style="color: #666;">Tu alias se usará para el ranking temporal.</small>
         </div>
 
         <div class="control-group">
@@ -121,6 +128,11 @@
         <h1 id="score-final">0/0</h1>
         <p id="custom-msg"></p>
         
+        <div id="room-results-box" class="hidden ranking-box">
+            <h3 style="color: #f9a825; margin: 0 0 10px 0;">🏆 Tabla de Posiciones</h3>
+            <div id="room-leaderboard">Esperando datos...</div>
+        </div>
+        
         <button id="btn-review" class="btn-secondary">Revisar</button>
         <button onclick="location.reload()" class="btn-primary">Inicio</button>
     </div>
@@ -131,6 +143,23 @@
         <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Cerrar</button>
     </div>
 
+    <div id="stats-modal" class="hidden modal-overlay">
+        <div class="modal-card">
+            <button id="close-stats" class="close-btn">&times;</button>
+            <h2 style="color: #1a73e8;">Mi Historial</h2>
+            <canvas id="progressChart"></canvas>
+            <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">* Solo exámenes finalizados.</p>
+        </div>
+    </div>
+
+    <div id="ranking-modal" class="hidden modal-overlay">
+        <div class="modal-card">
+            <button id="close-ranking" class="close-btn">&times;</button>
+            <h2 style="color: #fbbc04;">🏆 Ranking Global</h2>
+            <div id="ranking-list" style="text-align: left; max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>
+        </div>
+    </div>
+
     <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
     <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
     <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
@@ -139,6 +168,6 @@
 
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=302"></script>
+    <script type="module" src="app.js?v=301"></script> 
 </body>
 </html>
