@@ -9,8 +9,6 @@ const firebaseConfig = {
     authDomain: "simulador-c565e.firebaseapp.com",
     projectId: "simulador-c565e",
     storageBucket: "simulador-c565e.firebasestorage.app",
-    messagingSenderId: "673284794982",
-    appId: "1:673284794982:web:3c21cf20e04798a647dba7",
     measurementId: "G-W715QQWGY1"
 };
 
@@ -40,7 +38,7 @@ let battleRoomID = null;
 let currentAlias = null;    
 let tempBattleID = null;    
 
-// --- CONFIGURACIÓN DE AVATARES Y SALAS ---
+// --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
     // MUJERES (7)
     { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff', tags: 'Femenino' },
@@ -87,6 +85,16 @@ const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 const headerUserInfo = document.getElementById('header-user-info');
 const avatarGrid = document.getElementById('avatar-grid');
+
+// --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA (CORREGIDO: Ubicación al inicio) ---
+function showScreen(screenId) {
+    document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
+    const screenElement = document.getElementById(screenId);
+    if(screenElement) {
+        screenElement.classList.remove('hidden');
+    }
+}
+
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
@@ -193,7 +201,7 @@ async function iniciarBatalla() {
     // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA (PUNTO DE ACTIVACIÓN DE PERFIL)
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    // ** FLUJO: Va a la pantalla de Avatar/Alias **
+    // ** FLUJO CORREGIDO: Va a la pantalla de Avatar/Alias **
     showScreen('avatar-screen'); 
     initAvatars(); // Inicia la grilla de avatares
 }
