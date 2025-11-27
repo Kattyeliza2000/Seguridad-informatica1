@@ -35,11 +35,14 @@ let currentAvatarUrl = null;
 let currentStreak = 0;
 let startTime = 0; 
 
-// --- BANCO DE PREGUNTAS COMPLETO (64 PREGUNTAS) ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS." },
     { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán." },
+    // ... (MANTÉN LAS 64 PREGUNTAS AQUÍ) ...
+    { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap." },
+    { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
+    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
     { texto: "El término SSRF significa:", opciones: ["Safe Session Reset Form", "Simple Service Relay Feature", "Secure Software Risk Framework", "Server-Side Request Forgery"], respuesta: 3, explicacion: "Respuesta correcta: Server-Side Request Forgery." },
     { texto: "El proyecto OWASP tiene como finalidad principal:", opciones: ["Vender cortafuegos", "Producir malware de prueba", "Crear estándares de hardware", "Mejorar la seguridad de aplicaciones web de forma abierta"], respuesta: 3, explicacion: "Respuesta correcta: Mejorar la seguridad de aplicaciones web de forma abierta." },
     { texto: "La gestión de activos se considera importante porque:", opciones: ["Genera llaves criptográficas", "Reduce el jitter", "Actualiza antivirus", "Mantiene control sobre hardware, software y datos"], respuesta: 3, explicacion: "Respuesta correcta: Mantiene control sobre hardware, software y datos." },
@@ -97,10 +100,7 @@ const bancoPreguntas = [
     { texto: "Política que define quién accede a qué datos dentro de una BD:", opciones: ["Cifrado TLS", "Autorización / control de acceso", "Compilación", "Backup"], respuesta: 1, explicacion: "Respuesta correcta: Autorización / control de acceso." },
     { texto: "Antes de aplicar parches en producción se debe:", opciones: ["Cambiar el FQDN", "Borrar registros", "Probar el parche en un entorno de pruebas", "Reiniciar IDS"], respuesta: 2, explicacion: "Respuesta correcta: Probar el parche en un entorno de pruebas." },
     { texto: "Una inyección SQL basada en errores aprovecha:", opciones: ["Cifrado AES", "Tiempo de respuesta", "Mensajes de error devueltos por la aplicación", "Token OTP"], respuesta: 2, explicacion: "Respuesta correcta: Mensajes de error devueltos por la aplicación." },
-    { texto: "Ventaja de un firewall perimetral bien configurado:", opciones: ["Mejora la batería de los clientes", "Elimina todos los virus", "Reduce la superficie de ataque expuesta a Internet", "Incrementa la velocidad Wi-Fi"], respuesta: 2, explicacion: "Respuesta correcta: Reduce la superficie de ataque expuesta a Internet." },
-    { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap." },
-    { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
-    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." }
+    { texto: "Ventaja de un firewall perimetral bien configurado:", opciones: ["Mejora la batería de los clientes", "Elimina todos los virus", "Reduce la superficie de ataque expuesta a Internet", "Incrementa la velocidad Wi-Fi"], respuesta: 2, explicacion: "Respuesta correcta: Reduce la superficie de ataque expuesta a Internet." }
 ];
 
 let preguntasExamen = [];
@@ -114,14 +114,10 @@ let currentRoomId = null;
 let currentMode = 'individual';
 let unsubscribeRoom = null;
 
-function playClick() {
-    const sfx = document.getElementById('click-sound');
-    if(sfx) { sfx.currentTime = 0; sfx.play().catch(()=>{}); }
-}
-
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
+    
     grid.innerHTML = '';
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
@@ -396,9 +392,39 @@ async function unirseASala(salaId) {
     });
 }
 
+async function limpiarSala(salaId) {
+    if(!salaId) return;
+    const salaRef = doc(db, "salas_activas", salaId);
+    const nick = document.getElementById('player-nickname').value || currentUserEmail.split('@')[0];
+    
+    if(currentAvatarUrl) {
+        const jugadorData = { name: nick, avatar: currentAvatarUrl };
+        await updateDoc(salaRef, {
+            jugadores: arrayRemove(jugadorData)
+        });
+    }
+}
+
 document.getElementById('btn-leave-lobby').addEventListener('click', async () => {
     if (confirm("¿Abandonar escuadrón?")) {
-        if (currentRoomId) location.reload();
+        if (currentRoomId) {
+            await limpiarSala(currentRoomId);
+            location.reload();
+        }
+    }
+});
+
+document.getElementById('btn-exit-war').addEventListener('click', async () => {
+    if (currentRoomId) {
+        await limpiarSala(currentRoomId);
+        location.reload();
+    }
+});
+
+document.getElementById('btn-exit-war-modal').addEventListener('click', async () => {
+    if (currentRoomId) {
+        await limpiarSala(currentRoomId);
+        location.reload();
     }
 });
 
@@ -409,7 +435,9 @@ document.getElementById('btn-start-war').addEventListener('click', async () => {
 
 function iniciarQuizMultiplayer() {
     if (unsubscribeRoom) unsubscribeRoom();
-    preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
+    // 64 PREGUNTAS ALEATORIAS PARA BATALLA (Modificado a 30 si prefieres menos, pero aquí van todas las posibles)
+    // El usuario pidió "30 preguntas aleatorias de las 64" para batalla
+    preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 30); // <-- CORRECCIÓN APLICADA
     iniciarInterfazQuiz();
 }
 
@@ -549,6 +577,10 @@ async function terminarQuiz(abandono = false) {
             status: abandono ? "Retirado" : "Finalizado",
             date: new Date()
         });
+        
+        // LIMPIAR USUARIO DE SALA AL TERMINAR
+        await limpiarSala(currentRoomId);
+
         renderBattlePodium();
         document.getElementById('battle-results-modal').classList.remove('hidden');
     } else {
