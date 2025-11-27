@@ -263,7 +263,7 @@ document.getElementById('mode-select').addEventListener('change', toggleHeaderBu
 // *** ON AUTH STATE CHANGED (SIN OCULTAMIENTO, SE ASUME QUE EL HTML OCULTA LA CARGA) ***
 onAuthStateChanged(auth, async (user) => {
     
-    // Si el loader es visible, esta línea lo ocultará después de la autenticación.
+    // Ocultar el loader (solo si no fue ocultado por el HTML, como fallback)
     document.getElementById('app-loader').classList.add('hidden');
 
     if (user) {
@@ -308,7 +308,12 @@ onAuthStateChanged(auth, async (user) => {
 
 document.getElementById('btn-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
     console.error("Error al iniciar sesión:", e);
-    alert("Error de inicio de sesión. Revisa la consola y permisos de pop-ups.");
+    // Mostrar el error de pop-up en la consola para el usuario:
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+        alert("La ventana de inicio de sesión fue bloqueada o cerrada. Por favor, asegúrate de que tu navegador permita pop-ups para este sitio.");
+    } else {
+        alert("Error de inicio de sesión. Revisa la consola y permisos de pop-ups.");
+    }
 }));
 
 document.getElementById('btn-logout').addEventListener('click', () => { if(confirm("¿Salir?")) { signOut(auth); location.reload(); } });
