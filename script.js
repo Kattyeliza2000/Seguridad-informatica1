@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 // Mantenemos imports de Firestore para Ranking, Historial y Dispositivos
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
 const firebaseConfig = {
@@ -55,6 +55,7 @@ const aliasInputGroup = document.getElementById('alias-input-group');
 const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
+const headerUserInfo = document.getElementById('header-user-info');
 
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
@@ -159,7 +160,7 @@ async function iniciarBatalla() {
     tempBattleID = generarIDTemporal();
     currentMode = 'multiplayer';
     
-    // MOSTRAR PERFIL AL INICIAR BATALLA
+    // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
     iniciarJuegoReal();
@@ -220,7 +221,7 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             
-            // LÓGICA DE NOMBRE CON CAPITALIZACIÓN: "Katty"
+            // LÓGICA PARA CAPITALIZAR EL NOMBRE: "Katty"
             let nombre = user.displayName || user.email.split('@')[0];
             const partes = nombre.toLowerCase().split(' ');
             const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -246,7 +247,7 @@ onAuthStateChanged(auth, async (user) => {
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
                 
-                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
+                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO (Se mostrará al presionar Empezar)
                 document.getElementById('header-user-info').classList.add('hidden'); 
 
                 // Audio de bienvenida (TTS)
@@ -263,7 +264,6 @@ onAuthStateChanged(auth, async (user) => {
         authScreen.classList.remove('hidden');
         setupScreen.classList.add('hidden');
         document.getElementById('header-user-info').classList.add('hidden');
-        // ... (resto de lógica) ...
     }
 });
 
@@ -286,10 +286,17 @@ btnLogout.addEventListener('click', () => {
 document.getElementById('btn-start').addEventListener('click', () => {
     const modo = modeSelect.value;
     
-    // MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR
+    // 1. MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR
+    const nombreCompleto = document.getElementById('user-display').innerText;
+    const nombreCorto = nombreCompleto.split(' ')[0];
+
     document.getElementById('header-user-info').classList.remove('hidden');
-    document.getElementById('header-username').innerText = document.getElementById('user-display').innerText.split(' ')[0];
+    document.getElementById('header-username').innerText = nombreCorto; // Poner solo el primer nombre
     document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
+
+
+    // 2. TTS AL INICIAR
+    hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
 
 
     if (modo === 'multiplayer') {
@@ -300,15 +307,14 @@ document.getElementById('btn-start').addEventListener('click', () => {
             return;
         }
         currentAlias = alias;
-        hablar(`¡Excelente, ${alias}! Preparando la zona de batalla.`);
         iniciarBatalla(); 
-    } else if (modo === 'exam') {
-        hablar("Mucha suerte en tu examen. El tiempo ha comenzado.");
-        iniciarJuegoReal();
-    } else { // study
-        hablar("Entendido. Modo estudio activado, sin límite de tiempo. Adelante.");
+    } else {
         iniciarJuegoReal();
     }
+    
+    // ** ACTIVAR MÚSICA DE FONDO Y CLIC **
+    const bgMusic = document.getElementById('bg-music');
+    if(bgMusic) { bgMusic.volume = obtenerVolumen(); bgMusic.play().catch(()=>{}); }
 });
 
 // --- LÓGICA DE VISUALIZACIÓN DE ALIAS EN SETUP ---
@@ -406,14 +412,15 @@ function mostrarResultadoInmediato(seleccionada) {
     const cont = document.getElementById('options-container');
     const botones = cont.querySelectorAll('button');
     
-    // 2. TTS FEEDBACK AL ELEGIR RESPUESTA
+    // 2. TTS FEEDBACK ELIMINADO de aquí (Solo va en el inicio)
     const esCorrecta = (seleccionada === correcta);
     if (esCorrecta) {
-        hablar("¡Excelente!"); 
         document.getElementById('correct-sound').play().catch(()=>{});
     } else {
-        hablar("Respuesta incorrecta.");
-        document.getElementById('fail-sound').play().catch(()=>{}); 
+        // Control de sonido fallido en modo Estudio
+        if (modeSelect.value !== 'study') { 
+            document.getElementById('fail-sound').play().catch(()=>{}); 
+        }
     }
 
     botones.forEach(btn => btn.disabled = true);
@@ -464,8 +471,8 @@ function terminarQuiz(abandono = false) {
     const msg = document.getElementById('custom-msg');
     const sfxWin = document.getElementById('success-sound');
     const sfxFail = document.getElementById('fail-sound');
-    const vol = document.getElementById('volume-slider').value;
-    
+    const vol = obtenerVolumen(); // Usar la función para obtener el volumen
+
     if (sfxWin) sfxWin.volume = vol;
     if (sfxFail) sfxFail.volume = vol;
 
@@ -572,10 +579,78 @@ document.getElementById('btn-review').addEventListener('click', () => {
     });
 });
 
+// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (Corregidos) ---
+
+function obtenerVolumen() {
+    return parseFloat(document.getElementById('volume-slider').value);
+}
+
+function actualizarVolumen() {
+    const vol = obtenerVolumen();
+    // Aplicar volumen a todos los elementos de audio
+    document.querySelectorAll('audio').forEach(a => {
+        a.volume = vol;
+        a.muted = (vol === 0);
+    });
+
+    // Actualizar el icono de mute en el header
+    const icon = document.getElementById('vol-icon');
+    icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    actualizarVolumen();
+});
+
+document.getElementById('volume-slider').addEventListener('input', actualizarVolumen);
+
+document.getElementById('btn-mute').addEventListener('click', () => {
+    const slider = document.getElementById('volume-slider');
+    const vol = obtenerVolumen();
+    
+    if (vol > 0) {
+        slider.dataset.lastVolume = vol; 
+        slider.value = 0;
+    } else {
+        slider.value = slider.dataset.lastVolume || 0.4; 
+    }
+    actualizarVolumen();
+});
+
+// --- Funciones de Ranking/Historial (Mantenidas para Firebase) ---
 async function guardarHistorialFirebase(nota) {
-    // ... [código de Firebase] ...
+    try {
+        await addDoc(collection(db, "historial_academico"), {
+            email: currentUserEmail,
+            score: nota,
+            date: new Date(),
+            uid: uidJugadorPermanente
+        });
+    } catch (e) { console.error("Error guardando historial:", e); }
 }
 
 async function guardarPuntajeGlobal(nota) {
-    // ... [código de Firebase] ...
+    try {
+        const today = new Date().toLocaleDateString();
+        const docRef = doc(db, "ranking_global", uidJugadorPermanente); 
+        
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().dateString === today) {
+            if (nota > docSnap.data().score) {
+                await updateDoc(docRef, {
+                    score: nota,
+                    date: new Date(),
+                    dateString: today
+                });
+            }
+        } else {
+            await setDoc(docRef, {
+                email: currentUserEmail,
+                score: nota,
+                date: new Date(),
+                dateString: today
+            });
+        }
+    } catch (e) { console.error("Error guardando puntaje global:", e); }
 }
