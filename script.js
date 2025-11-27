@@ -47,6 +47,11 @@ let jugadorActualData = null;
 let jugadorActualId = null; // ID ÚNICO: user.uid de Firebase
 let jugadorActualTemporalId = null; // ID TEMPORAL para la sala (para la sesión actual)
 
+// *** ARREGLO RÁPIDO PARA ASEGURAR QUE EL LOADER SE OCULTE INMEDIATAMENTE ***
+// Oculta la pantalla de carga tan pronto como el script se ejecuta.
+document.getElementById('app-loader').classList.add('hidden'); 
+// *** FIN DEL ARREGLO RÁPIDO ***
+
 // --- BANCO DE PREGUNTAS COMPLETO (64 PREGUNTAS) ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
@@ -169,10 +174,9 @@ function hablar(texto, callback) {
     synth.speak(utterance);
 }
 
-// *** LÓGICA DE CARGA REEMPLAZADA: ELIMINAR EL TIMEOUT FIJO ***
-// La pantalla de carga se ocultará al final de onAuthStateChanged
+// ** SE ELIMINÓ EL EVENT LISTENER DE CARGA CON TIMEOUT **
 window.addEventListener('load', () => {
-    // Ya no se usa un timeout fijo aquí.
+    // Ya no se usa un timeout fijo aquí. La carga es manejada por el script principal.
 });
 
 // Lógica para limpiar la sala al cerrar la ventana
@@ -261,8 +265,11 @@ function toggleHeaderButtons() {
 
 document.getElementById('mode-select').addEventListener('change', toggleHeaderButtons);
 
-// *** ON AUTH STATE CHANGED (INCLUYE OCULTAR EL LOADER AL FINAL) ***
+// *** ON AUTH STATE CHANGED ***
 onAuthStateChanged(auth, async (user) => {
+    // Si el loader ya fue ocultado por el arreglo rápido, esta línea no hace nada.
+    // Si no fue ocultado por el arreglo rápido, esta línea lo oculta después de la autenticación.
+    
     if (user) {
         // Asignar user.uid al ID de jugador permanente
         jugadorActualId = user.uid; 
@@ -301,9 +308,6 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('header-user-info').classList.add('hidden');
         jugadorActualId = null; 
     }
-    
-    // *** SOLUCIÓN DE CARGA: OCULTAR EL LOADER AQUÍ, CUANDO LA AUTENTICACIÓN ESTÁ RESUELTA ***
-    document.getElementById('app-loader').classList.add('hidden');
 });
 
 document.getElementById('btn-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
