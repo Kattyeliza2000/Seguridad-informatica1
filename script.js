@@ -45,7 +45,7 @@ let currentStreak = 0;
 let startTime = 0; 
 let jugadorActualData = null; 
 
-// --- BANCO DE PREGUNTAS COMPLETO (64 PREGUNTAS) ---
+// --- 64 PREGUNTAS COMPLETAS ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS." },
@@ -132,6 +132,7 @@ function playClick() {
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
+    
     grid.innerHTML = '';
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
@@ -342,7 +343,10 @@ function mostrarSelectorSalas() {
     SALAS_PREDEFINIDAS.forEach(salaId => {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
-        btn.innerHTML = `<strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">...</span>`;
+        btn.innerHTML = `
+            <div class="room-icon"><i class="fa-solid ${ROOM_ICONS[salaId]}"></i></div>
+            <strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong>
+            <span class="room-count" id="count-${salaId}">...</span>`;
         onSnapshot(doc(db, "salas_activas", salaId), (docSnap) => {
             const count = docSnap.exists() ? (docSnap.data().jugadores || []).length : 0;
             const el = document.getElementById(`count-${salaId}`);
@@ -414,7 +418,7 @@ async function limpiarSala(salaId) {
                  await updateDoc(salaRef, { estado: 'esperando' });
             }
         }
-    } catch (e) { console.error("Error limpiando sala", e); }
+    } catch (e) { console.error("Error limpiando sala:", e); }
 }
 
 document.getElementById('btn-leave-lobby').addEventListener('click', async () => {
@@ -485,11 +489,8 @@ function seleccionarOpcion(index, btn) {
     btns.forEach(b => b.classList.remove('option-selected'));
     btn.classList.add('option-selected');
     
-    if (currentMode === 'study') {
-        mostrarResultadoInmediato(index);
-    } else {
-        document.getElementById('btn-next-question').classList.remove('hidden');
-    }
+    if (currentMode === 'study') mostrarResultadoInmediato(index);
+    else document.getElementById('btn-next-question').classList.remove('hidden');
 }
 
 function mostrarResultadoInmediato(sel) {
@@ -498,21 +499,17 @@ function mostrarResultadoInmediato(sel) {
     const cont = document.getElementById('options-container');
     const btns = cont.querySelectorAll('button');
     
-    // Deshabilitar botones
     btns.forEach(b => b.disabled = true);
-    
-    // Pintar feedback
     btns[correcta].classList.add('ans-correct', 'feedback-visible');
     if(sel !== correcta) btns[sel].classList.add('ans-wrong', 'feedback-visible');
     
-    // Mostrar explicación
     const div = document.createElement('div');
     div.className = 'explanation-feedback';
     div.innerHTML = `<strong>Explicación:</strong> ${pregunta.explicacion}`;
-    cont.appendChild(div);
+    document.getElementById('options-container').appendChild(div);
     
     respuestasUsuario.push(sel);
-    // HABILITAR BOTÓN SIGUIENTE (CORRECCIÓN CRÍTICA)
+    // HABILITAR BOTÓN SIGUIENTE EN MODO ESTUDIO (SOLUCIÓN CRÍTICA)
     document.getElementById('btn-next-question').classList.remove('hidden');
 }
 
@@ -537,6 +534,228 @@ document.getElementById('btn-next-question').addEventListener('click', () => {
     }
 });
 
+function mostrarRacha(n) {
+    const d = document.getElementById('combo-display');
+    d.innerText = `¡RACHA x${n}! 🔥`;
+    d.classList.remove('hidden');
+    setTimeout(() => d.classList.add('hidden'), 1500);
+}
+
+function iniciarReloj() {
+    intervaloTiempo = setInterval(() => {
+        tiempoRestante--;
+        let m = Math.floor(tiempoRestante / 60), s = tiempoRestante % 60;
+        document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        if (tiempoRestante <= 0) { clearInterval(intervaloTiempo); terminarQuiz(); }
+    }, 1000);
+}
+
+document.getElementById('btn-quit-quiz').addEventListener('click', () => {
+    const msg = currentMode === 'multiplayer' ? "¿Rendirse? Se registrará tu nota actual en la batalla." : "¿Rendirse? Se guardará tu intento.";
+    if(confirm(msg)) terminarQuiz(true);
+});
+
+async function terminarQuiz(abandono = false) {
+    const bgMusic = document.getElementById('bg-music');
+    if(bgMusic) { bgMusic.pause(); bgMusic.currentTime = 0; }
+    clearInterval(intervaloTiempo);
+
+    const tiempoFinal = Math.floor((Date.now() - startTime) / 1000);
+
+    let aciertos = 0;
+    respuestasUsuario.forEach((r, i) => {
+        if (i < preguntasExamen.length && r === preguntasExamen[i].respuesta) aciertos++;
+    });
+    const nota = Math.round((aciertos / preguntasExamen.length) * 100);
+    
+    const nick = document.getElementById('player-nickname').value || currentUserEmail.split('@')[0];
+    const finalAvatar = currentAvatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default';
+
+    if (currentMode === 'multiplayer' && currentRoomId) {
+        await addDoc(collection(db, `salas_activas/${currentRoomId}/resultados`), {
+            user: nick,
+            avatar: finalAvatar,
+            score: nota,
+            correctas: aciertos,
+            timeTaken: tiempoFinal,
+            status: abandono ? "Retirado" : "Finalizado",
+            date: new Date()
+        });
+        
+        await limpiarSala(currentRoomId);
+        renderBattlePodium();
+        document.getElementById('battle-results-modal').classList.remove('hidden');
+    } else {
+        document.getElementById('room-results-box').classList.add('hidden');
+        document.getElementById('final-avatar-display').classList.add('hidden');
+        
+        if(currentMode === 'exam') {
+            document.getElementById('btn-ranking').classList.remove('locked-btn');
+            document.getElementById('btn-stats').classList.remove('locked-btn');
+            
+            await guardarHistorialFirebase(nota);
+            await guardarPuntajeGlobal(nota);
+        }
+        showScreen('result-screen');
+        document.getElementById('score-final').innerText = `${nota}/100`;
+        
+        const msg = document.getElementById('custom-msg');
+        const sfxWin = document.getElementById('success-sound');
+        const sfxFail = document.getElementById('fail-sound');
+        const vol = document.getElementById('volume-slider').value;
+        sfxWin.volume = vol; sfxFail.volume = vol;
+
+        if (nota >= 70) sfxWin.play(); else sfxFail.play();
+
+        msg.className = '';
+        if (abandono) {
+            msg.innerText = "Finalizado por usuario."; msg.style.color = "#ea4335";
+        } else if (nota === 100) {
+            msg.innerText = "¡LEGENDARIO! 🏆"; msg.style.color = "#28a745"; createConfetti();
+        } else if (nota >= 70) {
+            msg.innerText = "¡Misión Cumplida!"; msg.style.color = "#fbbc04";
+        } else {
+            msg.innerText = "Entrenamiento fallido."; msg.style.color = "#ea4335";
+        }
+
+        if (currentMode === 'study') document.getElementById('btn-review').classList.add('hidden');
+        else document.getElementById('btn-review').classList.remove('hidden');
+    }
+}
+
+async function limpiarSala(salaId) {
+    if(!salaId || !jugadorActualData) return;
+    const salaRef = doc(db, "salas_activas", salaId);
+    try {
+        await updateDoc(salaRef, { jugadores: arrayRemove(jugadorActualData) });
+        
+        const snap = await getDoc(salaRef);
+        if(snap.exists()) {
+            const currentPlayers = snap.data().jugadores || [];
+            if(currentPlayers.length === 0 && snap.data().estado !== 'esperando') {
+                 await updateDoc(salaRef, { estado: 'esperando' });
+            }
+        }
+    } catch (e) { console.error("Error limpiando sala:", e); }
+}
+
+document.getElementById('btn-leave-lobby').addEventListener('click', async () => {
+    if (confirm("¿Abandonar escuadrón?")) {
+        if (currentRoomId) {
+            await limpiarSala(currentRoomId);
+            location.reload();
+        }
+    }
+});
+
 document.getElementById('btn-exit-war-modal').addEventListener('click', async () => { location.reload(); });
 
-// (Resto de funciones: terminarQuiz, renderBattlePodium, guardarHistorialFirebase, etc., se mantienen igual)
+function renderBattlePodium() {
+    const q = query(collection(db, `salas_activas/${currentRoomId}/resultados`), orderBy("score", "desc"));
+    onSnapshot(q, (snap) => {
+        const container = document.getElementById('podium-container');
+        container.innerHTML = '';
+        let players = [];
+        snap.forEach(doc => players.push(doc.data()));
+        players.slice(0, 5).forEach((p, index) => {
+            const height = Math.max(20, p.score) + '%'; 
+            const col = document.createElement('div');
+            col.className = 'podium-column';
+            col.innerHTML = `<div class="podium-avatar" style="background-image: url('${p.avatar}'); background-size: cover;"></div><div class="podium-name">${p.user}</div><div class="podium-bar" style="height: ${height};">${p.score}</div>`;
+            container.appendChild(col);
+        });
+    });
+}
+
+async function guardarHistorialFirebase(nota) {
+    try {
+        await addDoc(collection(db, "historial_academico"), {
+            email: currentUserEmail,
+            score: nota,
+            date: new Date()
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function guardarPuntajeGlobal(nota) {
+    try {
+        await addDoc(collection(db, "ranking_global"), {
+            email: currentUserEmail,
+            score: nota,
+            dateString: new Date().toLocaleDateString() 
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function cargarGraficoFirebase() {
+    try {
+        const q = query(collection(db, "historial_academico"), where("email", "==", currentUserEmail), orderBy("date", "desc"), limit(10));
+        const querySnapshot = await getDocs(q);
+        let history = [];
+        querySnapshot.forEach((doc) => { history.push(doc.data()); });
+        history.reverse();
+        const ctx = document.getElementById('progressChart').getContext('2d');
+        if(window.myChart) window.myChart.destroy();
+        window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: history.map((_, i) => `Intento ${i+1}`), datasets: [{ label: 'Nota', data: history.map(x => x.score), borderColor: '#1a73e8', tension: 0.3, fill: true, backgroundColor: 'rgba(26,115,232,0.1)' }] },
+            options: { scales: { y: { beginAtZero: true, max: 100 } } }
+        });
+    } catch(e) { console.warn("Error gráfico (posible falta de índice):", e); }
+}
+
+async function cargarRankingGlobal() {
+    try {
+        const today = new Date().toLocaleDateString();
+        const q = query(collection(db, "ranking_global"), where("dateString", "==", today), orderBy("score", "desc"), limit(10));
+        const querySnapshot = await getDocs(q);
+        const list = document.getElementById('ranking-list');
+        list.innerHTML = "";
+        let pos = 1;
+        querySnapshot.forEach((doc) => {
+            const d = doc.data();
+            list.innerHTML += `<div class="rank-row"><span class="rank-pos">#${pos}</span><span class="rank-name">${d.email.split('@')[0]}</span><span class="rank-score">${d.score} pts</span></div>`;
+            pos++;
+        });
+        if(pos === 1) list.innerHTML = "<p style='text-align:center; padding:20px;'>Aún no hay puntajes hoy. ¡Sé el primero!</p>";
+    } catch(e) { console.warn("Error ranking:", e); }
+}
+
+function createConfetti() {
+    const w = document.getElementById('confetti-wrapper'); w.classList.remove('hidden'); w.innerHTML = '';
+    const c = ['#1a73e8', '#34a853', '#fbbc04', '#ea4335'];
+    for(let i=0; i<100; i++) {
+        const d = document.createElement('div');
+        d.style.position='absolute'; d.style.width='10px'; d.style.height='10px';
+        d.style.backgroundColor = c[Math.floor(Math.random()*c.length)];
+        d.style.left = Math.random()*100+'vw';
+        d.style.animation = `fall ${Math.random()*3+2}s linear forwards`;
+        w.appendChild(d);
+    }
+}
+
+document.getElementById('volume-slider').addEventListener('input', (e) => {
+    document.querySelectorAll('audio').forEach(a => { a.volume = e.target.value; a.muted = (e.target.value == 0); });
+});
+document.getElementById('btn-mute').addEventListener('click', () => {
+    const audios = document.querySelectorAll('audio');
+    const isMuted = !audios[0].muted;
+    audios.forEach(a => a.muted = isMuted);
+});
+document.getElementById('close-stats').addEventListener('click', () => document.getElementById('stats-modal').classList.add('hidden'));
+document.getElementById('close-ranking').addEventListener('click', () => document.getElementById('ranking-modal').classList.add('hidden'));
+
+document.getElementById('btn-review').addEventListener('click', () => {
+    document.getElementById('result-screen').classList.add('hidden');
+    document.getElementById('review-screen').classList.remove('hidden');
+    const c = document.getElementById('review-container'); c.innerHTML = '';
+    preguntasExamen.forEach((p, i) => {
+        const ok = respuestasUsuario[i] === p.respuesta;
+        let ops = '';
+        p.opciones.forEach((o, x) => {
+            let cls = (x === p.respuesta) ? 'ans-correct' : (x === respuestasUsuario[i] && !ok ? 'ans-wrong' : '');
+            ops += `<div class="review-answer ${cls}">${x === p.respuesta ? '✅' : (x===respuestasUsuario[i]?'❌':'')} ${o}</div>`;
+        });
+        c.innerHTML += `<div class="review-item"><div class="review-question">${i+1}. ${p.texto}</div>${ops}<div class="review-explanation">${p.explicacion}</div></div>`;
+    });
+});
