@@ -132,7 +132,6 @@ function playClick() {
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
-    
     grid.innerHTML = '';
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
@@ -257,11 +256,9 @@ onAuthStateChanged(auth, async (user) => {
                 document.getElementById('player-nickname').value = nombreReal;
                 
                 if (user.photoURL) {
-                    const profilePic = document.getElementById('user-google-photo');
-                    profilePic.src = user.photoURL;
-                    profilePic.classList.remove('hidden');
-                    const headerPic = document.getElementById('header-photo');
-                    if(headerPic) headerPic.src = user.photoURL;
+                    document.getElementById('user-google-photo').src = user.photoURL;
+                    document.getElementById('user-google-photo').classList.remove('hidden');
+                    document.getElementById('header-photo').src = user.photoURL;
                 }
                 
                 toggleHeaderButtons();
@@ -689,6 +686,16 @@ async function guardarHistorialFirebase(nota) {
             email: currentUserEmail,
             score: nota,
             date: new Date()
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function guardarPuntajeGlobal(nota) {
+    try {
+        await addDoc(collection(db, "ranking_global"), {
+            email: currentUserEmail,
+            score: nota,
+            dateString: new Date().toLocaleDateString() 
         });
     } catch (e) { console.error(e); }
 }
