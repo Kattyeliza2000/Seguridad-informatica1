@@ -1,9 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Mantenemos imports de Firestore para Ranking, Historial y Batalla
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
+// --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -255,7 +254,8 @@ function mostrarSelectorSalas() {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
         const iconClass = ROOM_ICONS[salaId] || 'fa-users';
-        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">4 Agentes</span>`; // Simulación de contador
+        // CORRECCIÓN: Contador Simulado a 0 Agentes
+        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">0 Agentes</span>`; 
         
         btn.onclick = () => { 
             playClick(); 
