@@ -45,7 +45,7 @@ let currentStreak = 0;
 let startTime = 0; 
 let jugadorActualData = null; 
 
-// --- 64 PREGUNTAS ---
+// --- BANCO DE PREGUNTAS COMPLETO (64 PREGUNTAS) ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS." },
@@ -103,7 +103,7 @@ const bancoPreguntas = [
     { texto: "La relación básica de riesgo se expresa como:", opciones: ["Amenaza + Impacto", "Vulnerabilidad + Impacto", "Amenaza x Vulnerabilidad x Impacto", "Impacto - Probabilidad"], respuesta: 2, explicacion: "Respuesta correcta: Amenaza x Vulnerabilidad x Impacto." },
     { texto: "Una contramedida básica contra la enumeración NetBIOS es:", opciones: ["Abrir puertos 135-139", "Usar SMTP sin TLS", "Habilitar Telnet", "Deshabilitar el uso compartido de archivos/impresoras"], respuesta: 3, explicacion: "Respuesta correcta: Deshabilitar el uso compartido de archivos/impresoras." },
     { texto: "Un ejemplo de control de presencia y acceso es:", opciones: ["UPS", "Barrera antivirus", "Extintor", "CCTV"], respuesta: 3, explicacion: "Respuesta correcta: CCTV." },
-    { texto: "En seguridad lógica, el control AAA incluye:", opciones: ["Autenticación, autorización y auditoría", "API, App, Audit", "Asignar ACLs automáticas", "Antispam, antivirus, antimalware"], respuesta: 0, explicacion: "Respuesta correcta: Autenticación, autorización y auditoría." },
+    { texto: "En seguridad lógica, el control AAA incluye:", opciones: ["Autenticación, autorización y auditoría", "API, App, Audit", "Antispam, antivirus, antimalware"], respuesta: 0, explicacion: "Respuesta correcta: Autenticación, autorización y auditoría." },
     { texto: "Un ataque pasivo contra WLAN que solo escucha tráfico se denomina:", opciones: ["DoS inalámbrico", "Spoofing", "Jamming", "Eavesdropping"], respuesta: 3, explicacion: "Respuesta correcta: Eavesdropping." },
     { texto: "En una WLAN, ¿qué dispositivo conecta clientes Wi-Fi con la LAN cableada?", opciones: ["Firewall", "Repetidor", "Switch", "Punto de acceso (AP)"], respuesta: 3, explicacion: "Respuesta correcta: Punto de acceso (AP)." },
     { texto: "El tráfico saliente que abandona la red se controla mediante:", opciones: ["VLAN", "Reglas de filtrado de salida en el cortafuegos", "IDS", "VPN"], respuesta: 1, explicacion: "Respuesta correcta: Reglas de filtrado de salida en el cortafuegos." },
@@ -371,7 +371,7 @@ async function unirseASala(salaId) {
 
     const nick = document.getElementById('player-nickname').value || currentUserEmail.split('@')[0];
     const jugadorData = { name: nick, avatar: currentAvatarUrl };
-
+    
     jugadorActualData = jugadorData;
 
     await setDoc(salaRef, { jugadores: arrayUnion(jugadorData), estado: "esperando" }, { merge: true });
@@ -407,7 +407,6 @@ async function limpiarSala(salaId) {
     try {
         await updateDoc(salaRef, { jugadores: arrayRemove(jugadorActualData) });
         
-        // Comprobar si quedó vacía y resetear estado si es necesario
         const snap = await getDoc(salaRef);
         if(snap.exists()) {
             const currentPlayers = snap.data().jugadores || [];
@@ -434,11 +433,13 @@ document.getElementById('btn-start-war').addEventListener('click', async () => {
 
 function iniciarQuizMultiplayer() {
     if (unsubscribeRoom) unsubscribeRoom();
+    // BATALLA: 64 PREGUNTAS ALEATORIAS
     preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
     iniciarInterfazQuiz();
 }
 
 function iniciarInterfazQuiz() {
+    // Bloquear botones al iniciar si es examen
     if(currentMode === 'exam') {
         document.getElementById('btn-ranking').classList.add('locked-btn');
         document.getElementById('btn-stats').classList.add('locked-btn');
@@ -499,21 +500,17 @@ function mostrarResultadoInmediato(sel) {
     const cont = document.getElementById('options-container');
     const btns = cont.querySelectorAll('button');
     
-    // Deshabilitar botones
     btns.forEach(b => b.disabled = true);
-    
-    // Pintar feedback
     btns[correcta].classList.add('ans-correct', 'feedback-visible');
     if(sel !== correcta) btns[sel].classList.add('ans-wrong', 'feedback-visible');
     
-    // Mostrar explicación
     const div = document.createElement('div');
     div.className = 'explanation-feedback';
     div.innerHTML = `<strong>Explicación:</strong> ${pregunta.explicacion}`;
-    cont.appendChild(div);
+    document.getElementById('options-container').appendChild(div);
     
     respuestasUsuario.push(sel);
-    // HABILITAR BOTÓN SIGUIENTE
+    // HABILITAR BOTÓN SIGUIENTE EN MODO ESTUDIO
     document.getElementById('btn-next-question').classList.remove('hidden');
 }
 
@@ -586,8 +583,8 @@ async function terminarQuiz(abandono = false) {
             date: new Date()
         });
         
-        await limpiarSala(currentRoomId);
-
+        await limpiarSala(currentRoomId); // LIMPIEZA GARANTIZADA
+        
         renderBattlePodium();
         document.getElementById('battle-results-modal').classList.remove('hidden');
     } else {
@@ -596,8 +593,6 @@ async function terminarQuiz(abandono = false) {
         
         if(currentMode === 'exam') {
             document.getElementById('btn-ranking').classList.remove('locked-btn');
-            document.getElementById('btn-stats').classList.remove('locked-btn');
-            
             await guardarHistorialFirebase(nota);
             await guardarPuntajeGlobal(nota);
         }
@@ -641,7 +636,7 @@ async function limpiarSala(salaId) {
                  await updateDoc(salaRef, { estado: 'esperando' });
             }
         }
-    } catch (e) { console.error("Error limpiando sala:", e); }
+    } catch (e) { console.error("Error limpiando sala", e); }
 }
 
 document.getElementById('btn-leave-lobby').addEventListener('click', async () => {
@@ -687,7 +682,7 @@ async function guardarPuntajeGlobal(nota) {
         await addDoc(collection(db, "ranking_global"), {
             email: currentUserEmail,
             score: nota,
-            dateString: new Date().toLocaleDateString() // Guardado para filtro diario
+            dateString: new Date().toLocaleDateString() 
         });
     } catch (e) { console.error(e); }
 }
@@ -712,7 +707,6 @@ async function cargarGraficoFirebase() {
 async function cargarRankingGlobal() {
     try {
         const today = new Date().toLocaleDateString();
-        // FILTRO: Solo documentos donde dateString sea hoy
         const q = query(collection(db, "ranking_global"), where("dateString", "==", today), orderBy("score", "desc"), limit(10));
         const querySnapshot = await getDocs(q);
         const list = document.getElementById('ranking-list');
