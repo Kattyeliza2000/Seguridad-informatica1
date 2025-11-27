@@ -3,7 +3,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 // Mantenemos imports de Firestore para Ranking, Historial y Batalla
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
+// --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -23,16 +23,25 @@ const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec
 const correosUnDispositivo = ["cnavarretem4@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
-// --- 3. CONFIGURACIÓN DE AVATARES Y SALAS (DECLARACIONES ÚNICAS) ---
+// --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
-    { seed: 'Felix', style: 'avataaars', bg: 'b6e3f4' },
-    { seed: 'Aneka', style: 'avataaars', bg: 'c0aede' },
-    { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9' },
-    { seed: 'Bear', style: 'avataaars', bg: 'ffdfbf' },
-    { seed: 'Chester', style: 'avataaars', bg: 'ffd5dc' },
-    { seed: 'Bandit', style: 'lorelei', bg: 'c0aede' },
-    { seed: 'Molly', style: 'lorelei', bg: 'b6e3f4' },
-    { seed: 'Buster', style: 'lorelei', bg: 'ffdfbf' }
+    // MUJERES (7)
+    { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff', tags: 'Femenino' },
+    { seed: 'Ana', style: 'avataaars', bg: 'ffd5dc', tags: 'Femenino' },
+    { seed: 'Sofia', style: 'avataaars', bg: 'b6e3f4', tags: 'Femenino' },
+    { seed: 'Laura', style: 'lorelei', bg: 'c0aede', tags: 'Femenino' },
+    { seed: 'Maya', style: 'lorelei', bg: 'f7c9e5', tags: 'Femenino' },
+    { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9', tags: 'Femenino' },
+    { seed: 'Mia', style: 'lorelei', bg: 'ffdfbf', tags: 'Femenino' },
+    
+    // HOMBRES (7, resto del total)
+    { seed: 'Felix', style: 'avataaars', bg: 'a0d6b3', tags: 'Masculino' },
+    { seed: 'Aneka', style: 'avataaars', bg: 'c7d0f8', tags: 'Masculino' },
+    { seed: 'John', style: 'avataaars', bg: 'ffc5a1', tags: 'Masculino' },
+    { seed: 'Buster', style: 'lorelei', bg: 'a6c0ff', tags: 'Masculino' },
+    { seed: 'Chester', style: 'avataaars', bg: 'f9d3b4', tags: 'Masculino' },
+    { seed: 'Bandit', style: 'lorelei', bg: 'ffdfbf', tags: 'Masculino' },
+    { seed: 'Chris', style: 'avataaars', bg: 'a1eafb', tags: 'Masculino' },
 ];
 
 const ROOM_ICONS = {
@@ -44,7 +53,7 @@ const ROOM_ICONS = {
     "SALA_BOTNET": "fa-robot"
 };
 
-// --- 4. VARIABLES GLOBALES (Limpias de duplicación) ---
+// --- 4. VARIABLES GLOBALES (Limpias y Unificadas) ---
 let preguntasExamen = []; 
 let indiceActual = 0;
 let respuestasUsuario = []; 
@@ -77,9 +86,9 @@ const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 const headerUserInfo = document.getElementById('header-user-info');
+const salasRef = collection(db, 'salas');
 
-
-// --- 5. BANCO DE PREGUNTAS COMPLETO ---
+// --- BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica (Fallo técnico/suministro)." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 0, explicacion: "Respuesta correcta: Nmap (Herramienta fundamental para escaneo y mapeo de redes)." },
