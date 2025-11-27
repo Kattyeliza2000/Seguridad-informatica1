@@ -1,168 +1,834 @@
-/* === ESTILOS v270 === */
-* { box-sizing: border-box; }
-body { 
-    font-family: 'Segoe UI', 'Roboto', sans-serif; 
-    background-color: #eef2f6; 
-    color: #333; 
-    margin: 0; 
-    min-height: 100vh; 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+// Mantenemos imports de Firestore para Ranking, Historial y Batalla
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
+const firebaseConfig = {
+    apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
+    authDomain: "simulador-c565e.firebaseapp.com",
+    projectId: "simulador-c565e",
+    storageBucket: "simulador-c565e.firebasestorage.app",
+    measurementId: "G-W715QQWGY1"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// --- 2. LISTA DE CORREOS AUTORIZADOS ---
+const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
+const correosUnDispositivo = ["cnavarretem4@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"];
+const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
+
+// --- 3. VARIABLES GLOBALES (Limpias y Unificadas) ---
+let preguntasExamen = []; 
+let indiceActual = 0;
+let respuestasUsuario = []; 
+let seleccionTemporal = null; 
+let tiempoRestante = 0;
+let intervaloTiempo;
+let currentUserEmail = "";
+let currentMode = 'individual';
+let uidJugadorPermanente = null; 
+let currentAvatarUrl = null; 
+let currentStreak = 0; 
+let startTime = 0; 
+let battleRoomID = null;    
+let currentAlias = null;    
+let tempBattleID = null;    
+
+// --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
+const AVATAR_CONFIG = [
+    // MUJERES (7)
+    { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff', tags: 'Femenino' },
+    { seed: 'Ana', style: 'avataaars', bg: 'ffd5dc', tags: 'Femenino' },
+    { seed: 'Sofia', style: 'avataaars', bg: 'b6e3f4', tags: 'Femenino' },
+    { seed: 'Laura', style: 'lorelei', bg: 'c0aede', tags: 'Femenino' },
+    { seed: 'Maya', style: 'lorelei', bg: 'f7c9e5', tags: 'Femenino' },
+    { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9', tags: 'Femenino' },
+    { seed: 'Mia', style: 'lorelei', bg: 'ffdfbf', tags: 'Femenino' },
     
-    /* CORRECCIÓN: Centrado y posicionamiento para header fijo */
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; /* Centrar horizontalmente el contenido */
-    justify-content: flex-start; /* Iniciar el contenido después del header */
-    padding-top: 80px; /* Espacio para el header fijo */
-    overflow-x: hidden; 
+    // HOMBRES (7, resto del total)
+    { seed: 'Felix', style: 'avataaars', bg: 'a0d6b3', tags: 'Masculino' },
+    { seed: 'Aneka', style: 'avataaars', bg: 'c7d0f8', tags: 'Masculino' },
+    { seed: 'John', style: 'avataaars', bg: 'ffc5a1', tags: 'Masculino' },
+    { seed: 'Buster', style: 'lorelei', bg: 'a6c0ff', tags: 'Masculino' },
+    { seed: 'Chester', style: 'avataaars', bg: 'f9d3b4', tags: 'Masculino' },
+    { seed: 'Bandit', style: 'lorelei', bg: 'ffdfbf', tags: 'Masculino' },
+    { seed: 'Chris', style: 'avataaars', bg: 'a1eafb', tags: 'Masculino' },
+];
+
+const ROOM_ICONS = {
+    "SALA_FIREWALL": "fa-fire",
+    "SALA_ENCRIPTADO": "fa-lock",
+    "SALA_ZERO_DAY": "fa-bug",
+    "SALA_PHISHING": "fa-fish",
+    "SALA_RANSOMWARE": "fa-skull-crossbones",
+    "SALA_BOTNET": "fa-robot"
+};
+
+// REFERENCIAS HTML
+const authScreen = document.getElementById('auth-screen');
+const setupScreen = document.getElementById('setup-screen');
+const quizScreen = document.getElementById('quiz-screen');
+const resultScreen = document.getElementById('result-screen');
+const reviewScreen = document.getElementById('review-screen');
+const btnLogout = document.getElementById('btn-logout');
+const btnNextQuestion = document.getElementById('btn-next-question');
+const btnRanking = document.getElementById('btn-ranking');
+const btnStats = document.getElementById('btn-stats');
+const modeSelect = document.getElementById('mode-select');
+const aliasInputGroup = document.getElementById('alias-input-group');
+const aliasInput = document.getElementById('alias-input');
+const btnStart = document.getElementById('btn-start');
+const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
+const headerUserInfo = document.getElementById('header-user-info');
+const avatarGrid = document.getElementById('avatar-grid');
+
+// --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA ---
+function showScreen(screenId) {
+    document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
+    const screenElement = document.getElementById(screenId);
+    if(screenElement) {
+        screenElement.classList.remove('hidden');
+    }
 }
 
-/* CORRECCIÓN: Asegurar que el Header ocupe el ancho total */
-header { 
-    width: 100vw; 
-    padding: 12px 20px; 
-    background: #fff; 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-    position: fixed; 
-    top: 0; 
-    display: flex; 
-    align-items: center; 
-    justify-content: space-between; 
-    z-index: 100; 
+// --- FUNCIÓN UTILITARIA: SONIDO CLIC (REUBICADO Y CORREGIDO) ---
+function playClick() {
+    const sfx = document.getElementById('click-sound');
+    if(sfx) { sfx.currentTime = 0; sfx.play().catch(()=>{}); }
 }
-.logo { display: flex; align-items: center; gap: 8px; }
-.logo h1 { margin: 0; font-size: 1rem; color: #1a73e8; font-weight: 700; }
 
-.header-user-info { display: flex; align-items: center; gap: 10px; margin-right: 15px; padding-right: 15px; border-right: 1px solid #eee; }
-.header-username-text { font-size: 0.85rem; font-weight: 600; color: #555; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.header-profile-pic { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #ddd; object-fit: cover; }
-.header-controls { display: flex; align-items: center; gap: 10px; }
 
-/* CORRECCIÓN: Centrar el contenedor principal */
-.container { 
-    width: 95%; 
-    max-width: 380px; 
-    background: #fff; 
-    padding: 25px; 
-    border-radius: 12px; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+// --- 4. BANCO DE PREGUNTAS COMPLETO (CORREGIDA PREGUNTA 3) ---
+const bancoPreguntas = [
+    { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica (Fallo técnico/suministro)." },
+    { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS. Nmap es para mapeo, pero OpenVAS es para escaneo de vulnerabilidades a gran escala." }, // <--- CORRECCIÓN A ÍNDICE 2 (OpenVAS)
+    { texto: "El término SSRF significa:", opciones: ["Safe Session Reset Form", "Simple Service Relay Feature", "Secure Software Risk Framework", "Server-Side Request Forgery"], respuesta: 3, explicacion: "Respuesta correcta: Server-Side Request Forgery" },
+    { texto: "El proyecto OWASP tiene como finalidad principal:", opciones: ["Vender cortafuegos", "Producir malware de prueba", "Crear estándares de hardware", "Mejorar la seguridad de aplicaciones web de forma abierta"], respuesta: 3, explicacion: "Respuesta correcta: Mejorar la seguridad de aplicaciones web de forma abierta" },
+    { texto: "La gestión de activos se considera importante porque:", opciones: ["Genera llaves criptográficas", "Reduce el jitter", "Actualiza antivirus", "Mantiene control sobre hardware, software y datos"], respuesta: 3, explicacion: "Respuesta correcta: Mantiene control sobre hardware, software y datos" },
+    { texto: "El operador 'eq' en una regla de firewall sirve para:", opciones: ["Cambiar protocolo", "Hacer ping", "Filtrar un número de puerto específico", "Denegar IPs"], respuesta: 2, explicacion: "Respuesta correcta: Filtrar un número de puerto específico" },
+    { texto: "Una falla criptográfica puede conducir principalmente a:", opciones: ["Exposición de datos confidenciales", "Jitter elevando", "DoS", "Aumento de latencia"], respuesta: 0, explicacion: "Respuesta correcta: Exposición de datos confidenciales" },
+    { texto: "¿Qué categoría de activo abarca servidores, routers y estaciones de trabajo?", opciones: ["Data", "Lines & Networks", "Hardware", "Software"], respuesta: 2, explicacion: "Respuesta correcta: Hardware" },
+    { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán (Desastre natural/climático)." },
+    { texto: "¿Qué nivel de riesgo requiere medidas inmediatas según la tabla de niveles?", opciones: ["Alto/Extremo", "Bajo", "Negligible", "Medio"], respuesta: 0, explicacion: "Respuesta correcta: Alto/Extremo" },
+    { texto: "El estándar OWASP ASVS se utiliza para:", opciones: ["Generar certificados SSL", "Probar hardware", "Cifrado TLS", "Verificar controles de seguridad en aplicaciones"], respuesta: 3, explicacion: "Respuesta correcta: Verificar controles de seguridad en aplicaciones" },
+    { texto: "Los ataques pasivos se caracterizan por:", opciones: ["Inyectar malware", "Ejecutar DoS", "Destruir hardware", "Escuchar y capturar tráfico"], respuesta: 3, explicacion: "Respuesta correcta: Escuchar y capturar tráfico" },
+    { texto: "En el Top 10 OWASP 2021, la vulnerabilidad que ocupa el primer lugar es:", opciones: ["Inyección", "XSS", "Broken Access Control", "SSRF"], respuesta: 2, explicacion: "Respuesta correcta: Broken Access Control" },
+    { texto: "Un Sombrero gris (Gray Hat) se define como alguien que:", opciones: ["Actúa a veces como White Hat y a veces como Black Hat", "Sólo ataca redes bancarias", "Es siempre malicioso", "Trabaja para la NSA"], respuesta: 0, explicacion: "Respuesta correcta: Actúa a veces como White Hat y a veces como Black Hat" },
+    { texto: "¿Cuál de los siguientes es un ejemplo de ataque activo listado en el material?", opciones: ["Shoulder surfing", "Footprinting", "Inyección SQL", "Sniffing"], respuesta: 2, explicacion: "Respuesta correcta: Inyección SQL" },
+    { texto: "Dentro de las fases del hacking ético, la primera etapa es:", opciones: ["Reconocimiento (recon)", "Mantenimiento de acceso", "Escalada de privilegios", "Borrado de huellas"], respuesta: 0, explicacion: "Respuesta correcta: Reconocimiento (recon)" },
+    { texto: "El principio 'C' del trípode CIA significa:", opciones: ["Confidencialidad", "Conectividad", "Capacidad", "Continuidad"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad" },
+    { texto: "El algoritmo RSA fue propuesto por:", opciones: ["Diffie & Hellman", "Rivest, Shamir y Adleman", "ElGamal", "Miller & Koblitz"], respuesta: 1, explicacion: "Respuesta correcta: Rivest, Shamir y Adleman" },
+    { texto: "El método de transposición se basa en:", opciones: ["Usar claves públicas", "Reordenar las letras del mensaje", "Sustituir letras por números", "Generar firmas digitales"], respuesta: 1, explicacion: "Respuesta correcta: Reordenar las letras del mensaje" },
+    { texto: "DES trabaja con bloques de:", opciones: ["32 bits", "256 bits", "64 bits", "128 bits"], respuesta: 2, explicacion: "Respuesta correcta: 64 bits" },
+    { texto: "En un par de claves RSA, la clave que debe mantenerse secreta es la:", opciones: ["Compartida", "Certificada", "Pública", "Privada"], respuesta: 3, explicacion: "Respuesta correcta: Privada" },
+    { texto: "Una firma digital permite verificar principalmente la:", opciones: ["Velocidad de red", "Compresión", "Fragmentación IP", "Integridad del mensaje y la identidad del remitente"], respuesta: 3, explicacion: "Respuesta correcta: Integridad del mensaje y la identidad del remitente" },
+    { texto: "Un cifrador en flujo cifra la información:", opciones: ["Con curvas elípticas", "Mediante RSA", "En bloques de 128 bits", "Bit a bit"], respuesta: 3, explicacion: "Respuesta correcta: Bit a bit" },
+    { texto: "La propiedad que asegura que solo personas autorizadas lean un mensaje es la:", opciones: ["Confidencialidad", "Integridad", "No repudio", "Disponibilidad"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad" },
+    { texto: "La criptografía de curva elíptica (ECC) ofrece la misma seguridad que RSA con:", opciones: ["Claves más largas", "Claves más cortas", "OTP", "Hashes MD5"], respuesta: 1, explicacion: "Respuesta correcta: Claves más cortas" },
+    { texto: "Un protocolo criptográfico es:", opciones: ["Un conjunto de pasos entre entidades para lograr un objetivo de seguridad", "Un certificado X.509", "Una clave pública", "Un algoritmo de hashing"], respuesta: 0, explicacion: "Respuesta correcta: Un conjunto de pasos entre entidades para lograr un objetivo de seguridad" },
+    { texto: "La longitud efectiva de clave en DES es de:", opciones: ["128 bits", "56 bits", "512 bits", "40 bits"], respuesta: 1, explicacion: "Respuesta correcta: 56 bits" },
+    { texto: "Los protocolos de autenticación tipo desafío-respuesta sirven para:", opciones: ["Cifrar discos", "Medir jitter", "Verificar la identidad de un usuario sin revelar el secreto", "Generar OTP"], respuesta: 2, explicacion: "Respuesta correcta: Verificar la identidad de un usuario sin revelar el secreto" },
+    { texto: "Ventaja esencial de la criptografía de clave pública:", opciones: ["Requiere OTP", "No usa matemáticas", "No es necesario compartir la clave secreta", "Consume menos CPU"], respuesta: 2, explicacion: "Respuesta correcta: No es necesario compartir la clave secreta" },
+    { texto: "El ataque conocido como watering-hole consiste en:", opciones: ["Infectar un sitio legítimo visitado por el objetivo", "Falsificar DNS", "Shoulder surfing", "Phishing SMS"], respuesta: 0, explicacion: "Respuesta correcta: Infectar un sitio legítimo visitado por el objetivo" },
+    { texto: "El método de autenticación más común y sencillo es el uso de:", opciones: ["Tokens biométricos", "NFC implantado", "Contraseñas", "Blockchain"], respuesta: 2, explicacion: "Respuesta correcta: Contraseñas" },
+    { texto: "Un nombre NetBIOS estándar contiene:", opciones: ["32 bits aleatorios", "Sólo números hexadecimales", "15 caracteres del dispositivo y 1 del servicio", "8 bytes fijos"], respuesta: 2, explicacion: "Respuesta correcta: 15 caracteres del dispositivo y 1 del servicio" },
+    { texto: "El fin de un ataque de escalada de privilegios es:", opciones: ["Obtener accesos de mayor nivel o ilimitados", "Subir jitter", "Colapsar la red", "Robar hardware"], respuesta: 0, explicacion: "Respuesta correcta: Obtener accesos de mayor nivel o ilimitados" },
+    { texto: "El ataque whaling se dirige principalmente a:", opciones: ["Estudiantes", "Altos ejecutivos", "Soporte técnico", "Servidores DNS"], respuesta: 1, explicacion: "Respuesta correcta: Altos ejecutivos" },
+    { texto: "En un cifrado simétrico la misma clave sirve para:", opciones: ["Cifrar y descifrar", "Sólo cifrar", "Distribuir claves públicas", "Sólo firma"], respuesta: 0, explicacion: "Respuesta correcta: Cifrar y descifrar" },
+    { texto: "¿Cuál es el objetivo principal de la criptografía?", opciones: ["Reducir el ancho de banda", "Convertir texto en imágenes", "Garantizar la seguridad de la información y las comunicaciones", "Firmar correos"], respuesta: 2, explicacion: "Respuesta correcta: Garantizar la seguridad de la información y las comunicaciones" },
+    { texto: "La herramienta Metasploit Framework destaca por permitir:", opciones: ["Generar hashes MD5", "Crear certificados SSL", "Levantar un servidor SMB falso y capturar hashes", "Cifrar discos"], respuesta: 2, explicacion: "Respuesta correcta: Levantar un servidor SMB falso y capturar hashes" },
+    { texto: "En SMTP, el comando que verifica un usuario es:", opciones: ["HELO", "DATA", "RCPT TO", "VRFY"], respuesta: 3, explicacion: "Respuesta correcta: VRFY" },
+    { texto: "Un hacker ético (White Hat) se caracteriza por:", opciones: ["Espiar empresas", "Contar con permiso para probar sistemas", "Obtener lucro personal", "Distribuir ransomware"], respuesta: 1, explicacion: "Respuesta correcta: Contar con permiso para probar sistemas" },
+    { texto: "En la autenticación de dos factores (2FA), un segundo factor puede ser:", opciones: ["Token de un solo uso (OTP)", "Dirección MAC", "Dominio DNS", "Subnet mask"], respuesta: 0, explicacion: "Respuesta correcta: Token de un solo uso (OTP)" },
+    { texto: "Wifiphisher es una herramienta usada para:", opciones: ["Enumerar DNS", "Escanear puertos", "Obtener contraseñas WPA/WPA2 vía phishing", "Realizar fuzzing"], respuesta: 2, explicacion: "Respuesta correcta: Obtener contraseñas WPA/WPA2 vía phishing" },
+    { texto: "El primer paso de un ataque de ingeniería social es:", opciones: ["Borrar huellas", "Recopilar información de la víctima", "Infectar con ransomware", "Solicitar rescate"], respuesta: 1, explicacion: "Respuesta correcta: Recopilar información de la víctima" },
+    { texto: "La enumeración se emplea para listar:", opciones: ["Temperatura CPU", "Usuarios, hosts y servicios del sistema", "Parches instalados", "Logs de impresora"], respuesta: 1, explicacion: "Respuesta correcta: Usuarios, hosts y servicios del sistema" },
+    { texto: "¿Cuál es el objetivo principal de la seguridad física en una organización?", opciones: ["Optimizar la impresión", "Aumentar el ancho de banda", "Permitir el libre acceso visitante", "Disminuir el riesgo sobre infraestructuras y datos"], respuesta: 3, explicacion: "Respuesta correcta: Disminuir el riesgo sobre infraestructuras y datos" },
+    { texto: "¿Para qué se usa Maltego en OSINT?", opciones: ["Actualizar firmware", "Probar puertos UDP", "Gestionar contraseñas", "Mapear relaciones entre entidades"], respuesta: 3, explicacion: "Respuesta correcta: Mapear relaciones entre entidades" },
+    { texto: "Un ataque interno suele ser realizado por:", opciones: ["Botnets externas", "Spammers", "Empleados con acceso privilegiado", "Hackers anónimos"], respuesta: 2, explicacion: "Respuesta correcta: Empleados con acceso privilegiado" },
+    { texto: "SNMP se transporta habitualmente sobre:", opciones: ["ICMP", "UDP", "SCTP", "TCP puerto 80"], respuesta: 1, explicacion: "Respuesta correcta: UDP" },
+    { texto: "En la fórmula de nivel de riesgo, “consecuencia” se refiere a:", opciones: ["Probabilidad", "Severidad del daño", "Valor del activo", "Tiempo de respuesta"], respuesta: 1, explicacion: "Respuesta correcta: Severidad del daño" },
+    { texto: "El escáner de vulnerabilidades Nikto2 se centra en:", opciones: ["Aplicaciones web y servidores HTTP", "Bases de datos", "Redes SCADA", "Firmware IoT"], respuesta: 0, explicacion: "Respuesta correcta: Aplicaciones web y servidores HTTP" },
+    { texto: "El ataque de fisherman phishing se apoya principalmente en:", opciones: ["Llamadas VoIP", "Redes sociales", "MQTT", "Correos masivos"], respuesta: 1, explicacion: "Respuesta correcta: Redes sociales" },
+    { texto: "La relación básica de riesgo se expresa como:", opciones: ["Amenaza + Impacto", "Vulnerabilidad ÷ Impacto", "Amenaza × Vulnerabilidad × Impacto", "Impacto – Probabilidad"], respuesta: 2, explicacion: "Respuesta correcta: Amenaza × Vulnerabilidad × Impacto" },
+    { texto: "Una contramedida básica contra la enumeración NetBIOS es:", opciones: ["Abrir puertos 135-139", "Usar SMTP sin TLS", "Habilitar Telnet", "Deshabilitar el uso compartido de archivos/impresoras"], respuesta: 3, explicacion: "Respuesta correcta: Deshabilitar el uso compartido de archivos/impresoras" },
+    { texto: "Un ejemplo de control de presencia y acceso es:", opciones: ["UPS", "Barrera antivirus", "Extintor", "CCTV"], respuesta: 3, explicacion: "Respuesta correcta: CCTV" },
+    { texto: "En seguridad lógica, el control AAA incluye:", opciones: ["Autenticación, autorización y auditoría", "API, App, Audit", "Asignar ACLs automáticas", "Antispam, antivirus, antimalware"], respuesta: 0, explicacion: "Respuesta correcta: Autenticación, autorización y auditoría" },
+    { texto: "Un ataque pasivo contra WLAN que solo escucha tráfico se denomina:", opciones: ["DoS inalámbrico", "Spoofing", "Jamming", "Eavesdropping"], respuesta: 3, explicacion: "Respuesta correcta: Eavesdropping (Escucha clandestina)." },
+    { texto: "En una WLAN, ¿qué dispositivo conecta clientes Wi-Fi con la LAN cableada?", opciones: ["Firewall", "Repetidor", "Switch", "Punto de acceso (AP)"], respuesta: 3, explicacion: "Respuesta correcta: Punto de acceso (AP)" },
+    { texto: "El tráfico saliente que abandona la red se controla mediante:", opciones: ["VLAN", "Reglas de filtrado de salida en el cortafuegos", "IDS", "VPN"], respuesta: 1, explicacion: "Respuesta correcta: Reglas de filtrado de salida en el cortafuegos" },
+    { texto: "Política que define quién accede a qué datos dentro de una BD:", opciones: ["Cifrado TLS", "Autorización / control de acceso", "Compilación", "Backup"], respuesta: 1, explicacion: "Respuesta correcta: Autorización / control de acceso" },
+    { texto: "Antes de aplicar parches en producción se debe:", opciones: ["Cambiar el FQDN", "Borrar registros", "Probar el parche en un entorno de pruebas", "Reiniciar IDS"], respuesta: 2, explicacion: "Respuesta correcta: Probar el parche en un entorno de pruebas" },
+    { texto: "Una inyección SQL basada en errores aprovecha:", opciones: ["Cifrado AES", "Tiempo de respuesta", "Mensajes de error devueltos por la aplicación", "Token OTP"], respuesta: 2, explicacion: "Respuesta correcta: Mensajes de error devueltos por la aplicación" },
+    { texto: "Ventaja de un firewall perimetral bien configurado:", opciones: ["Mejora la batería de los clientes", "Elimina todos los virus", "Reduce la superficie de ataque expuesta a Internet", "Incrementa la velocidad Wi-Fi"], respuesta: 2, explicacion: "Respuesta correcta: Reduce la superficie de ataque expuesta a Internet" },
+    { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap" },
+    { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
+    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: CIA." }
+];
+
+// --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
+function obtenerDeviceId() {
+    let deviceId = localStorage.getItem('device_id_seguro');
+    if (!deviceId) {
+        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + Date.now();
+        localStorage.setItem('device_id_seguro', deviceId);
+    }
+    return deviceId;
+}
+
+// --- 6. FUNCIÓN DE VOZ (TTS) ---
+function hablar(texto) {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = 'es-ES';
+    utterance.rate = 1.0;
+    synth.speak(utterance);
+}
+
+// --- FUNCIÓN DE UTILIDAD: ID Temporal (Para Batalla) ---
+function generarIDTemporal() {
+    return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+}
+
+// --- FUNCIONES DE BATALLA (SIMPLIFICADAS/SIMULADAS) ---
+const salasRef = collection(db, 'salas');
+
+async function iniciarBatalla() {
+    console.log("Modo Batalla iniciado (Lógica de sala simulada).");
+    tempBattleID = generarIDTemporal();
+    currentMode = 'multiplayer';
     
-    margin: 20px auto; /* Centrado automático */
+    // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA (PUNTO DE ACTIVACIÓN DE PERFIL)
+    document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    position: relative; 
-    z-index: 10; 
-    border: 1px solid #e1e4e8; 
+    // ** FLUJO CORREGIDO: Va a la pantalla de Avatar/Alias **
+    showScreen('avatar-screen'); 
+    initAvatars(); // Inicia la grilla de avatares
+}
+async function crearSala() { /* Simulada */ }
+async function unirseASala(salaDoc) { /* Simulada */ }
+async function limpiarSalaBatalla() { /* Simulada */ }
+async function verificarSesionActivaEnBatalla(uid) { return null; /* Simulada */ }
+
+
+// --- FUNCIÓN: Inicializa la grilla de avatares (Corregida la selección de click) ---
+function initAvatars() {
+    const grid = document.getElementById('avatar-grid');
+    if(!grid) return; 
+    grid.innerHTML = '';
+    
+    // Carga los avatares disponibles
+    AVATAR_CONFIG.forEach((av, index) => {
+        const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'avatar-option';
+        
+        if(index === 0) { 
+            img.classList.add('avatar-selected'); 
+            currentAvatarUrl = url; 
+        }
+        
+        img.onclick = () => {
+            playClick();
+            // LÓGICA DE SELECCIÓN: Deseleccionar todos, seleccionar el actual
+            document.querySelectorAll('.avatar-option').forEach(x => x.classList.remove('avatar-selected'));
+            img.classList.add('avatar-selected');
+            currentAvatarUrl = url;
+        };
+        grid.appendChild(img);
+    });
+    
+    // Establecer el apodo inicial si está disponible
+    const currentName = document.getElementById('user-display').innerText.split(' ')[0];
+    document.getElementById('player-nickname').value = currentName;
 }
 
-/* === ESTILOS ESPECÍFICOS DE PANTALLAS === */
-.auth-title { color: #1a73e8; font-size: 1.6rem; font-weight: 600; margin: 0 0 8px 0; letter-spacing: -0.5px; }
-.auth-subtitle { color: #5f6368; font-size: 0.9rem; margin: 0 0 25px 0; }
-.btn-google-style { background: white; color: #3c4043; border: 1px solid #dadce0; padding: 12px 20px; width: 100%; border-radius: 50px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; font-weight: 500; transition: all 0.2s; font-size: 0.95rem; font-family: 'Google Sans', 'Roboto', arial, sans-serif; }
-.btn-google-style:hover { background-color: #f7fafe; box-shadow: 0 1px 3px rgba(60,64,67,0.3); border-color: #d2e3fc; }
+// --- FUNCIÓN: Muestra la pantalla de selección de salas ---
+function mostrarSelectorSalas() {
+    showScreen('rooms-screen');
+    const list = document.getElementById('rooms-list');
+    list.innerHTML = '';
+    
+    const SALAS_PREDEFINIDAS = ["SALA_FIREWALL", "SALA_ENCRIPTADO", "SALA_ZERO_DAY", "SALA_PHISHING", "SALA_RANSOMWARE", "SALA_BOTNET"];
 
-.profile-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; }
-.google-profile-pic { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #1a73e8; padding: 1px; object-fit: cover; }
-.verified-badge { display: inline-flex; align-items: center; gap: 5px; background-color: #e6f4ea; color: #137333; border: 1px solid #1e8e3e; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
-
-.locked-btn { opacity: 0.3; pointer-events: none; filter: grayscale(100%); cursor: not-allowed; }
-#btn-ranking:not(.locked-btn) i { color: #fbbc04; }
-#btn-stats:not(.locked-btn) i { color: #1a73e8; }
-
-.avatar-section { margin: 10px 0; }
-.avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; justify-items: center; }
-.avatar-option { width: 60px; height: 60px; border-radius: 12px; background-color: #f0f4f8; border: 2px solid transparent; padding: 4px; }
-.avatar-option:hover { transform: scale(1.05); }
-.avatar-selected { border-color: #1a73e8 !important; background: #e8f0fe !important; transform: scale(1.1); }
-#player-nickname { width: 100%; padding: 10px; margin-top: 15px; border: 1px solid #dadce0; border-radius: 6px; font-size: 1rem; text-align: center; font-weight: bold; color: #1a73e8; outline: none; }
-#alias-input { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 1rem; text-align: center; font-weight: bold; color: #1a73e8; outline: none; }
-
-
-.control-group { margin-bottom: 15px; text-align: left; }
-label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #444; }
-select { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 0.95rem; background: #fff; color: #333; cursor: pointer; }
-select:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1); }
-
-.question-box h2 { font-size: 1.1rem; color: #222; line-height: 1.4; margin-bottom: 20px; }
-.options-box button { width: 100%; background: #fff; border: 1px solid #dadce0; border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; text-align: left; cursor: pointer; font-size: 0.95rem; transition: background 0.1s; color: #444; }
-.options-box button:hover:not(:disabled) { border-color: #1a73e8; background: #f8fbff; }
-.option-selected { border-color: #1a73e8 !important; background: #e8f0fe !important; font-weight: 600; color: #1a73e8; }
-.ans-correct { border-color: #28a745 !important; background: #d4edda !important; color: #155724 !important; }
-.ans-wrong { border-color: #dc3545 !important; background: #f8d7da !important; color: #721c24 !important; }
-.explanation-feedback { background: #f8f9fa; padding: 10px; border-left: 4px solid #1a73e8; margin-top: 10px; text-align: left; font-size: 0.9rem; }
-
-.rooms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
-.room-btn { background: #fff; border: 1px solid #dadce0; padding: 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; }
-.room-btn:hover { border-color: #1a73e8; background: #f0f7ff; }
-.room-count { font-size: 0.8rem; font-weight: 600; margin-top: 6px; color: #1a73e8; background: #e8f0fe; padding: 2px 8px; border-radius: 10px; }
-.room-icon { font-size: 2rem; color: #1a73e8; margin-bottom: 10px; }
-
-.lobby-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; max-height: 200px; overflow-y: auto; }
-.player-badge { background: #fff; border: 1px solid #dadce0; padding: 6px 12px; border-radius: 50px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
-.lobby-avatar-small { width: 30px; height: 30px; border-radius: 50%; }
-
-.rank-row { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
-.rank-pos { font-weight: 800; width: 20px; color: #888; }
-.rank-img { width: 40px; height: 40px; border-radius: 8px; background: #eee; object-fit: cover; }
-.rank-info { flex-grow: 1; text-align: left; overflow: hidden; }
-.rank-name { font-weight: 700; font-size: 0.9rem; display: block; }
-.rank-score { font-weight: 800; color: #1a73e8; }
-
-.btn-primary { background: #1a73e8; color: white; border: none; padding: 12px; border-radius: 25px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; transition: 0.2s; }
-.btn-primary:hover { background: #1557b0; }
-.btn-secondary { background: white; color: #555; border: 1px solid #dadce0; padding: 10px 20px; border-radius: 25px; font-weight: 600; cursor: pointer; width: 100%; }
-.hidden { display: none !important; }
-.btn-text { background: none; border: none; cursor: pointer; color: #666; font-weight: 600; }
-.btn-icon { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #555; transition: 0.2s; }
-.btn-icon:hover:not(.locked-btn) { transform: scale(1.2); }
-.volume-control-box { display: flex; align-items: center; gap: 5px; background-color: #f1f3f4; padding: 4px 10px; border-radius: 20px; }
-input[type=range] { width: 60px; accent-color: #1a73e8; }
-.final-avatar { width: 100px; height: 100px; border-radius: 50%; border: 4px solid #1a73e8; background: #fff; padding: 4px; display: block; margin-left: auto; margin-right: auto; }
-.ranking-box { background: #fffdeb; border: 2px solid #fbbc04; border-radius: 12px; padding: 15px; margin-bottom: 25px; }
-#combo-display { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(45deg, #ff512f, #dd2476); color: white; padding: 8px 20px; border-radius: 50px; font-weight: 900; font-size: 1.1rem; z-index: 9999; animation: popIn 0.5s; }
-
-.podium-container { display: flex; align-items: flex-end; justify-content: center; gap: 15px; height: 300px; margin-top: 20px; padding-bottom: 20px; overflow-x: auto; }
-.podium-column { display: flex; flex-direction: column; align-items: center; width: 80px; transition: height 1s ease; }
-.podium-avatar { width: 60px; height: 60px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 5px; z-index: 2; }
-.podium-name { font-size: 0.8rem; font-weight: bold; color: #555; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.podium-bar { width: 100%; background: linear-gradient(to top, #1a73e8, #4285f4); border-radius: 8px 8px 0 0; display: flex; align-items: flex-start; justify-content: center; color: white; font-weight: bold; padding-top: 5px; box-shadow: 0 4px 10px rgba(26, 115, 232, 0.3); animation: growBar 1s ease-out forwards; min-height: 30px; }
-.podium-column:nth-child(1) .podium-bar { background: linear-gradient(to top, #fbc02d, #fff176); color: #5f4300; height: 100%; }
-.podium-column:nth-child(2) .podium-bar { background: linear-gradient(to top, #9e9e9e, #e0e0e0); color: #424242; height: 80%; }
-.podium-column:nth-child(3) .podium-bar { background: linear-gradient(to top, #8d6e63, #d7ccc8); color: #3e2723; height: 60%; }
-@keyframes growBar { from { height: 0; opacity: 0; } to { opacity: 1; } }
-
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-.modal-card { animation: popIn 0.3s; margin: 0; background: #fff; padding: 25px; border-radius: 15px; width: 90%; max-width: 450px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.3); text-align: center; }
-.spinner { width: 25px; height: 25px; border: 3px solid #e1e4e8; border-top: 3px solid #1a73e8; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
-.close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 2rem; cursor: pointer; color: #888; line-height: 1; }
-#confetti-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
-@keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-@keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
-
-
-/* --- REGLAS CSS PARA ICONOS EN MOVIMIENTO (Añadidas) --- */
-.moving-icon-win, .moving-icon-fail {
-    font-size: 1.5rem;
-    margin-right: 10px;
-    vertical-align: middle;
-    display: inline-block; 
-}
-.moving-icon-win {
-    color: #28a745; /* Verde para la victoria/logro */
-    animation: bounce 1s infinite;
-}
-.moving-icon-fail {
-    color: #1a73e8; /* Azul para el ícono de tristeza/derrota */
-    animation: shake 0.5s infinite;
+    SALAS_PREDEFINIDAS.forEach(salaId => {
+        const btn = document.createElement('div');
+        btn.className = 'room-btn';
+        const iconClass = ROOM_ICONS[salaId] || 'fa-users';
+        // CORRECCIÓN: Contador Simulado a 0 Agentes
+        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">0 Agentes</span>`; 
+        
+        // EVENTO DE CLICK: Inicia el juego
+        btn.onclick = () => { 
+            playClick(); 
+            // ** FLUJO CORREGIDO: Llama al Lobby de Espera **
+            iniciarLobbySimulado(salaId);
+        };
+        list.appendChild(btn);
+    });
 }
 
-@keyframes bounce { 
-    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-10px); }
-    60% { transform: translateY(-5px); }
+// --- FUNCIÓN ADICIONAL: Iniciar Lobby (Espera) ---
+async function iniciarLobbySimulado(salaId) {
+    showScreen('lobby-screen');
+    const lobbyTitle = document.getElementById('lobby-title');
+    const lobbyPlayers = document.getElementById('lobby-players');
+    const btnStartWar = document.getElementById('btn-start-war');
+
+    if (lobbyTitle) lobbyTitle.innerText = `SALA: ${salaId.replace('SALA_', '').replace(/_/g, ' ')}`;
+    if (lobbyPlayers) lobbyPlayers.innerHTML = '';
+
+    const nick = currentAlias || "Agente";
+
+    // ** LÓGICA DE ESPERA REALÍSTICA: INICIALMENTE SOLO TÚ **
+    const jugadoresSimulados = [
+        { name: nick, isHost: true } // SOLO TÚ
+    ];
+    
+    jugadoresSimulados.forEach(p => {
+        const name = p.name;
+        if (lobbyPlayers) lobbyPlayers.innerHTML += `<div class="player-badge"> ${name}</div>`;
+    });
+
+    // REGLA DE INICIO: El botón está siempre oculto hasta que haya 2 jugadores (SIMULACIÓN DE REGLA)
+    if (btnStartWar) {
+        btnStartWar.classList.add('hidden'); 
+        document.getElementById('lobby-status-text').innerText = 'Esperando oponente...';
+        hablar(`Esperando oponente para iniciar la batalla.`);
+    }
+    
+    // Evento para el botón INICIAR BATALLA (se activa si hay 2 jugadores, pero aquí es solo para testear)
+    // Para probar la funcionalidad, puedes hacer que se muestre con un timeout:
+    setTimeout(() => {
+        if (btnStartWar) {
+            btnStartWar.classList.remove('hidden');
+            document.getElementById('lobby-status-text').innerText = 'Oponente encontrado. Listo para iniciar.';
+            btnStartWar.onclick = () => {
+                hablar("Iniciando la secuencia de examen. ¡Que gane el mejor agente!");
+                iniciarJuegoReal(); // Inicia el juego
+            };
+        }
+    }, 4000); // Muestra el botón después de 4 segundos para simular la espera
+    
+    // Evento para abandonar la sala
+    document.getElementById('btn-leave-lobby').onclick = () => {
+        if (confirm("¿Seguro que quieres abandonar la sala de batalla?")) {
+            showScreen('setup-screen');
+        }
+    };
 }
 
-@keyframes shake { 
-    0%, 100% { transform: translateX(0); }
-    20%, 60% { transform: translateX(-5px); }
-    40%, 80% { transform: translateX(5px); }
+
+// --- 7. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS) ---
+async function validarDispositivo(user) {
+    currentUserEmail = user.email;
+    uidJugadorPermanente = user.uid;
+    const miDeviceId = obtenerDeviceId(); 
+    
+    let limiteDispositivos = 1;
+    if (correosDosDispositivos.includes(currentUserEmail)) {
+        limiteDispositivos = 2;
+    }
+
+    const docRef = doc(db, "usuarios_seguros", currentUserEmail);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        const datos = docSnap.data();
+        let listaDispositivos = datos.dispositivos || []; 
+        
+        if (listaDispositivos.includes(miDeviceId)) {
+            return true;
+        } else {
+            if (listaDispositivos.length >= limiteDispositivos) {
+                // ACCESO DENEGADO
+                alert(`⛔ ACCESO DENEGADO ⛔\n\nHas excedido tu límite de ${limiteDispositivos} dispositivos registrados. Debes cerrar sesión en otro equipo para continuar.`);
+                await signOut(auth);
+                location.reload();
+                return false;
+            } else {
+                // Si hay espacio, añadir el nuevo dispositivo
+                let nuevaLista = [...listaDispositivos, miDeviceId];
+                await setDoc(docRef, { dispositivos: nuevaLista }, { merge: true });
+                return true;
+            }
+        }
+    } else {
+        await setDoc(docRef, {
+            dispositivos: [miDeviceId],
+            fecha_registro: new Date().toISOString()
+        });
+        return true;
+    }
+}
+
+// --- 8. MONITOR DE AUTENTICACIÓN (Muestra Perfil de Google) ---
+onAuthStateChanged(auth, async (user) => {
+    document.getElementById('app-loader').classList.add('hidden');
+
+    if (user) {
+        if (correosPermitidos.includes(user.email)) {
+            
+            // LÓGICA PARA CAPITALIZAR EL NOMBRE: "Katty"
+            let nombre = user.displayName || user.email.split('@')[0];
+            const partes = nombre.toLowerCase().split(' ');
+            const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+            
+            const nombreCorto = nombreCompletoCorregido.split(' ')[0];
+            
+            uidJugadorPermanente = user.uid;
+            currentUserEmail = user.email;
+
+            const dispositivoValido = await validarDispositivo(user);
+            
+            if (dispositivoValido) {
+                // OCULTAR LOGIN y MOSTRAR SETUP
+                authScreen.classList.add('hidden');
+                setupScreen.classList.remove('hidden');
+                btnLogout.classList.remove('hidden');
+
+                // Mostrar Nombre y Foto en el SETUP
+                document.getElementById('user-display').innerText = nombreCompletoCorregido;
+                if (user.photoURL) {
+                    document.getElementById('user-google-photo').src = user.photoURL;
+                    document.getElementById('user-google-photo').classList.remove('hidden');
+                }
+                
+                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
+                document.getElementById('header-user-info').classList.add('hidden'); 
+
+                // Audio de bienvenida (TTS)
+                setTimeout(() => {
+                    hablar(`Bienvenido ${nombreCorto}, elija la opción que necesite.`);
+                }, 500);
+            }
+        } else {
+            alert("ACCESO RESTRINGIDO: Tu correo no está autorizado.");
+            signOut(auth);
+        }
+    } else {
+        // PANTALLA DE LOGOUT/NO LOGUEADO
+        authScreen.classList.remove('hidden');
+        setupScreen.classList.add('hidden');
+        document.getElementById('header-user-info').classList.add('hidden');
+    }
+});
+
+// --- 9. EVENTOS DE AUTENTICACIÓN ---
+document.getElementById('btn-google').addEventListener('click', () => {
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
+        console.error("Error Google:", e);
+        alert("Error de inicio de sesión. Revisa la consola o permisos de pop-ups.");
+    });
+});
+
+btnLogout.addEventListener('click', () => {
+    if(confirm("¿Cerrar sesión?")) {
+        signOut(auth);
+        location.reload();
+    }
+});
+
+// --- 10. LÓGICA DEL JUEGO / SETUP ---
+document.getElementById('btn-start').addEventListener('click', () => {
+    const modo = modeSelect.value;
+    
+    // 1. MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR (Solución a la UX)
+    const nombreCompleto = document.getElementById('user-display').innerText;
+    const nombreCorto = nombreCompleto.split(' ')[0];
+
+    document.getElementById('header-user-info').classList.remove('hidden');
+    document.getElementById('header-username').innerText = nombreCorto;
+    document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
+
+
+    if (modo === 'multiplayer') {
+        const alias = aliasInput.value.trim();
+        if (alias.length < 3) {
+            hablar("Por favor, introduce un alias de al menos tres letras para la batalla.");
+            aliasInput.focus();
+            return;
+        }
+        currentAlias = alias;
+        hablar(`¡Excelente, ${alias}! Elige tu avatar y tu zona de guerra.`);
+        iniciarBatalla(); // Redirige a la pantalla de Avatar/Alias
+    } else {
+        // TTS AL INICIAR EXAMEN/ESTUDIO
+        hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
+        iniciarJuegoReal();
+    }
+    
+    // ** ACTIVAR MÚSICA DE FONDO Y CLIC **
+    const bgMusic = document.getElementById('bg-music');
+    if(bgMusic) { bgMusic.volume = obtenerVolumen(); bgMusic.play().catch(()=>{}); }
+});
+
+// --- LÓGICA DE VISUALIZACIÓN DE ALIAS EN SETUP ---
+modeSelect.addEventListener('change', () => {
+    const isMultiplayer = modeSelect.value === 'multiplayer';
+    
+    if (isMultiplayer) {
+        aliasInputGroup.classList.remove('hidden');
+        btnStart.innerText = '⚔️ Unirse a Batalla';
+    } else {
+        aliasInputGroup.classList.add('hidden');
+        btnStart.innerText = 'Empezar';
+    }
+});
+
+// --- LÓGICA DE NAVEGACIÓN DENTRO DE BATALLA (Avatar -> Sala) ---
+document.addEventListener('DOMContentLoaded', () => {
+    const btnConfirmIdentity = document.getElementById('btn-confirm-identity');
+    
+    if (btnConfirmIdentity) {
+        btnConfirmIdentity.addEventListener('click', () => {
+            const nick = document.getElementById('player-nickname').value.trim();
+            
+            if (nick.length < 3) {
+                 hablar("Por favor, introduce un apodo de al menos tres letras.");
+                 return;
+            }
+            
+            // Si el nick es válido, pasamos a seleccionar la sala
+            mostrarSelectorSalas();
+        });
+    }
+    
+    // Navegación hacia atrás
+    const backToSetup = document.getElementById('back-to-setup');
+    const backToAvatar = document.getElementById('back-to-avatar');
+    
+    if(backToSetup) backToSetup.addEventListener('click', () => showScreen('setup-screen'));
+    if(backToAvatar) backToAvatar.addEventListener('click', () => showScreen('avatar-screen'));
+});
+
+
+function iniciarJuegoReal() {
+    const tiempo = document.getElementById('time-select').value;
+    const modo = document.getElementById('mode-select').value;
+
+    if (tiempo !== 'infinity') {
+        tiempoRestante = parseInt(tiempo) * 60;
+        iniciarReloj();
+    } else {
+        document.getElementById('timer-display').innerText = "--:--";
+    }
+
+    if (modo === 'study') {
+        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
+    } else {
+        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
+    }
+    
+    respuestasUsuario = [];
+    indiceActual = 0;
+    setupScreen.classList.add('hidden');
+    quizScreen.classList.remove('hidden');
+    cargarPregunta();
+}
+
+// --- 11. FUNCIONES DE QUIZ ---
+function cargarPregunta() {
+    seleccionTemporal = null; 
+    btnNextQuestion.classList.add('hidden'); 
+    
+    // Ocultar botón Rendirse en modo Estudio
+    if (modeSelect.value === 'study') {
+        btnQuitQuiz.classList.add('hidden'); 
+    } else {
+        btnQuitQuiz.classList.remove('hidden'); 
+    }
+
+    if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
+    
+    const data = preguntasExamen[indiceActual];
+    document.getElementById('question-text').innerText = `${indiceActual + 1}. ${data.texto}`;
+    const cont = document.getElementById('options-container'); cont.innerHTML = '';
+    
+    data.opciones.forEach((opcion, index) => {
+        const btn = document.createElement('button');
+        btn.innerText = opcion;
+        btn.onclick = () => seleccionarOpcion(index, btn); 
+        cont.appendChild(btn);
+    });
+    document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntasExamen.length}`;
+
+    if(indiceActual === preguntasExamen.length - 1) {
+        btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
+    } else {
+        btnNextQuestion.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
+    }
+}
+
+function seleccionarOpcion(index, btnClickeado) {
+    const isStudyMode = modeSelect.value === 'study';
+
+    if (isStudyMode && seleccionTemporal !== null) {
+        return;
+    }
+    
+    seleccionTemporal = index;
+    const botones = document.getElementById('options-container').querySelectorAll('button');
+    botones.forEach(b => b.classList.remove('option-selected'));
+    btnClickeado.classList.add('option-selected');
+    
+    if (isStudyMode) {
+        mostrarResultadoInmediato(index);
+    } else {
+        btnNextQuestion.classList.remove('hidden');
+    }
+}
+
+function mostrarResultadoInmediato(seleccionada) {
+    const pregunta = preguntasExamen[indiceActual];
+    const correcta = pregunta.respuesta;
+    const cont = document.getElementById('options-container');
+    const botones = cont.querySelectorAll('button');
+    
+    // 2. Control de sonido por respuesta
+    const esCorrecta = (seleccionada === correcta);
+    if (esCorrecta) {
+        document.getElementById('correct-sound').play().catch(()=>{});
+    } else {
+        // Control de sonido fallido en modo Estudio (deshabilitado en modo estudio)
+        if (modeSelect.value !== 'study') { 
+            document.getElementById('fail-sound').play().catch(()=>{}); 
+        }
+    }
+
+    botones.forEach(btn => btn.disabled = true);
+    botones.forEach((btn, index) => {
+        btn.classList.remove('option-selected');
+        if (index === correcta) {
+            btn.classList.add('ans-correct', 'feedback-visible');
+        } else if (index === seleccionada) {
+            btn.classList.add('ans-wrong', 'feedback-visible');
+        }
+    });
+
+    const divExplicacion = document.createElement('div');
+    divExplicacion.className = 'explanation-feedback';
+    divExplicacion.innerHTML = `<strong>Explicación:</strong> ${pregunta.explicacion}`;
+    cont.appendChild(divExplicacion);
+    
+    respuestasUsuario.push(seleccionada);
+    btnNextQuestion.classList.remove('hidden');
+}
+
+// --- 12. EVENTO: Render Rendirse ---
+document.getElementById('btn-quit-quiz').addEventListener('click', () => {
+    if (confirm("¿Estás seguro que deseas rendirte? Tu progreso actual se guardará.")) {
+        terminarQuiz(true); 
+    }
+});
+
+
+// --- 13. FUNCIÓN TERMINAR QUIZ (Validación 100% y Animación) ---
+function terminarQuiz(abandono = false) {
+    const bgMusic = document.getElementById('bg-music');
+    if(bgMusic) { bgMusic.pause(); bgMusic.currentTime = 0; }
+    clearInterval(intervaloTiempo);
+
+    let aciertos = 0;
+    respuestasUsuario.forEach((r, i) => { 
+        if (r === preguntasExamen[i].respuesta) aciertos++; 
+    });
+    
+    const totalPreguntas = preguntasExamen.length;
+    const notaPorcentaje = totalPreguntas > 0 ? Math.round((aciertos / totalPreguntas) * 100) : 0;
+    
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+    document.getElementById('score-final').innerText = `${aciertos} / ${totalPreguntas}`;
+    
+    const msg = document.getElementById('custom-msg');
+    const sfxWin = document.getElementById('success-sound');
+    const sfxFail = document.getElementById('fail-sound');
+    const vol = obtenerVolumen();
+    
+    if (sfxWin) sfxWin.volume = vol;
+    if (sfxFail) sfxFail.volume = vol;
+
+    msg.className = ''; 
+
+    if (abandono) {
+        msg.innerText = "Finalizado por usuario. Se registraron las respuestas completadas."; 
+        msg.style.color = "#ea4335";
+        
+    } else if (aciertos === totalPreguntas) { // VALIDACIÓN: PUNTAJE PERFECTO (100%)
+        msg.innerHTML = '<i class="fa-solid fa-trophy moving-icon-win"></i> ¡FELICITACIONES! PUNTAJE PERFECTO 💯'; 
+        msg.style.color = "#28a745"; 
+        if (typeof createConfetti === 'function') createConfetti(); 
+        if (sfxWin) sfxWin.play().catch(()=>{});
+        hablar("¡Increíble! Has obtenido un puntaje perfecto. Eres un maestro en seguridad."); 
+
+    } else if (notaPorcentaje >= 85) { 
+        msg.innerHTML = '<i class="fa-solid fa-medal moving-icon-win"></i> ¡LEGENDARIO! 🏆'; 
+        msg.style.color = "#28a745"; 
+        if (typeof createConfetti === 'function') createConfetti(); 
+        if (sfxWin) sfxWin.play().catch(()=>{});
+
+    } else if (notaPorcentaje >= 70) { 
+        msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Misión Cumplida!'; 
+        msg.style.color = "#fbbc04";
+        if (sfxWin) sfxWin.play().catch(()=>{});
+
+    } else { 
+        msg.innerHTML = '<i class="fa-solid fa-face-sad-cry moving-icon-fail"></i> Entrenamiento fallido. Debes mejorar.'; 
+        msg.style.color = "#1a73e8"; 
+        if (sfxFail) sfxFail.play().catch(()=>{});
+    }
+    
+    // Ocultar botón Revisar Respuestas si es modo Estudio
+    if (modeSelect.value === 'study') {
+        document.getElementById('btn-review').classList.add('hidden');
+    } else {
+        document.getElementById('btn-review').classList.remove('hidden');
+    }
+}
+
+// --- 14. EVENTO SIGUIENTE PREGUNTA ---
+btnNextQuestion.addEventListener('click', () => {
+    const isStudyMode = modeSelect.value === 'study';
+    
+    if (isStudyMode && seleccionTemporal !== null) {
+        indiceActual++;
+        cargarPregunta();
+        return; 
+    }
+    
+    if (seleccionTemporal !== null) {
+        respuestasUsuario.push(seleccionTemporal);
+        indiceActual++;
+        cargarPregunta();
+    }
+});
+
+
+// --- 15. FUNCIONES AUXILIARES DE TIEMPO Y ANIMACIÓN ---
+function iniciarReloj() {
+    intervaloTiempo = setInterval(() => {
+        tiempoRestante--;
+        let m = Math.floor(tiempoRestante / 60), s = tiempoRestante % 60;
+        document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        if (tiempoRestante <= 0) { clearInterval(intervaloTiempo); terminarQuiz(); }
+    }, 1000);
+}
+
+function createConfetti() {
+    const w = document.getElementById('confetti-wrapper'); 
+    if (!w) return;
+    w.classList.remove('hidden'); 
+    w.innerHTML = '';
+    const c = ['#1a73e8', '#34a853', '#fbbc04', 'ea4335'];
+    for(let i=0; i<100; i++) {
+        const d = document.createElement('div');
+        d.style.position='absolute'; d.style.width='10px'; d.style.height='10px';
+        d.style.backgroundColor = c[Math.floor(Math.random()*c.length)];
+        d.style.left = Math.random()*100+'vw';
+        d.style.animation = `fall ${Math.random()*3+2}s linear forwards`;
+        w.appendChild(d);
+    }
+}
+
+// --- 16. REVISIÓN Y MÁS FUNCIONES AUXILIARES ---
+document.getElementById('btn-review').addEventListener('click', () => {
+    resultScreen.classList.add('hidden');
+    reviewScreen.classList.remove('hidden');
+    const cont = document.getElementById('review-container'); cont.innerHTML = '';
+    
+    preguntasExamen.forEach((p, i) => {
+        const dada = respuestasUsuario[i], ok = (dada === p.respuesta);
+        const card = document.createElement('div'); card.className = 'review-item';
+        let ops = '';
+        p.opciones.forEach((o, x) => {
+            let c = (x === p.respuesta) ? 'ans-correct' : (x === dada && !ok ? 'ans-wrong' : '');
+            let ico = (x === p.respuesta) ? '✅ ' : (x === dada && !ok ? '❌ ' : '');
+            let b = (x === dada) ? 'user-selected' : '';
+            ops += `<div class="review-answer ${c} ${b}">${ico}${o}</div>`;
+        });
+        card.innerHTML = `<div class="review-question">${i+1}. ${p.texto}</div>${ops}<div class="review-explanation"><strong>Explicación:</strong> ${p.explicacion}</div>`;
+        cont.appendChild(card);
+    });
+});
+
+// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (Corregidos) ---
+
+function obtenerVolumen() {
+    return parseFloat(document.getElementById('volume-slider').value);
+}
+
+function actualizarVolumen() {
+    const vol = obtenerVolumen();
+    document.querySelectorAll('audio').forEach(a => {
+        a.volume = vol;
+        a.muted = (vol === 0);
+    });
+
+    const icon = document.getElementById('vol-icon');
+    icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    actualizarVolumen();
+});
+
+document.getElementById('volume-slider').addEventListener('input', actualizarVolumen);
+
+document.getElementById('btn-mute').addEventListener('click', () => {
+    const slider = document.getElementById('volume-slider');
+    const vol = obtenerVolumen();
+    
+    if (vol > 0) {
+        slider.dataset.lastVolume = vol; 
+        slider.value = 0;
+    } else {
+        slider.value = slider.dataset.lastVolume || 0.4; 
+    }
+    actualizarVolumen();
+});
+
+// --- Funciones de Ranking/Historial (Mantenidas) ---
+async function guardarHistorialFirebase(nota) {
+    try {
+        await addDoc(collection(db, "historial_academico"), {
+            email: currentUserEmail,
+            score: nota,
+            date: new Date(),
+            uid: uidJugadorPermanente
+        });
+    } catch (e) { console.error("Error guardando historial:", e); }
+}
+
+async function guardarPuntajeGlobal(nota) {
+    try {
+        const today = new Date().toLocaleDateString();
+        const docRef = doc(db, "ranking_global", uidJugadorPermanente); 
+        
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().dateString === today) {
+            if (nota > docSnap.data().score) {
+                await updateDoc(docRef, {
+                    score: nota,
+                    date: new Date(),
+                    dateString: today
+                });
+            }
+        } else {
+            await setDoc(docRef, {
+                email: currentUserEmail,
+                score: nota,
+                date: new Date(),
+                dateString: today
+            });
+        }
+    } catch (e) { console.error("Error guardando puntaje global:", e); }
 }
