@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://api.dicebear.com">
     
-    <link rel="stylesheet" href="style.css?v=230">
+    <link rel="stylesheet" href="style.css?v=250">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -27,15 +27,14 @@
         </div>
         
         <div style="display: flex; align-items: center; gap: 10px;">
-            
             <div id="header-user-info" class="header-user-info hidden">
                 <span id="header-username" class="header-username-text">Usuario</span>
                 <img id="header-photo" src="" class="header-profile-pic" alt="Perfil">
             </div>
             
             <div class="header-controls">
-                <button id="btn-ranking" class="btn-icon hidden locked-btn" title="Completa un examen para desbloquear"><i class="fa-solid fa-trophy"></i></button>
-                <button id="btn-stats" class="btn-icon hidden locked-btn" title="Completa un examen para desbloquear"><i class="fa-solid fa-chart-pie"></i></button>
+                <button id="btn-ranking" class="btn-icon hidden locked-btn" title="Ranking Global"><i class="fa-solid fa-trophy"></i></button>
+                <button id="btn-stats" class="btn-icon hidden locked-btn" title="Mis Estadísticas"><i class="fa-solid fa-chart-pie"></i></button>
                 
                 <div class="volume-control-box">
                     <button id="btn-mute" class="btn-icon"><i class="fa-solid fa-volume-high" id="vol-icon"></i></button>
@@ -51,6 +50,7 @@
     <div class="container hidden" id="auth-screen" style="border: none; box-shadow: none; padding-top: 20px;">
         <h1 class="auth-title">Bienvenido</h1>
         <p class="auth-subtitle">Accede con tu cuenta institucional</p>
+        
         <button id="btn-google" class="btn-google-style">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="width: 20px; height: 20px; display: block;">
                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
@@ -149,17 +149,12 @@
         <h2 id="result-title">Finalizado</h2>
         <h1 id="score-final">0/0</h1>
         <p id="custom-msg"></p>
-        
         <div id="room-results-box" class="hidden ranking-box">
             <h3 style="color: #f9a825; margin: 0 0 10px 0;">🏆 Tabla de Posiciones</h3>
             <div id="room-leaderboard">Esperando datos...</div>
-            <button id="btn-exit-war" class="btn-secondary" style="margin-top: 15px; border-color: #ea4335; color: #ea4335;">Salir de la Guerra</button>
         </div>
-
-        <div id="individual-controls">
-            <button id="btn-review" class="btn-secondary">Revisar</button>
-            <button onclick="location.reload()" class="btn-primary">Inicio</button>
-        </div>
+        <button id="btn-review" class="btn-secondary">Revisar</button>
+        <button onclick="location.reload()" class="btn-primary">Inicio</button>
     </div>
 
     <div class="container hidden" id="review-screen" style="max-width: 700px; text-align: left;">
@@ -190,7 +185,7 @@
             <h2 style="color: #fbbc04; text-transform: uppercase;">🏆 Resultados de la Guerra</h2>
             <div id="podium-container" class="podium-container"><div class="spinner"></div></div>
             <div style="margin-top: 20px;">
-                <button id="btn-exit-war-modal" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">Salir</button>
+                <button id="btn-exit-war-modal" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">Salir de la Guerra</button>
             </div>
         </div>
     </div>
@@ -200,9 +195,8 @@
     <audio id="fail-sound" preload="auto"><source src="https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3" type="audio/mpeg"></audio>
     <audio id="correct-sound" preload="auto"><source src="https://www.soundjay.com/buttons/sounds/button-3.mp3" type="audio/mpeg"></audio>
     <audio id="click-sound" preload="auto"><source src="https://www.soundjay.com/buttons/sounds/button-16.mp3" type="audio/mpeg"></audio>
-    
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=230"></script>
+    <script type="module" src="script.js?v=250"></script>
 </body>
 </html>
