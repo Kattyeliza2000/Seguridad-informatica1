@@ -31,24 +31,17 @@ const AVATAR_CONFIG = [
     { seed: 'Buster', style: 'lorelei', bg: 'ffdfbf' }
 ];
 
-// --- MAPA DE ÍCONOS PARA SALAS ---
-const ROOM_ICONS = {
-    "SALA_FIREWALL": "fa-fire",
-    "SALA_ENCRIPTADO": "fa-lock",
-    "SALA_ZERO_DAY": "fa-bug",
-    "SALA_PHISHING": "fa-fish",
-    "SALA_RANSOMWARE": "fa-skull-crossbones",
-    "SALA_BOTNET": "fa-robot"
-};
-
 let currentAvatarUrl = null;
 let currentStreak = 0;
 let startTime = 0; 
+// VARIABLE PARA GUARDAR EL OBJETO EXACTO DEL JUGADOR Y PODER BORRARLO
+let currentPlayerObject = null; 
 
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS." },
     { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán." },
+    // ... MANTEN TUS 64 PREGUNTAS AQUÍ ...
     { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap." },
     { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
     { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
@@ -137,7 +130,10 @@ function initAvatars() {
         const img = document.createElement('img');
         img.src = url;
         img.className = 'avatar-option';
-        if(index === 0) { img.classList.add('avatar-selected'); currentAvatarUrl = url; }
+        if(index === 0) { 
+            img.classList.add('avatar-selected'); 
+            currentAvatarUrl = url; 
+        }
         img.onclick = () => {
             playClick();
             document.querySelectorAll('.avatar-option').forEach(x => x.classList.remove('avatar-selected'));
@@ -345,10 +341,7 @@ function mostrarSelectorSalas() {
     SALAS_PREDEFINIDAS.forEach(salaId => {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
-        btn.innerHTML = `
-            <div class="room-icon"><i class="fa-solid ${ROOM_ICONS[salaId]}"></i></div>
-            <strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong>
-            <span class="room-count" id="count-${salaId}">...</span>`;
+        btn.innerHTML = `<strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">...</span>`;
         onSnapshot(doc(db, "salas_activas", salaId), (docSnap) => {
             const count = docSnap.exists() ? (docSnap.data().jugadores || []).length : 0;
             const el = document.getElementById(`count-${salaId}`);
@@ -380,6 +373,9 @@ async function unirseASala(salaId) {
 
     const nick = document.getElementById('player-nickname').value || currentUserEmail.split('@')[0];
     const jugadorData = { name: nick, avatar: currentAvatarUrl };
+    
+    // GUARDAMOS EL OBJETO JUGADOR EXACTO PARA PODER BORRARLO DESPUÉS
+    currentPlayerObject = jugadorData; 
 
     await setDoc(salaRef, { jugadores: arrayUnion(jugadorData), estado: "esperando" }, { merge: true });
 
@@ -408,16 +404,19 @@ async function unirseASala(salaId) {
     });
 }
 
+// --- LIMPIEZA DE SALA MEJORADA (USA EL OBJETO JUGADOR EXACTO) ---
 async function limpiarSala(salaId) {
-    if(!salaId) return;
-    const salaRef = doc(db, "salas_activas", salaId);
-    const nick = document.getElementById('player-nickname').value || currentUserEmail.split('@')[0];
+    if(!salaId || !currentPlayerObject) return;
     
-    if(currentAvatarUrl) {
-        const jugadorData = { name: nick, avatar: currentAvatarUrl };
+    const salaRef = doc(db, "salas_activas", salaId);
+    try {
+        // Usamos el objeto exacto que guardamos en memoria al entrar
         await updateDoc(salaRef, {
-            jugadores: arrayRemove(jugadorData)
+            jugadores: arrayRemove(currentPlayerObject)
         });
+        currentPlayerObject = null; // Limpiamos referencia
+    } catch (error) {
+        console.error("Error limpiando sala:", error);
     }
 }
 
@@ -437,6 +436,7 @@ document.getElementById('btn-start-war').addEventListener('click', async () => {
 
 function iniciarQuizMultiplayer() {
     if (unsubscribeRoom) unsubscribeRoom();
+    // BATALLA: 64 PREGUNTAS ALEATORIAS
     preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
     iniciarInterfazQuiz();
 }
@@ -578,7 +578,9 @@ async function terminarQuiz(abandono = false) {
             date: new Date()
         });
         
+        // LÓGICA DE LIMPIEZA: EL USUARIO SE BORRA AL TERMINAR LA PARTIDA
         await limpiarSala(currentRoomId);
+
         renderBattlePodium();
         document.getElementById('battle-results-modal').classList.remove('hidden');
     } else {
@@ -619,21 +621,35 @@ async function terminarQuiz(abandono = false) {
     }
 }
 
-document.getElementById('btn-exit-war').addEventListener('click', async () => { location.reload(); });
-document.getElementById('btn-exit-war-modal').addEventListener('click', async () => { location.reload(); });
+// --- SALIR Y LIMPIAR BATALLA ---
+document.getElementById('btn-exit-war').addEventListener('click', async () => {
+    // Solo recargar para limpiar la pantalla
+    location.reload();
+});
+document.getElementById('btn-exit-war-modal').addEventListener('click', async () => {
+    location.reload();
+});
 
 function renderBattlePodium() {
     const q = query(collection(db, `salas_activas/${currentRoomId}/resultados`), orderBy("score", "desc"));
+    
     onSnapshot(q, (snap) => {
         const container = document.getElementById('podium-container');
         container.innerHTML = '';
+        
         let players = [];
         snap.forEach(doc => players.push(doc.data()));
+        
         players.slice(0, 5).forEach((p, index) => {
             const height = Math.max(20, p.score) + '%'; 
+            
             const col = document.createElement('div');
             col.className = 'podium-column';
-            col.innerHTML = `<div class="podium-avatar" style="background-image: url('${p.avatar}'); background-size: cover;"></div><div class="podium-name">${p.user}</div><div class="podium-bar" style="height: ${height};">${p.score}</div>`;
+            col.innerHTML = `
+                <div class="podium-avatar" style="background-image: url('${p.avatar}'); background-size: cover;"></div>
+                <div class="podium-name">${p.user}</div>
+                <div class="podium-bar" style="height: ${height};">${p.score}</div>
+            `;
             container.appendChild(col);
         });
     });
@@ -662,14 +678,28 @@ async function guardarPuntajeGlobal(nota) {
 async function cargarGraficoFirebase() {
     const q = query(collection(db, "historial_academico"), where("email", "==", currentUserEmail), orderBy("date", "desc"), limit(10));
     const querySnapshot = await getDocs(q);
+    
     let history = [];
-    querySnapshot.forEach((doc) => { history.push(doc.data()); });
+    querySnapshot.forEach((doc) => {
+        history.push(doc.data());
+    });
     history.reverse();
+
     const ctx = document.getElementById('progressChart').getContext('2d');
     if(window.myChart) window.myChart.destroy();
     window.myChart = new Chart(ctx, {
         type: 'line',
-        data: { labels: history.map((_, i) => `Intento ${i+1}`), datasets: [{ label: 'Nota', data: history.map(x => x.score), borderColor: '#1a73e8', tension: 0.3, fill: true, backgroundColor: 'rgba(26,115,232,0.1)' }] },
+        data: { 
+            labels: history.map((_, i) => `Intento ${i+1}`), 
+            datasets: [{ 
+                label: 'Nota', 
+                data: history.map(x => x.score), 
+                borderColor: '#1a73e8', 
+                tension: 0.3, 
+                fill: true, 
+                backgroundColor: 'rgba(26,115,232,0.1)' 
+            }] 
+        },
         options: { scales: { y: { beginAtZero: true, max: 100 } } }
     });
 }
@@ -677,12 +707,18 @@ async function cargarGraficoFirebase() {
 async function cargarRankingGlobal() {
     const q = query(collection(db, "ranking_global"), orderBy("score", "desc"), limit(10));
     const querySnapshot = await getDocs(q);
+    
     const list = document.getElementById('ranking-list');
     list.innerHTML = "";
     let pos = 1;
     querySnapshot.forEach((doc) => {
         const d = doc.data();
-        list.innerHTML += `<div class="rank-row"><span class="rank-pos">#${pos}</span><span class="rank-name">${d.email.split('@')[0]}</span><span class="rank-score">${d.score} pts</span></div>`;
+        list.innerHTML += `
+        <div class="rank-row">
+            <span class="rank-pos">#${pos}</span>
+            <span class="rank-name">${d.email.split('@')[0]}</span>
+            <span class="rank-score">${d.score} pts</span>
+        </div>`;
         pos++;
     });
 }
