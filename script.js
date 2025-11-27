@@ -40,6 +40,27 @@ let battleRoomID = null;
 let currentAlias = null;    
 let tempBattleID = null;    
 
+// CONSTANTES DE AVATAR Y SALAS
+const AVATAR_CONFIG = [
+    { seed: 'Felix', style: 'avataaars', bg: 'b6e3f4' },
+    { seed: 'Aneka', style: 'avataaars', bg: 'c0aede' },
+    { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9' },
+    { seed: 'Bear', style: 'avataaars', bg: 'ffdfbf' },
+    { seed: 'Chester', style: 'avataaars', bg: 'ffd5dc' },
+    { seed: 'Bandit', style: 'lorelei', bg: 'c0aede' },
+    { seed: 'Molly', style: 'lorelei', bg: 'b6e3f4' },
+    { seed: 'Buster', style: 'lorelei', bg: 'ffdfbf' }
+];
+
+const ROOM_ICONS = {
+    "SALA_FIREWALL": "fa-fire",
+    "SALA_ENCRIPTADO": "fa-lock",
+    "SALA_ZERO_DAY": "fa-bug",
+    "SALA_PHISHING": "fa-fish",
+    "SALA_RANSOMWARE": "fa-skull-crossbones",
+    "SALA_BOTNET": "fa-robot"
+};
+
 // REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
@@ -56,8 +77,6 @@ const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 const headerUserInfo = document.getElementById('header-user-info');
-const playerNickname = document.getElementById('player-nickname'); 
-const avatarGrid = document.getElementById('avatar-grid'); 
 
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
@@ -203,16 +222,13 @@ function initAvatars() {
     if(!grid) return; 
     grid.innerHTML = '';
     
-    // Asegurarse de que el avatar por defecto sea Katty
-    const defaultName = document.getElementById('user-display').innerText.split(' ')[0];
-    
+    // Carga los avatares disponibles
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
         const img = document.createElement('img');
         img.src = url;
         img.className = 'avatar-option';
         
-        // Determinar si este es el avatar por defecto para la primera carga
         if(index === 0) { 
             img.classList.add('avatar-selected'); 
             currentAvatarUrl = url; 
@@ -228,7 +244,8 @@ function initAvatars() {
     });
     
     // Establecer el apodo inicial si está disponible
-    document.getElementById('player-nickname').value = defaultName;
+    const currentName = document.getElementById('user-display').innerText.split(' ')[0];
+    document.getElementById('player-nickname').value = currentName;
 }
 
 // --- FUNCIÓN: Muestra la pantalla de selección de salas ---
@@ -243,7 +260,7 @@ function mostrarSelectorSalas() {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
         const iconClass = ROOM_ICONS[salaId] || 'fa-users';
-        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">4 Agentes</span>`; // Simulación de contador
+        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">4 Agentes</span>`; 
         
         btn.onclick = () => { 
             playClick(); 
@@ -388,7 +405,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
         }
         currentAlias = alias;
         hablar(`¡Excelente, ${alias}! Elige tu avatar y tu zona de guerra.`);
-        iniciarBatalla(); 
+        iniciarBatalla(); // Redirige a la pantalla de Avatar/Alias
     } else {
         // TTS AL INICIAR EXAMEN/ESTUDIO
         hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
@@ -413,6 +430,7 @@ modeSelect.addEventListener('change', () => {
     }
 });
 
+// --- LÓGICA DE NAVEGACIÓN DENTRO DE BATALLA (Avatar -> Sala) ---
 document.addEventListener('DOMContentLoaded', () => {
     const btnConfirmIdentity = document.getElementById('btn-confirm-identity');
     
@@ -425,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  return;
             }
             
-            // SIMULAR: Pasamos a seleccionar la sala
+            // Si el nick es válido, pasamos a seleccionar la sala
             mostrarSelectorSalas();
         });
     }
@@ -656,7 +674,7 @@ function createConfetti() {
     if (!w) return;
     w.classList.remove('hidden'); 
     w.innerHTML = '';
-    const c = ['#1a73e8', '#34a853', '#fbbc04', '#ea4335'];
+    const c = ['#1a73e8', '#34a853', '#fbbc04', 'ea4335'];
     for(let i=0; i<100; i++) {
         const d = document.createElement('div');
         d.style.position='absolute'; d.style.width='10px'; d.style.height='10px';
