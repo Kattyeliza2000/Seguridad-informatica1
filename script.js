@@ -35,10 +35,12 @@ let currentAvatarUrl = null;
 let currentStreak = 0;
 let startTime = 0; 
 
+// --- BANCO DE PREGUNTAS (64 PREGUNTAS) ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS." },
     { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán." },
+    // ... (ASEGÚRATE DE MANTENER LAS 64 PREGUNTAS AQUÍ) ...
     { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap." },
     { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
     { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
@@ -113,7 +115,6 @@ let currentRoomId = null;
 let currentMode = 'individual';
 let unsubscribeRoom = null;
 
-// --- INICIALIZACIÓN ---
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
@@ -124,12 +125,7 @@ function initAvatars() {
         const img = document.createElement('img');
         img.src = url;
         img.className = 'avatar-option';
-        
-        if(index === 0) {
-            img.classList.add('avatar-selected');
-            currentAvatarUrl = url;
-        }
-
+        if(index === 0) { img.classList.add('avatar-selected'); currentAvatarUrl = url; }
         img.onclick = () => {
             document.querySelectorAll('.avatar-option').forEach(x => x.classList.remove('avatar-selected'));
             img.classList.add('avatar-selected');
@@ -154,7 +150,6 @@ function showScreen(screenId) {
     document.getElementById(screenId).classList.remove('hidden');
 }
 
-// --- AUTH ---
 function obtenerDeviceId() {
     let deviceId = localStorage.getItem('device_id_seguro');
     if (!deviceId) {
@@ -192,13 +187,11 @@ async function validarDispositivo(user) {
     }
 }
 
-// --- LOGICA DE BOTONES DE HEADER (OCULTAR/MOSTRAR) ---
 function toggleHeaderButtons() {
     const modo = document.getElementById('mode-select').value;
     const btnRanking = document.getElementById('btn-ranking');
     const btnStats = document.getElementById('btn-stats');
     
-    // Solo mostrar en modo EXAMEN
     if (modo === 'exam') {
         btnRanking.classList.remove('hidden');
         btnStats.classList.remove('hidden');
@@ -219,7 +212,21 @@ onAuthStateChanged(auth, async (user) => {
                 document.getElementById('user-display').innerText = user.email.split('@')[0];
                 document.getElementById('player-nickname').value = user.email.split('@')[0];
                 
-                // Activar botones si corresponde
+                // --- CARGAR FOTO DE GOOGLE ---
+                if (user.photoURL) {
+                    // Foto en configuración
+                    const profilePic = document.getElementById('user-google-photo');
+                    profilePic.src = user.photoURL;
+                    profilePic.classList.remove('hidden');
+                    
+                    // Foto pequeña en header (opcional)
+                    const headerPic = document.getElementById('header-photo');
+                    if(headerPic) {
+                        headerPic.src = user.photoURL;
+                        headerPic.classList.remove('hidden');
+                    }
+                }
+                
                 toggleHeaderButtons();
             }
         } else {
@@ -228,7 +235,6 @@ onAuthStateChanged(auth, async (user) => {
         }
     } else {
         showScreen('auth-screen');
-        // Ocultar todo al salir
         document.getElementById('btn-ranking').classList.add('hidden');
         document.getElementById('btn-stats').classList.add('hidden');
         document.getElementById('btn-logout').classList.add('hidden');
@@ -238,7 +244,6 @@ onAuthStateChanged(auth, async (user) => {
 document.getElementById('btn-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
 document.getElementById('btn-logout').addEventListener('click', () => { if(confirm("¿Salir?")) { signOut(auth); location.reload(); } });
 
-// --- INICIAR ---
 document.getElementById('btn-start').addEventListener('click', () => {
     const modo = document.getElementById('mode-select').value;
     const tiempo = document.getElementById('time-select').value;
@@ -272,10 +277,9 @@ document.getElementById('back-to-avatar').addEventListener('click', () => showSc
 
 document.getElementById('btn-stats').addEventListener('click', async () => { 
     const btn = document.getElementById('btn-stats');
-    // Evitar clic si está bloqueado
     if(btn.classList.contains('locked-btn')) return;
     
-    await cargarGraficoFirebase(); // Cargar desde Firestore
+    await cargarGraficoFirebase();
     document.getElementById('stats-modal').classList.remove('hidden'); 
 });
 
@@ -284,11 +288,18 @@ document.getElementById('btn-ranking').addEventListener('click', async () => {
     if(btn.classList.contains('locked-btn')) return;
 
     document.getElementById('ranking-modal').classList.remove('hidden');
-    await cargarRankingGlobal(); // Cargar desde Firestore
+    await cargarRankingGlobal();
 });
 
-// --- MULTIPLAYER ---
-const SALAS_PREDEFINIDAS = ["SALA_ALPHA", "SALA_BETA", "SALA_GAMMA", "SALA_DELTA"];
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.classList.add('hidden');
+        }
+    });
+});
+
+const SALAS_PREDEFINIDAS = ["SALA_FIREWALL", "SALA_ENCRIPTADO", "SALA_ZERO_DAY", "SALA_PHISHING", "SALA_RANSOMWARE", "SALA_BOTNET"];
 
 function mostrarSelectorSalas() {
     showScreen('rooms-screen');
@@ -297,7 +308,7 @@ function mostrarSelectorSalas() {
     SALAS_PREDEFINIDAS.forEach(salaId => {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
-        btn.innerHTML = `<strong>${salaId.replace('_', ' ')}</strong><span class="room-count" id="count-${salaId}">...</span>`;
+        btn.innerHTML = `<strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">...</span>`;
         onSnapshot(doc(db, "salas_activas", salaId), (docSnap) => {
             const count = docSnap.exists() ? (docSnap.data().jugadores || []).length : 0;
             const el = document.getElementById(`count-${salaId}`);
@@ -333,7 +344,7 @@ async function unirseASala(salaId) {
     await setDoc(salaRef, { jugadores: arrayUnion(jugadorData), estado: "esperando" }, { merge: true });
 
     showScreen('lobby-screen');
-    document.getElementById('lobby-title').innerText = salaId.replace('_', ' ');
+    document.getElementById('lobby-title').innerText = salaId.replace('SALA_', '').replace(/_/g, ' ');
 
     unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -368,7 +379,6 @@ document.getElementById('btn-start-war').addEventListener('click', async () => {
     await updateDoc(salaRef, { estado: 'jugando' });
 });
 
-// --- QUIZ ENGINE ---
 function iniciarQuizMultiplayer() {
     if (unsubscribeRoom) unsubscribeRoom();
     preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
@@ -376,7 +386,6 @@ function iniciarQuizMultiplayer() {
 }
 
 function iniciarInterfazQuiz() {
-    // BLOQUEAR BOTONES AL INICIAR EXAMEN
     if(currentMode === 'exam') {
         document.getElementById('btn-ranking').classList.add('locked-btn');
         document.getElementById('btn-stats').classList.add('locked-btn');
@@ -446,7 +455,7 @@ function mostrarResultadoInmediato(sel) {
 
 document.getElementById('btn-next-question').addEventListener('click', () => {
     if (seleccionTemporal !== null) {
-        if(currentMode !== 'study') {
+        if(currentMode === 'multiplayer') {
             const correcta = preguntasExamen[indiceActual].respuesta;
             if (seleccionTemporal === correcta) {
                 currentStreak++;
@@ -457,8 +466,9 @@ document.getElementById('btn-next-question').addEventListener('click', () => {
             } else {
                 currentStreak = 0;
             }
-            respuestasUsuario.push(seleccionTemporal);
         }
+
+        if(currentMode !== 'study') respuestasUsuario.push(seleccionTemporal);
         indiceActual++;
         cargarPregunta();
     }
@@ -481,7 +491,8 @@ function iniciarReloj() {
 }
 
 document.getElementById('btn-quit-quiz').addEventListener('click', () => {
-    if(confirm("¿Rendirse? Se guardará tu nota actual.")) terminarQuiz(true);
+    const msg = currentMode === 'multiplayer' ? "¿Rendirse? Se registrará tu nota actual en la batalla." : "¿Rendirse? Se guardará tu intento.";
+    if(confirm(msg)) terminarQuiz(true);
 });
 
 async function terminarQuiz(abandono = false) {
@@ -496,6 +507,7 @@ async function terminarQuiz(abandono = false) {
         if (i < preguntasExamen.length && r === preguntasExamen[i].respuesta) aciertos++;
     });
     const nota = Math.round((aciertos / preguntasExamen.length) * 100);
+    
     const nick = document.getElementById('player-nickname').value || currentUserEmail.split('@')[0];
     const finalAvatar = currentAvatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default';
 
@@ -509,78 +521,71 @@ async function terminarQuiz(abandono = false) {
             status: abandono ? "Retirado" : "Finalizado",
             date: new Date()
         });
-        escucharResultadosSala();
-        document.getElementById('room-results-box').classList.remove('hidden');
-        const avatarImg = document.getElementById('final-avatar-display');
-        avatarImg.src = finalAvatar;
-        avatarImg.classList.remove('hidden');
+        renderBattlePodium();
+        document.getElementById('battle-results-modal').classList.remove('hidden');
     } else {
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
         
-        // SOLO GUARDAR SI ES EXAMEN (NO BATALLA, NO ESTUDIO)
         if(currentMode === 'exam') {
-            // DESBLOQUEAR BOTONES
             document.getElementById('btn-ranking').classList.remove('locked-btn');
             document.getElementById('btn-stats').classList.remove('locked-btn');
             
             await guardarHistorialFirebase(nota);
             await guardarPuntajeGlobal(nota);
         }
+        showScreen('result-screen');
+        document.getElementById('score-final').innerText = `${nota}/100`;
+        
+        const msg = document.getElementById('custom-msg');
+        const sfxWin = document.getElementById('success-sound');
+        const sfxFail = document.getElementById('fail-sound');
+        const vol = document.getElementById('volume-slider').value;
+        sfxWin.volume = vol; sfxFail.volume = vol;
+
+        if (nota >= 70) sfxWin.play(); else sfxFail.play();
+
+        msg.className = '';
+        if (abandono) {
+            msg.innerText = "Finalizado por usuario."; msg.style.color = "#ea4335";
+        } else if (nota === 100) {
+            msg.innerText = "¡LEGENDARIO! 🏆"; msg.style.color = "#28a745"; createConfetti();
+        } else if (nota >= 70) {
+            msg.innerText = "¡Misión Cumplida!"; msg.style.color = "#fbbc04";
+        } else {
+            msg.innerText = "Entrenamiento fallido."; msg.style.color = "#ea4335";
+        }
+
+        if (currentMode === 'study') document.getElementById('btn-review').classList.add('hidden');
+        else document.getElementById('btn-review').classList.remove('hidden');
     }
-
-    showScreen('result-screen');
-    document.getElementById('score-final').innerText = `${nota}/100`;
-    
-    const msg = document.getElementById('custom-msg');
-    const sfxWin = document.getElementById('success-sound');
-    const sfxFail = document.getElementById('fail-sound');
-    const vol = document.getElementById('volume-slider').value;
-    sfxWin.volume = vol; sfxFail.volume = vol;
-
-    if (nota >= 70) sfxWin.play(); else sfxFail.play();
-
-    msg.className = '';
-    if (abandono) {
-        msg.innerText = "Retirado."; msg.style.color = "#ea4335";
-    } else if (nota === 100) {
-        msg.innerText = "¡LEGENDARIO! 🏆"; msg.style.color = "#28a745"; createConfetti();
-    } else if (nota >= 70) {
-        msg.innerText = "¡Misión Cumplida!"; msg.style.color = "#fbbc04";
-    } else {
-        msg.innerText = "Entrenamiento fallido."; msg.style.color = "#ea4335";
-    }
-
-    if (currentMode === 'multiplayer' || currentMode === 'study') document.getElementById('btn-review').classList.add('hidden');
-    else document.getElementById('btn-review').classList.remove('hidden');
 }
 
-function escucharResultadosSala() {
-    const q = query(collection(db, `salas_activas/${currentRoomId}/resultados`), orderBy("score", "desc"), orderBy("timeTaken", "asc"));
+function renderBattlePodium() {
+    const q = query(collection(db, `salas_activas/${currentRoomId}/resultados`), orderBy("score", "desc"));
+    
     onSnapshot(q, (snap) => {
-        const div = document.getElementById('room-leaderboard');
-        div.innerHTML = '';
-        let pos = 1;
-        snap.forEach(d => {
-            const data = d.data();
-            const mins = Math.floor(data.timeTaken / 60);
-            const secs = data.timeTaken % 60;
-            div.innerHTML += `
-            <div class="rank-row">
-                <span class="rank-pos">#${pos}</span>
-                <img src="${data.avatar}" class="rank-img">
-                <div class="rank-info">
-                    <span class="rank-name">${data.user}</span>
-                    <span class="rank-detail">${data.status} (${mins}m ${secs}s)</span>
-                </div>
-                <span class="rank-score">${data.score} pts</span>
-            </div>`;
-            pos++;
+        const container = document.getElementById('podium-container');
+        container.innerHTML = '';
+        
+        let players = [];
+        snap.forEach(doc => players.push(doc.data()));
+        
+        players.slice(0, 5).forEach((p, index) => {
+            const height = Math.max(20, p.score) + '%'; 
+            
+            const col = document.createElement('div');
+            col.className = 'podium-column';
+            col.innerHTML = `
+                <div class="podium-avatar" style="background-image: url('${p.avatar}'); background-size: cover;"></div>
+                <div class="podium-name">${p.user}</div>
+                <div class="podium-bar" style="height: ${height};">${p.score}</div>
+            `;
+            container.appendChild(col);
         });
     });
 }
 
-// --- FIREBASE: HISTORIAL Y RANKING ---
 async function guardarHistorialFirebase(nota) {
     try {
         await addDoc(collection(db, "historial_academico"), {
@@ -601,7 +606,6 @@ async function guardarPuntajeGlobal(nota) {
     } catch (e) { console.error(e); }
 }
 
-// --- CARGAR GRÁFICO DESDE FIREBASE ---
 async function cargarGraficoFirebase() {
     const q = query(collection(db, "historial_academico"), where("email", "==", currentUserEmail), orderBy("date", "desc"), limit(10));
     const querySnapshot = await getDocs(q);
@@ -610,8 +614,6 @@ async function cargarGraficoFirebase() {
     querySnapshot.forEach((doc) => {
         history.push(doc.data());
     });
-    
-    // Invertir para que se vea cronológico (el query trae el más reciente primero)
     history.reverse();
 
     const ctx = document.getElementById('progressChart').getContext('2d');
@@ -633,7 +635,6 @@ async function cargarGraficoFirebase() {
     });
 }
 
-// --- CARGAR RANKING GLOBAL ---
 async function cargarRankingGlobal() {
     const q = query(collection(db, "ranking_global"), orderBy("score", "desc"), limit(10));
     const querySnapshot = await getDocs(q);
@@ -666,7 +667,6 @@ function createConfetti() {
     }
 }
 
-// VOLUMEN
 document.getElementById('volume-slider').addEventListener('input', (e) => {
     document.querySelectorAll('audio').forEach(a => { a.volume = e.target.value; a.muted = (e.target.value == 0); });
 });
