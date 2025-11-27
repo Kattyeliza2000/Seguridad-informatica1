@@ -3,7 +3,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 // Mantenemos imports de Firestore para Ranking, Historial y Batalla
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
+// --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -22,6 +22,23 @@ const db = getFirestore(app);
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
 const correosUnDispositivo = ["cnavarretem4@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
+
+// --- 3. VARIABLES GLOBALES (Limpias de duplicación) ---
+let preguntasExamen = []; 
+let indiceActual = 0;
+let respuestasUsuario = []; 
+let seleccionTemporal = null; 
+let tiempoRestante = 0;
+let intervaloTiempo;
+let currentUserEmail = "";
+let currentMode = 'individual';
+let uidJugadorPermanente = null; 
+let currentAvatarUrl = null; 
+let currentStreak = 0; 
+let startTime = 0; 
+let battleRoomID = null;    
+let currentAlias = null;    
+let tempBattleID = null;    
 
 // --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
@@ -53,23 +70,6 @@ const ROOM_ICONS = {
     "SALA_BOTNET": "fa-robot"
 };
 
-// --- 4. VARIABLES GLOBALES (Limpias y Unificadas) ---
-let preguntasExamen = []; 
-let indiceActual = 0;
-let respuestasUsuario = []; 
-let seleccionTemporal = null; 
-let tiempoRestante = 0;
-let intervaloTiempo;
-let currentUserEmail = "";
-let currentMode = 'individual';
-let uidJugadorPermanente = null; 
-let currentAvatarUrl = null; 
-let currentStreak = 0; 
-let startTime = 0; 
-let battleRoomID = null;    
-let currentAlias = null;    
-let tempBattleID = null;    
-
 // REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
@@ -86,9 +86,9 @@ const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 const headerUserInfo = document.getElementById('header-user-info');
-const salasRef = collection(db, 'salas');
 
-// --- BANCO DE PREGUNTAS COMPLETO ---
+
+// --- 4. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica (Fallo técnico/suministro)." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 0, explicacion: "Respuesta correcta: Nmap (Herramienta fundamental para escaneo y mapeo de redes)." },
