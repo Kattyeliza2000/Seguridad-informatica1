@@ -4,115 +4,141 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador Seguridad Informática</title>
-    <link rel="stylesheet" href="style.css?v=32">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="preconnect" href="https://api.dicebear.com">
+    
+    <link rel="stylesheet" href="style.css?v=270">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
+    <div id="app-loader" class="hidden">
+        <div class="spinner"></div>
+        <p>Cargando...</p>
+    </div>
+
     <header>
         <div class="logo">
-            <i class="fa-solid fa-brain" style="color: #1a73e8;"></i>
-            <h1>Simulador <span class="subtitle">Seguridad Informática</span></h1>
+            <i class="fa-solid fa-shield-halved" style="color: #1a73e8;"></i>
+            <h1>Simulador <span class="subtitle">Seguridad</span></h1>
         </div>
-        <button id="btn-logout" class="btn-secondary hidden" style="width: auto; margin: 0;">Cerrar Sesión</button>
+        
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div id="header-user-info" class="header-user-info hidden">
+                <span id="header-username" class="header-username-text">Usuario</span>
+                <img id="header-photo" src="" class="header-profile-pic" alt="Perfil">
+            </div>
+            
+            <div class="header-controls">
+                <button id="btn-ranking" class="btn-icon hidden" title="Ranking Global"><i class="fa-solid fa-trophy"></i></button>
+                <button id="btn-stats" class="btn-icon hidden" title="Mis Estadísticas"><i class="fa-solid fa-chart-pie"></i></button>
+                
+                <div class="volume-control-box">
+                    <button id="btn-mute" class="btn-icon"><i class="fa-solid fa-volume-high" id="vol-icon"></i></button>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.4">
+                </div>
+                <button id="btn-logout" class="btn-secondary hidden" style="font-size: 0.8rem; padding: 5px 15px;">Salir</button>
+            </div>
+        </div>
     </header>
 
-    <div class="container" id="auth-screen">
-        <h2>Bienvenido</h2>
-        <p>Inicia sesión para acceder al simulador</p>
-        
-        <button id="btn-google" style="
-            background-color: white;
-            color: #3c4043;
-            border: 1px solid #dadce0;
-            border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            width: 100%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: all 0.2s ease;
-        ">
-            <i class="fa-brands fa-google" style="font-size: 1.2rem;"></i> 
-            Acceder con Google
+    <div id="combo-display" class="hidden">¡RACHA x3! 🔥</div>
+
+    <div class="container" id="auth-screen" style="border: none; box-shadow: none; padding-top: 20px;">
+        <h1 class="auth-title">Bienvenido</h1>
+        <p class="auth-subtitle">Accede con tu cuenta institucional</p>
+        <button id="btn-google" class="btn-google-style">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="width: 20px; height: 20px; display: block;">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+            </svg>
+            Ingresar con Google
         </button>
     </div>
 
-    <div class="container hidden" id="setup-screen">
-        <div class="controls-bar">
-            <div class="control-group">
-                <label>Materia</label>
-                <select disabled><option>Seguridad Informática</option></select>
-            </div>
+    <div class="container hidden" id="setup-screen" style="text-align: left;">
+        <div class="control-group">
+            <label>Materia</label>
+            <select disabled style="background-color: #f1f3f4; color: #888;"><option>Seguridad Informática</option></select>
+        </div>
 
-            <div class="control-group">
-                <label>Modo</label>
-                <select id="mode-select">
-                    <option value="exam">📝 Examen (20 Preguntas)</option>
-                    <option value="study">📚 Estudio (Todas las preguntas)</option>
+        <div class="control-group">
+            <label>Modo</label>
+            <select id="mode-select">
+                <option value="exam">📝 Examen (20 Preguntas)</option>
+                <option value="study">📚 Estudio (Todas las preguntas)</option>
                 </select>
-            </div>
+        </div>
 
-            <div class="control-group">
-                <label>Tiempo</label>
-                <select id="time-select">
-                    <option value="60">60 minutos</option>
-                    <option value="30">30 minutos</option>
-                    <option value="15">15 minutos</option>
-                    <option value="infinity">Sin tiempo</option>
-                </select>
+        <div class="control-group">
+            <label>Tiempo</label>
+            <select id="time-select">
+                <option value="30">30 minutos</option>
+                <option value="60">60 minutos</option>
+                <option value="15">15 minutos</option>
+                <option value="infinity">Sin tiempo</option>
+            </select>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+        <div style="text-align: center;">
+            <div class="profile-row">
+                <p style="font-size: 0.95rem; color: #555; margin: 0;">
+                    Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">...</span>
+                </p>
+                <img id="user-google-photo" src="" alt="Foto" class="google-profile-pic hidden" referrerpolicy="no-referrer">
+            </div>
+            <div class="verified-badge">
+                <i class="fa-solid fa-square-check"></i> Dispositivo verificado
             </div>
         </div>
 
-        <div style="margin-top: 20px;">
-            <p>Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">Usuario</span>.</p>
-            <p style="color: #28a745; font-size: 0.9rem;"><i class="fa-solid fa-shield-halved"></i> Dispositivo verificado</p>
-            <button id="btn-start" class="btn-primary">Empezar</button>
-        </div>
+        <button id="btn-start" class="btn-primary" style="margin-top: 20px;">Empezar</button>
     </div>
 
-    <div class="container hidden" id="quiz-screen" style="max-width: 600px;">
+    <div class="container hidden" id="quiz-screen" style="max-width: 700px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-            <span id="timer-display">00:00</span>
+            <span id="timer-display" style="font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #1a73e8;">00:00</span>
             <span id="progress-display">Pregunta 1</span>
         </div>
-        
-        <div class="question-box">
-            <h2 id="question-text">Cargando...</h2>
-        </div>
-
+        <div class="question-box"><h2 id="question-text">Cargando...</h2></div>
         <div class="options-box" id="options-container"></div>
-
-        <div style="text-align: right; margin-top: 20px;">
-            <button id="btn-next-question" class="btn-primary hidden" style="width: auto; padding: 10px 30px;">
-                Siguiente <i class="fa-solid fa-arrow-right"></i>
-            </button>
+        <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+            <button id="btn-quit-quiz" class="btn-text" style="color: #ea4335;">Rendirse</button>
+            <button id="btn-next-question" class="btn-primary hidden" style="width: auto; padding: 10px 30px;">Siguiente <i class="fa-solid fa-arrow-right"></i></button>
         </div>
     </div>
 
-    <div class="container hidden" id="result-screen">
-        <h2>Finalizado</h2>
-        <p>Tu calificación es:</p>
-        <h1 id="score-final" style="font-size: 3rem; color: #1a73e8; margin: 10px 0;">0/0</h1>
+    <div class="container hidden" id="result-screen" style="text-align: center;">
+        <img id="final-avatar-display" src="" alt="Avatar" class="final-avatar hidden">
+        <h2 id="result-title">Finalizado</h2>
+        <h1 id="score-final">0/0</h1>
+        <p id="custom-msg"></p>
         
-        <button id="btn-review" class="btn-secondary" style="margin-bottom: 10px; border: 1px solid #1a73e8; color: #1a73e8;">
-            <i class="fa-solid fa-list-check"></i> Revisar Respuestas
-        </button>
-        
-        <button onclick="location.reload()" class="btn-primary">Volver al Inicio</button>
+        <button id="btn-review" class="btn-secondary">Revisar</button>
+        <button onclick="location.reload()" class="btn-primary">Inicio</button>
     </div>
 
     <div class="container hidden" id="review-screen" style="max-width: 700px; text-align: left;">
-        <h2 style="text-align: center; color: #1a73e8;">Revisión</h2>
+        <h2 style="text-align: center; color: #1a73e8;">Informe</h2>
         <div id="review-container" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;"></div>
-        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Finalizar</button>
+        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Cerrar</button>
     </div>
 
-    <script type="module" src="script.js?v=301"></script>
+    <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
+    <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
+    <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
+    <audio id="correct-sound" preload="auto"><source src="audio/correct.mp3" type="audio/mpeg"></audio>
+    <audio id="click-sound" preload="auto"><source src="audio/click.mp3" type="audio/mpeg"></audio>
+
+    <div id="confetti-wrapper" class="hidden"></div>
+
+    <script type="module" src="script.js?v=302"></script>
 </body>
 </html>
