@@ -23,24 +23,7 @@ const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec
 const correosUnDispositivo = ["cnavarretem4@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
-// --- 3. VARIABLES GLOBALES (Limpias de duplicación) ---
-let preguntasExamen = []; 
-let indiceActual = 0;
-let respuestasUsuario = []; 
-let seleccionTemporal = null; 
-let tiempoRestante = 0;
-let intervaloTiempo;
-let currentUserEmail = "";
-let currentMode = 'individual';
-let uidJugadorPermanente = null; 
-let currentAvatarUrl = null; 
-let currentStreak = 0; 
-let startTime = 0; 
-let battleRoomID = null;    
-let currentAlias = null;    
-let tempBattleID = null;    
-
-// CONSTANTES DE AVATAR Y SALAS
+// --- 3. CONFIGURACIÓN DE AVATARES Y SALAS (DECLARACIONES ÚNICAS) ---
 const AVATAR_CONFIG = [
     { seed: 'Felix', style: 'avataaars', bg: 'b6e3f4' },
     { seed: 'Aneka', style: 'avataaars', bg: 'c0aede' },
@@ -61,6 +44,23 @@ const ROOM_ICONS = {
     "SALA_BOTNET": "fa-robot"
 };
 
+// --- 4. VARIABLES GLOBALES (Limpias de duplicación) ---
+let preguntasExamen = []; 
+let indiceActual = 0;
+let respuestasUsuario = []; 
+let seleccionTemporal = null; 
+let tiempoRestante = 0;
+let intervaloTiempo;
+let currentUserEmail = "";
+let currentMode = 'individual';
+let uidJugadorPermanente = null; 
+let currentAvatarUrl = null; 
+let currentStreak = 0; 
+let startTime = 0; 
+let battleRoomID = null;    
+let currentAlias = null;    
+let tempBattleID = null;    
+
 // REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
@@ -79,7 +79,7 @@ const btnQuitQuiz = document.getElementById('btn-quit-quiz');
 const headerUserInfo = document.getElementById('header-user-info');
 
 
-// --- 4. BANCO DE PREGUNTAS COMPLETO ---
+// --- 5. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica (Fallo técnico/suministro)." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 0, explicacion: "Respuesta correcta: Nmap (Herramienta fundamental para escaneo y mapeo de redes)." },
@@ -173,28 +173,6 @@ function generarIDTemporal() {
     return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
 }
 
-// --- CONSTANTES DE AVATAR Y SALAS (Necesarias para la interfaz) ---
-const AVATAR_CONFIG = [
-    { seed: 'Felix', style: 'avataaars', bg: 'b6e3f4' },
-    { seed: 'Aneka', style: 'avataaars', bg: 'c0aede' },
-    { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9' },
-    { seed: 'Bear', style: 'avataaars', bg: 'ffdfbf' },
-    { seed: 'Chester', style: 'avataaars', bg: 'ffd5dc' },
-    { seed: 'Bandit', style: 'lorelei', bg: 'c0aede' },
-    { seed: 'Molly', style: 'lorelei', bg: 'b6e3f4' },
-    { seed: 'Buster', style: 'lorelei', bg: 'ffdfbf' }
-];
-
-const ROOM_ICONS = {
-    "SALA_FIREWALL": "fa-fire",
-    "SALA_ENCRIPTADO": "fa-lock",
-    "SALA_ZERO_DAY": "fa-bug",
-    "SALA_PHISHING": "fa-fish",
-    "SALA_RANSOMWARE": "fa-skull-crossbones",
-    "SALA_BOTNET": "fa-robot"
-};
-
-
 // --- FUNCIONES DE BATALLA (SIMPLIFICADAS/SIMULADAS) ---
 const salasRef = collection(db, 'salas');
 
@@ -260,7 +238,7 @@ function mostrarSelectorSalas() {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
         const iconClass = ROOM_ICONS[salaId] || 'fa-users';
-        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">4 Agentes</span>`; 
+        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">4 Agentes</span>`; // Simulación de contador
         
         btn.onclick = () => { 
             playClick(); 
