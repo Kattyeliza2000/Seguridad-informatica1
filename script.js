@@ -50,9 +50,6 @@ const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS." },
     { texto: "Una amenaza ambiental típica para un centro de datos sería:", opciones: ["Huracán", "Robo de servidores", "Virus informático", "Pérdida de energía"], respuesta: 0, explicacion: "Respuesta correcta: Huracán." },
-    { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap." },
-    { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
-    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad, integridad y disponibilidad (CIA)." },
     { texto: "El término SSRF significa:", opciones: ["Safe Session Reset Form", "Simple Service Relay Feature", "Secure Software Risk Framework", "Server-Side Request Forgery"], respuesta: 3, explicacion: "Respuesta correcta: Server-Side Request Forgery." },
     { texto: "El proyecto OWASP tiene como finalidad principal:", opciones: ["Vender cortafuegos", "Producir malware de prueba", "Crear estándares de hardware", "Mejorar la seguridad de aplicaciones web de forma abierta"], respuesta: 3, explicacion: "Respuesta correcta: Mejorar la seguridad de aplicaciones web de forma abierta." },
     { texto: "La gestión de activos se considera importante porque:", opciones: ["Genera llaves criptográficas", "Reduce el jitter", "Actualiza antivirus", "Mantiene control sobre hardware, software y datos"], respuesta: 3, explicacion: "Respuesta correcta: Mantiene control sobre hardware, software y datos." },
@@ -220,6 +217,7 @@ function toggleHeaderButtons() {
     const btnRanking = document.getElementById('btn-ranking');
     const btnStats = document.getElementById('btn-stats');
     
+    // El modo estudio no debe mostrar nada
     if (modo === 'exam') {
         btnRanking.classList.remove('hidden');
         btnStats.classList.remove('hidden');
@@ -342,10 +340,7 @@ function mostrarSelectorSalas() {
     SALAS_PREDEFINIDAS.forEach(salaId => {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
-        btn.innerHTML = `
-            <div class="room-icon"><i class="fa-solid ${ROOM_ICONS[salaId]}"></i></div>
-            <strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong>
-            <span class="room-count" id="count-${salaId}">...</span>`;
+        btn.innerHTML = `<strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">...</span>`;
         onSnapshot(doc(db, "salas_activas", salaId), (docSnap) => {
             const count = docSnap.exists() ? (docSnap.data().jugadores || []).length : 0;
             const el = document.getElementById(`count-${salaId}`);
@@ -488,11 +483,8 @@ function seleccionarOpcion(index, btn) {
     btns.forEach(b => b.classList.remove('option-selected'));
     btn.classList.add('option-selected');
     
-    if (currentMode === 'study') {
-        mostrarResultadoInmediato(index);
-    } else {
-        document.getElementById('btn-next-question').classList.remove('hidden');
-    }
+    if (currentMode === 'study') mostrarResultadoInmediato(index);
+    else document.getElementById('btn-next-question').classList.remove('hidden');
 }
 
 function mostrarResultadoInmediato(sel) {
@@ -502,7 +494,6 @@ function mostrarResultadoInmediato(sel) {
     const btns = cont.querySelectorAll('button');
     
     btns.forEach(b => b.disabled = true);
-    
     btns[correcta].classList.add('ans-correct', 'feedback-visible');
     if(sel !== correcta) btns[sel].classList.add('ans-wrong', 'feedback-visible');
     
@@ -641,7 +632,15 @@ async function limpiarSala(salaId) {
     } catch (e) { console.error("Error limpiando sala:", e); }
 }
 
-document.getElementById('btn-exit-war').addEventListener('click', async () => { location.reload(); });
+document.getElementById('btn-leave-lobby').addEventListener('click', async () => {
+    if (confirm("¿Abandonar escuadrón?")) {
+        if (currentRoomId) {
+            await limpiarSala(currentRoomId);
+            location.reload();
+        }
+    }
+});
+
 document.getElementById('btn-exit-war-modal').addEventListener('click', async () => { location.reload(); });
 
 function renderBattlePodium() {
