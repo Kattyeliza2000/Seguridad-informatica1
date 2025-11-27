@@ -45,7 +45,7 @@ let currentStreak = 0;
 let startTime = 0; 
 let jugadorActualData = null; 
 
-// --- 64 PREGUNTAS COMPLETAS ---
+// --- BANCO DE PREGUNTAS COMPLETO (64 PREGUNTAS) ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS." },
@@ -132,7 +132,6 @@ function playClick() {
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(grid.children.length > 1) return; 
-    
     grid.innerHTML = '';
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
@@ -437,7 +436,7 @@ document.getElementById('btn-start-war').addEventListener('click', async () => {
 
 function iniciarQuizMultiplayer() {
     if (unsubscribeRoom) unsubscribeRoom();
-    preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 30); // 30 PREGUNTAS
+    preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
     iniciarInterfazQuiz();
 }
 
@@ -489,8 +488,11 @@ function seleccionarOpcion(index, btn) {
     btns.forEach(b => b.classList.remove('option-selected'));
     btn.classList.add('option-selected');
     
-    if (currentMode === 'study') mostrarResultadoInmediato(index);
-    else document.getElementById('btn-next-question').classList.remove('hidden');
+    if (currentMode === 'study') {
+        mostrarResultadoInmediato(index);
+    } else {
+        document.getElementById('btn-next-question').classList.remove('hidden');
+    }
 }
 
 function mostrarResultadoInmediato(sel) {
@@ -500,6 +502,7 @@ function mostrarResultadoInmediato(sel) {
     const btns = cont.querySelectorAll('button');
     
     btns.forEach(b => b.disabled = true);
+    
     btns[correcta].classList.add('ans-correct', 'feedback-visible');
     if(sel !== correcta) btns[sel].classList.add('ans-wrong', 'feedback-visible');
     
@@ -509,7 +512,6 @@ function mostrarResultadoInmediato(sel) {
     document.getElementById('options-container').appendChild(div);
     
     respuestasUsuario.push(sel);
-    // HABILITAR BOTÓN SIGUIENTE EN MODO ESTUDIO (SOLUCIÓN CRÍTICA)
     document.getElementById('btn-next-question').classList.remove('hidden');
 }
 
@@ -639,15 +641,7 @@ async function limpiarSala(salaId) {
     } catch (e) { console.error("Error limpiando sala:", e); }
 }
 
-document.getElementById('btn-leave-lobby').addEventListener('click', async () => {
-    if (confirm("¿Abandonar escuadrón?")) {
-        if (currentRoomId) {
-            await limpiarSala(currentRoomId);
-            location.reload();
-        }
-    }
-});
-
+document.getElementById('btn-exit-war').addEventListener('click', async () => { location.reload(); });
 document.getElementById('btn-exit-war-modal').addEventListener('click', async () => { location.reload(); });
 
 function renderBattlePodium() {
