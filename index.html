@@ -111,6 +111,22 @@
         <button id="btn-start" class="btn-primary" style="margin-top: 20px;">Empezar</button>
     </div>
 
+    <div class="container hidden" id="avatar-screen">
+        <button id="back-to-setup" class="btn-text"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+        <h2 style="text-align: center;">Elige tu Personaje</h2>
+        <div class="avatar-section">
+            <div class="avatar-grid" id="avatar-grid"></div>
+            <input type="text" id="player-nickname" placeholder="Tu Apodo" maxlength="12" style="text-align: center;">
+        </div>
+        <button id="btn-confirm-identity" class="btn-primary">BUSCAR SALA <i class="fa-solid fa-radar"></i></button>
+    </div>
+
+    <div class="container hidden" id="rooms-screen">
+        <button id="back-to-avatar" class="btn-text"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+        <h2 style="text-align: center;">Zonas de Guerra</h2>
+        <div id="rooms-list" class="rooms-grid"></div>
+    </div>
+    
     <div class="container hidden" id="quiz-screen" style="max-width: 700px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
             <span id="timer-display" style="font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #1a73e8;">00:00</span>
@@ -170,6 +186,6 @@
 
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=301"></script> 
+    <script type="module" src="app.js?v=301"></script> 
 </body>
 </html>
