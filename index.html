@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://api.dicebear.com">
     
-    <link rel="stylesheet" href="style.css?v=115">
+    <link rel="stylesheet" href="style.css?v=140">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -17,7 +17,7 @@
 
     <div id="app-loader">
         <div class="spinner"></div>
-        <p>Conectando a Base de Datos...</p>
+        <p>Cargando perfil...</p>
     </div>
 
     <header>
@@ -27,12 +27,10 @@
         </div>
         
         <div style="display: flex; align-items: center; gap: 10px;">
-            <button id="btn-ranking" class="btn-icon hidden locked-btn" title="Debes terminar un examen primero">
-                <i class="fa-solid fa-trophy"></i>
-            </button>
-            <button id="btn-stats" class="btn-icon hidden locked-btn" title="Debes terminar un examen primero">
-                <i class="fa-solid fa-chart-pie"></i>
-            </button>
+            <img id="header-photo" src="" class="header-profile-pic hidden" alt="Perfil">
+            
+            <button id="btn-ranking" class="btn-icon hidden locked-btn" title="Ranking Global"><i class="fa-solid fa-trophy"></i></button>
+            <button id="btn-stats" class="btn-icon hidden locked-btn" title="Mis Estadísticas"><i class="fa-solid fa-chart-pie"></i></button>
             
             <div class="volume-control-box">
                 <button id="btn-mute" class="btn-icon"><i class="fa-solid fa-volume-high" id="vol-icon"></i></button>
@@ -79,8 +77,10 @@
 
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
-        <div style="text-align: center;">
-            <p style="font-size: 0.9rem; color: #555; margin-bottom: 8px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <img id="user-google-photo" src="" alt="Foto" class="google-profile-pic hidden" referrerpolicy="no-referrer">
+            
+            <p style="font-size: 0.9rem; color: #555; margin: 0;">
                 Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">...</span>
             </p>
             <div class="verified-badge">
@@ -151,19 +151,29 @@
     </div>
 
     <div id="stats-modal" class="hidden modal-overlay">
-        <div class="container modal-content">
+        <div class="modal-card">
             <button id="close-stats" class="close-btn">&times;</button>
-            <h2 style="color: #1a73e8;">Mi Historial Académico</h2>
+            <h2 style="color: #1a73e8;">Mi Historial</h2>
             <canvas id="progressChart"></canvas>
-            <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">* Se muestran los últimos 10 exámenes finalizados.</p>
+            <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">* Solo exámenes finalizados.</p>
         </div>
     </div>
 
     <div id="ranking-modal" class="hidden modal-overlay">
-        <div class="container modal-content" style="max-width: 500px;">
+        <div class="modal-card">
             <button id="close-ranking" class="close-btn">&times;</button>
-            <h2 style="color: #fbbc04;">🏆 Mejores Agentes (Global)</h2>
+            <h2 style="color: #fbbc04;">🏆 Ranking Global</h2>
             <div id="ranking-list" style="text-align: left; max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <div id="battle-results-modal" class="hidden modal-overlay">
+        <div class="modal-card" style="max-width: 700px; width: 95%;">
+            <h2 style="color: #fbbc04; text-transform: uppercase;">🏆 Resultados</h2>
+            <div id="podium-container" class="podium-container"><div class="spinner"></div></div>
+            <div style="margin-top: 20px;">
+                <button onclick="location.reload()" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">Salir</button>
+            </div>
         </div>
     </div>
 
@@ -173,6 +183,6 @@
     <audio id="correct-sound" preload="auto"><source src="https://www.soundjay.com/buttons/sounds/button-3.mp3" type="audio/mpeg"></audio>
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=115"></script>
+    <script type="module" src="script.js?v=140"></script>
 </body>
 </html>
