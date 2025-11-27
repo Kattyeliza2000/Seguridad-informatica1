@@ -260,7 +260,7 @@ function toggleHeaderButtons() {
 
 document.getElementById('mode-select').addEventListener('change', toggleHeaderButtons);
 
-// *** ON AUTH STATE CHANGED (SIN OCULTAMIENTO, SE ASUME QUE EL HTML OCULTA LA CARGA) ***
+// *** ON AUTH STATE CHANGED ***
 onAuthStateChanged(auth, async (user) => {
     
     // Ocultar el loader (solo si no fue ocultado por el HTML, como fallback)
@@ -308,7 +308,7 @@ onAuthStateChanged(auth, async (user) => {
 
 document.getElementById('btn-google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
     console.error("Error al iniciar sesión:", e);
-    // Mostrar el error de pop-up en la consola para el usuario:
+    // Manejo de error de pop-up
     if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
         alert("La ventana de inicio de sesión fue bloqueada o cerrada. Por favor, asegúrate de que tu navegador permita pop-ups para este sitio.");
     } else {
@@ -475,7 +475,7 @@ async function unirseASala(salaId) {
     }, { merge: true });
 
     showScreen('lobby-screen');
-    document.getElementById('lobby-title').innerText = salaId.replace('SALA_', '').replace(/_/g, ' ');
+    document.getElementById('lobby-title').innerText = salaId.replace('SALA_', '').replace(/_/g, ' ')\;
     document.getElementById('lobby-status-text').innerText = 'Esperando agentes...';
 
     unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
