@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://api.dicebear.com">
     
-    <link rel="stylesheet" href="style.css?v=250">
+    <link rel="stylesheet" href="style.css?v=300">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -50,7 +50,6 @@
     <div class="container hidden" id="auth-screen" style="border: none; box-shadow: none; padding-top: 20px;">
         <h1 class="auth-title">Bienvenido</h1>
         <p class="auth-subtitle">Accede con tu cuenta institucional</p>
-        
         <button id="btn-google" class="btn-google-style">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="width: 20px; height: 20px; display: block;">
                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
@@ -67,7 +66,6 @@
             <label>Materia</label>
             <select disabled style="background-color: #f1f3f4; color: #888;"><option>Seguridad Informática</option></select>
         </div>
-
         <div class="control-group">
             <label>Modo</label>
             <select id="mode-select">
@@ -76,7 +74,6 @@
                 <option value="multiplayer">⚔️ Batalla Multiusuarios (64 Preguntas)</option>
             </select>
         </div>
-
         <div class="control-group">
             <label>Tiempo</label>
             <select id="time-select">
@@ -86,21 +83,14 @@
                 <option value="infinity">Sin tiempo</option>
             </select>
         </div>
-
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-
         <div style="text-align: center;">
             <div class="profile-row">
-                <p style="font-size: 0.95rem; color: #555; margin: 0;">
-                    Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">...</span>
-                </p>
+                <p style="font-size: 0.95rem; color: #555; margin: 0;">Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">...</span></p>
                 <img id="user-google-photo" src="" alt="Foto" class="google-profile-pic hidden" referrerpolicy="no-referrer">
             </div>
-            <div class="verified-badge">
-                <i class="fa-solid fa-square-check"></i> Dispositivo verificado
-            </div>
+            <div class="verified-badge"><i class="fa-solid fa-square-check"></i> Dispositivo verificado</div>
         </div>
-
         <button id="btn-start" class="btn-primary" style="margin-top: 20px;">Empezar</button>
     </div>
 
@@ -195,8 +185,9 @@
     <audio id="fail-sound" preload="auto"><source src="https://www.soundjay.com/misc/sounds/fail-trombone-01.mp3" type="audio/mpeg"></audio>
     <audio id="correct-sound" preload="auto"><source src="https://www.soundjay.com/buttons/sounds/button-3.mp3" type="audio/mpeg"></audio>
     <audio id="click-sound" preload="auto"><source src="https://www.soundjay.com/buttons/sounds/button-16.mp3" type="audio/mpeg"></audio>
+    
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=250"></script>
+    <script type="module" src="script.js?v=300"></script>
 </body>
 </html>
