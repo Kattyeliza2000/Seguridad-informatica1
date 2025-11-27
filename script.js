@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 // Mantenemos imports de Firestore para Ranking, Historial y Dispositivos
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE (PROYECTO: simulador-c565e) ---
 const firebaseConfig = {
@@ -55,8 +55,6 @@ const aliasInputGroup = document.getElementById('alias-input-group');
 const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
-const headerUserInfo = document.getElementById('header-user-info');
-
 
 // --- 4. BANCO DE PREGUNTAS COMPLETO ---
 const bancoPreguntas = [
@@ -160,7 +158,7 @@ async function iniciarBatalla() {
     tempBattleID = generarIDTemporal();
     currentMode = 'multiplayer';
     
-    // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA
+    // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA (PUNTO DE ACTIVACIÓN)
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
     iniciarJuegoReal();
@@ -286,17 +284,13 @@ btnLogout.addEventListener('click', () => {
 document.getElementById('btn-start').addEventListener('click', () => {
     const modo = modeSelect.value;
     
-    // 1. MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR
+    // 1. MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR (Solución a la UX)
     const nombreCompleto = document.getElementById('user-display').innerText;
     const nombreCorto = nombreCompleto.split(' ')[0];
 
     document.getElementById('header-user-info').classList.remove('hidden');
-    document.getElementById('header-username').innerText = nombreCorto; // Poner solo el primer nombre
+    document.getElementById('header-username').innerText = nombreCorto;
     document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
-
-
-    // 2. TTS AL INICIAR
-    hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
 
 
     if (modo === 'multiplayer') {
@@ -307,8 +301,11 @@ document.getElementById('btn-start').addEventListener('click', () => {
             return;
         }
         currentAlias = alias;
+        hablar(`¡Excelente, ${alias}! Preparando la zona de batalla.`);
         iniciarBatalla(); 
     } else {
+        // TTS AL INICIAR EXAMEN/ESTUDIO
+        hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
         iniciarJuegoReal();
     }
     
@@ -412,12 +409,12 @@ function mostrarResultadoInmediato(seleccionada) {
     const cont = document.getElementById('options-container');
     const botones = cont.querySelectorAll('button');
     
-    // 2. TTS FEEDBACK ELIMINADO de aquí (Solo va en el inicio)
+    // 2. Control de sonido por respuesta
     const esCorrecta = (seleccionada === correcta);
     if (esCorrecta) {
         document.getElementById('correct-sound').play().catch(()=>{});
     } else {
-        // Control de sonido fallido en modo Estudio
+        // Control de sonido fallido en modo Estudio (deshabilitado en modo estudio)
         if (modeSelect.value !== 'study') { 
             document.getElementById('fail-sound').play().catch(()=>{}); 
         }
@@ -471,8 +468,8 @@ function terminarQuiz(abandono = false) {
     const msg = document.getElementById('custom-msg');
     const sfxWin = document.getElementById('success-sound');
     const sfxFail = document.getElementById('fail-sound');
-    const vol = obtenerVolumen(); // Usar la función para obtener el volumen
-
+    const vol = obtenerVolumen();
+    
     if (sfxWin) sfxWin.volume = vol;
     if (sfxFail) sfxFail.volume = vol;
 
@@ -580,20 +577,17 @@ document.getElementById('btn-review').addEventListener('click', () => {
 });
 
 // --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (Corregidos) ---
-
 function obtenerVolumen() {
     return parseFloat(document.getElementById('volume-slider').value);
 }
 
 function actualizarVolumen() {
     const vol = obtenerVolumen();
-    // Aplicar volumen a todos los elementos de audio
     document.querySelectorAll('audio').forEach(a => {
         a.volume = vol;
         a.muted = (vol === 0);
     });
 
-    // Actualizar el icono de mute en el header
     const icon = document.getElementById('vol-icon');
     icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
 }
@@ -617,7 +611,7 @@ document.getElementById('btn-mute').addEventListener('click', () => {
     actualizarVolumen();
 });
 
-// --- Funciones de Ranking/Historial (Mantenidas para Firebase) ---
+// --- Funciones de Ranking/Historial (Mantenidas) ---
 async function guardarHistorialFirebase(nota) {
     try {
         await addDoc(collection(db, "historial_academico"), {
