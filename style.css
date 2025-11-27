@@ -1,4 +1,4 @@
-/* === ESTILOS v270 (Corregidos) === */
+/* === ESTILOS v270 === */
 * { box-sizing: border-box; }
 body { 
     font-family: 'Segoe UI', 'Roboto', sans-serif; 
@@ -71,7 +71,7 @@ header {
 .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; justify-items: center; }
 .avatar-option { width: 60px; height: 60px; border-radius: 12px; background-color: #f0f4f8; border: 2px solid transparent; padding: 4px; }
 .avatar-option:hover { transform: scale(1.05); }
-.avatar-selected { border-color: #1a73e8 !important; background: #e8f0fe !important; font-weight: 600; color: #1a73e8; }
+.avatar-selected { border-color: #1a73e8 !important; background: #e8f0fe !important; transform: scale(1.1); }
 #player-nickname { width: 100%; padding: 10px; margin-top: 15px; border: 1px solid #dadce0; border-radius: 6px; font-size: 1rem; text-align: center; font-weight: bold; color: #1a73e8; outline: none; }
 #alias-input { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 1rem; text-align: center; font-weight: bold; color: #1a73e8; outline: none; }
 
