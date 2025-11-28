@@ -274,7 +274,7 @@ function mostrarSelectorSalas() {
     });
 }
 
-// --- FUNCIÓN CLAVE: UNIRSE A SALA Y GESTIÓN DE LOBBY EN TIEMPO REAL (MODIFICADA) ---
+// --- FUNCIÓN CLAVE: UNIRSE A SALA Y GESTIÓN DE LOBBY EN TIEMPO REAL (Mantenido) ---
 async function unirseASala(salaId) {
     if (!uidJugadorPermanente || !currentAlias) return; 
 
@@ -373,7 +373,7 @@ async function unirseASala(salaId) {
         if (data.estado === 'jugando') {
              if(unsubscribeRoom) unsubscribeRoom(); // Detener la escucha del lobby
              
-             // ** CORRECCIÓN DE FLUJO: Ocultar RoomsScreen/Lobby antes de iniciar el Quiz **
+             // ** FLUJO CORREGIDO: Ocultar Lobby y mostrar Quiz **
              roomsScreen.classList.add('hidden');
              document.getElementById('lobby-screen').classList.add('hidden');
              
@@ -756,17 +756,20 @@ async function actualizarScoreEnSala(salaId, aciertos) {
             
             if (indiceJugador !== -1) {
                 jugadores[indiceJugador].score = scoreFinal;
-                jugadores[indiceJugador].terminado = true;
+                jugadores[indiceJugador].terminado = true; 
             } else {
                 return;
             }
 
-            // 2. Guarda la lista actualizada y la utiliza para dibujar el podio
+            // 2. Guarda la lista actualizada y la utiliza para el análisis
             await updateDoc(salaRef, { jugadores: jugadores });
-            jugadoresEnSalaAlFinal = jugadores; // Guarda la lista para el podio
+            
+            return jugadores; // Devolvemos la lista actualizada
         }
+        return [];
     } catch (e) {
         console.error("Error actualizando score en sala:", e);
+        return [];
     }
 }
 
@@ -775,8 +778,7 @@ async function actualizarScoreEnSala(salaId, aciertos) {
 function dibujarPodio(jugadores) {
     if (!podiumContainer) return;
     
-    // 1. Filtrar solo jugadores que aún están en la sala (no se han limpiado)
-    // Ordenar jugadores por score (mayor a menor)
+    // 1. Ordenar jugadores por score (mayor a menor)
     const ranking = jugadores.sort((a, b) => b.score - a.score);
 
     // 2. Limpiar y Preparar Podio
@@ -784,23 +786,6 @@ function dibujarPodio(jugadores) {
     roomResultsBox.classList.remove('hidden');
 
     const maxScore = ranking.length > 0 ? ranking[0].score : 1;
-    
-    // Asignar orden del podio (2do, 1ero, 3ero) para visualización
-    const ordenVisual = [];
-    // Si hay 3+ jugadores, mostrar 1, 2, 3
-    if (ranking[1]) ordenVisual.push(ranking[1]); // 2do lugar
-    if (ranking[0]) ordenVisual.push(ranking[0]); // 1er lugar
-    if (ranking[2]) ordenVisual.push(ranking[2]); // 3er lugar
-
-    // Si solo hay 1 o 2 jugadores, reorganizar para que el 1er lugar esté en el centro
-    if (ranking.length === 2) {
-        ordenVisual.splice(0, ordenVisual.length); // Limpiar
-        ordenVisual.push(ranking[1]); // 2do
-        ordenVisual.push(ranking[0]); // 1ero
-    } else if (ranking.length === 1) {
-        ordenVisual.splice(0, ordenVisual.length); // Limpiar
-        ordenVisual.push(ranking[0]); // 1ero
-    }
     
     // Determinar la altura de la base para que el podio no se vea vacío si el score es 0
     const minAltura = 40; 
@@ -813,6 +798,8 @@ function dibujarPodio(jugadores) {
         
         // Determinar el puesto y el orden visual para el CSS (2, 1, 3)
         let puesto = i + 1;
+        // La lógica de orden visual (2, 1, 3) es compleja con forEach. 
+        // Usaremos el orden del ranking (1er, 2do, 3er)
         let cssOrder = puesto === 1 ? 2 : (puesto === 2 ? 1 : (puesto === 3 ? 3 : 4));
         
         const columna = document.createElement('div');
@@ -827,14 +814,14 @@ function dibujarPodio(jugadores) {
         podiumContainer.appendChild(columna);
     });
     
-    // 4. Asegurar que el avatar local del jugador esté visible
+    // 4. Asegurar que el avatar local del jugador esté visible (ya que esta función se llama al final)
     if (finalAvatarDisplay && currentAvatarUrl) {
          finalAvatarDisplay.src = currentAvatarUrl;
          finalAvatarDisplay.classList.remove('hidden');
     }
 }
 
-// --- 13. FUNCIÓN TERMINAR QUIZ (Validación 100% y Animación) (MODIFICADA) ---
+// --- 13. FUNCIÓN TERMINAR QUIZ (Lógica de Espera de Jugadores) ---
 async function terminarQuiz(abandono = false) {
     const bgMusic = document.getElementById('bg-music');
     if(bgMusic) { bgMusic.pause(); bgMusic.currentTime = 0; }
@@ -845,6 +832,7 @@ async function terminarQuiz(abandono = false) {
         if (r === preguntasExamen[i].respuesta) aciertos++; 
     });
     
+    // Calcula puntaje local para mostrar en 19/20
     const totalPreguntas = preguntasExamen.length;
     const notaPorcentaje = totalPreguntas > 0 ? Math.round((aciertos / totalPreguntas) * 100) : 0;
     
@@ -862,22 +850,57 @@ async function terminarQuiz(abandono = false) {
 
     msg.className = ''; 
     
-    // --- LÓGICA MULTIPLAYER (ACTUALIZAR Y DIBUJAR) ---
+    // --- LÓGICA MULTIPLAYER (ACTUALIZAR Y ESPERAR) ---
     if (currentMode === 'multiplayer' && currentSalaId) {
-        // 1. Actualizar el score final del jugador en la sala de Firebase
-        await actualizarScoreEnSala(currentSalaId, aciertos);
+        
+        // 1. Actualizar el score y flag de "terminado" del jugador local
+        const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
 
-        // 2. Dibujar el podio con los datos recién actualizados
-        dibujarPodio(jugadoresEnSalaAlFinal);
+        // 2. Comprobar si todos han terminado
+        const jugadoresAunEnSala = jugadoresActualizados.filter(j => j.estado === 'activo' || j.terminado === false);
+        const todosTerminados = jugadoresAunEnSala.every(j => j.terminado);
 
-        // Mostrar mensaje de fin de batalla
-        if (abandono) {
-            msg.innerText = "Batalla finalizada por usuario. Puntaje registrado."; 
-            msg.style.color = "#ea4335";
-        } else {
+        if (todosTerminados) {
+            // ** TODOS TERMINARON: DIBUJAR PODIO **
+            dibujarPodio(jugadoresActualizados);
             msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA! Vea el Podio.'; 
             msg.style.color = "#1a73e8";
             hablar("La batalla ha terminado. Revisa el podio.");
+        } else {
+            // ** ESPERAR A OTROS JUGADORES **
+            
+            // Ocultar la caja de podio temporalmente
+            roomResultsBox.classList.add('hidden'); 
+            document.getElementById('btn-review').classList.add('hidden');
+            
+            msg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Esperando que los demás agentes terminen...';
+            msg.style.color = "#fbbc04";
+            
+            // Mostrar avatar local
+            if (finalAvatarDisplay && currentAvatarUrl) {
+                finalAvatarDisplay.src = currentAvatarUrl;
+                finalAvatarDisplay.classList.remove('hidden');
+            }
+
+            // 3. Iniciar listener de espera
+            const salaRef = doc(db, "salas_activas", currentSalaId);
+            unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
+                const jugadoresEsperando = docSnap.data().jugadores || [];
+                const jugadoresRestantes = jugadoresEsperando.filter(j => j.estado === 'activo' || j.terminado === false);
+
+                const todosHanTerminado = jugadoresRestantes.every(j => j.terminado);
+                
+                if (todosHanTerminado) {
+                    if (unsubscribeRoom) unsubscribeRoom(); // Detener la escucha
+                    
+                    // Redibujar el podio cuando el último jugador termine
+                    dibujarPodio(jugadoresEsperando);
+                    msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA! Vea el Podio.'; 
+                    msg.style.color = "#1a73e8";
+                    document.getElementById('btn-review').classList.remove('hidden');
+                    hablar("Todos los agentes han completado su misión.");
+                }
+            });
         }
 
     } else { 
