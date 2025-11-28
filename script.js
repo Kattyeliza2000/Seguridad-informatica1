@@ -1,9 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Se mantienen imports de Firestore para Ranking, Historial y Batalla
+// Re-habilitamos arrayUnion, arrayRemove y onSnapshot para la lógica de Lobby
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
+// --- 1. CONFIGURACIÓN FINAL DE FIREBASE (Asegúrate de que estas credenciales sean correctas) ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -87,9 +87,8 @@ const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 const headerUserInfo = document.getElementById('header-user-info');
 const avatarGrid = document.getElementById('avatar-grid');
-const lobbyPlayers = document.getElementById('lobby-players');
 const lobbyTitle = document.getElementById('lobby-title');
-const lobbyStatusText = document.getElementById('lobby-status-text');
+const lobbyPlayers = document.getElementById('lobby-players');
 const btnStartWar = document.getElementById('btn-start-war');
 
 
@@ -102,7 +101,7 @@ function showScreen(screenId) {
     }
 }
 
-// --- FUNCIÓN UTILITARIA: SONIDO CLIC ---
+// --- FUNCIÓN UTILITARIA: SONIDO CLIC (CORREGIDO: Definido tempranamente para evitar ReferenceError) ---
 function playClick() {
     const sfx = document.getElementById('click-sound');
     if(sfx) { sfx.currentTime = 0; sfx.play().catch(()=>{}); }
@@ -294,7 +293,7 @@ async function iniciarLobbySimulado(salaId) {
 
     const nick = currentAlias || "Agente";
 
-    // ** LÓGICA DE ESPERA REALÍSTICA: SOLO MUESTRA AL JUGADOR ACTUAL **
+    // ** LÓGICA DE ESPERA REALÍSTICA: INICIALMENTE SOLO TÚ **
     const jugadorActual = { name: nick, isHost: true }; 
     
     // Muestra solo a ti mismo en el lobby
@@ -309,7 +308,7 @@ async function iniciarLobbySimulado(salaId) {
         hablar(`Esperando oponente para iniciar la batalla.`);
     }
     
-    // ** SIMULACIÓN DE TIEMPO DE ESPERA Y COMPAÑERO **
+    // ** SIMULACIÓN DE TIEMPO DE ESPERA Y COMPAÑERO (4 segundos de prueba) **
     setTimeout(() => {
         if (btnStartWar) {
             // Lógica para simular la adición de un oponente y activar el botón
