@@ -112,7 +112,7 @@ const bancoPreguntas = [
     { texto: "DES trabaja con bloques de:", opciones: ["32 bits", "256 bits", "64 bits", "128 bits"], respuesta: 2, explicacion: "Respuesta correcta: 64 bits" },
     { texto: "En un par de claves RSA, la clave que debe mantenerse secreta es la:", opciones: ["Compartida", "Certificada", "Pública", "Privada"], respuesta: 3, explicacion: "Respuesta correcta: Privada" },
     { texto: "Una firma digital permite verificar principalmente la:", opciones: ["Velocidad de red", "Compresión", "Fragmentación IP", "Integridad del mensaje y la identidad del remitente"], respuesta: 3, explicacion: "Respuesta correcta: Integridad del mensaje y la identidad del remitente" },
-    { texto: "Un cifrador en flujo cifra la información:", opciones: ["Con curvas celípticas", "Mediante RSA", "En bloques de 128 bits", "Bit a bit"], respuesta: 3, explicacion: "Respuesta correcta: Bit a bit" },
+    { texto: "Un cifrador en flujo cifra la información:", opciones: ["Con curvas elípticas", "Mediante RSA", "En bloques de 128 bits", "Bit a bit"], respuesta: 3, explicacion: "Respuesta correcta: Bit a bit" },
     { texto: "La propiedad que asegura que solo personas autorizadas lean un mensaje es la:", opciones: ["Confidencialidad", "Integridad", "No repudio", "Disponibilidad"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad" },
     { texto: "La criptografía de curva elíptica (ECC) ofrece la misma seguridad que RSA con:", opciones: ["Claves más largas", "Claves más cortas", "OTP", "Hashes MD5"], respuesta: 1, explicacion: "Respuesta correcta: Claves más cortas" },
     { texto: "Un protocolo criptográfico es:", opciones: ["Un conjunto de pasos entre entidades para lograr un objetivo de seguridad", "Un certificado X.509", "Una clave pública", "Un algoritmo de hashing"], respuesta: 0, explicacion: "Respuesta correcta: Un conjunto de pasos entre entidades para lograr un objetivo de seguridad" },
@@ -190,8 +190,10 @@ async function iniciarBatalla() {
     tempBattleID = generarIDTemporal();
     currentMode = 'multiplayer';
     
+    // MOSTRAR PERFIL EN ENCABEZADO
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
+    // ** FLUJO CORREGIDO: Va a la pantalla de Avatar/Alias **
     showScreen('avatar-screen'); 
     initAvatars(); 
 }
@@ -240,7 +242,6 @@ function mostrarSelectorSalas() {
         btn.className = 'room-btn';
         const iconClass = ROOM_ICONS[salaId] || 'fa-users';
         
-        // CORRECCIÓN: Usar onSnapshot para el contador de jugadores reales (LECTURA REAL)
         const salaRef = doc(db, "salas_activas", salaId);
         onSnapshot(salaRef, (docSnap) => {
             const count = docSnap.exists() ? (docSnap.data().jugadores || []).length : 0;
@@ -248,15 +249,13 @@ function mostrarSelectorSalas() {
             if(el) {
                  el.innerText = `${count} Agentes`;
             } else {
-                 // Inicializa el botón con el contador actual
                  btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">${count} Agentes</span>`; 
             }
         });
         
-        // EVENTO DE CLICK: Inicia el juego
         btn.onclick = () => { 
             playClick(); 
-            unirseASala(salaId); // ** LLAMA AL LOBBY REAL **
+            unirseASala(salaId); 
         };
         list.appendChild(btn);
     });
@@ -269,7 +268,7 @@ async function unirseASala(salaId) {
     const salaRef = doc(db, "salas_activas", salaId);
     
     const jugadorData = { 
-        id: tempBattleID, // ID temporal de sesión (Para borrado seguro)
+        id: tempBattleID, // ID temporal de sesión
         uid: uidJugadorPermanente, // ID permanente para rastreo
         name: currentAlias, 
         avatar: currentAvatarUrl,
@@ -289,8 +288,7 @@ async function unirseASala(salaId) {
     // 2. ESCUCHA EN TIEMPO REAL DEL LOBBY
     unsubscribeRoom = onSnapshot(salaRef, async (docSnap) => {
         if (!docSnap.exists()) {
-             // Si la sala fue eliminada (ej. por el último jugador)
-             if(unsubscribeRoom) unsubscribeRoom();
+             if(unsubscribeRoom) unsubscribeRoom(); 
              showScreen('setup-screen');
              hablar("La sala fue cerrada.");
              return;
@@ -298,22 +296,25 @@ async function unirseASala(salaId) {
 
         const data = docSnap.data();
         const jugadores = data.jugadores || [];
+        // Determina si eres el anfitrión (el primero en la lista)
         const esHost = jugadores.length > 0 && jugadores[0].uid === uidJugadorPermanente;
 
         // Renderizar Jugadores
         if (lobbyPlayers) {
-            lobbyPlayers.innerHTML = jugadores.map(p => 
-                `<div class="player-badge" style="background-color: ${p.uid === jugadores[0].uid ? '#fbbc0420' : '#f0f7ff'};">
-                    <img src="${p.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default&backgroundColor=e0e0e0'}" class="lobby-avatar-small" /> ${p.name} ${p.uid === uidJugadorPermanente ? '(Tú)' : ''}
-                </div>`
-            ).join('');
+            lobbyPlayers.innerHTML = jugadores.map(p => {
+                const isYou = p.uid === uidJugadorPermanente;
+                const isHost = p.uid === jugadores[0].uid;
+                return `<div class="player-badge" style="background-color: ${isHost ? '#f0f7ff' : '#e6f4ea'};">
+                    <img src="${p.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default&backgroundColor=e0e0e0'}" class="lobby-avatar-small" /> ${p.name} ${isYou ? '(Tú)' : ''}
+                </div>`;
+            }).join('');
         }
 
         // Controlar el Botón de Inicio (Solo visible si hay 2+ jugadores y eres el Host)
         if (btnStartWar) {
             if (jugadores.length >= 2 && esHost && data.estado === 'esperando') {
                 btnStartWar.classList.remove('hidden');
-                lobbyStatusText.innerText = `¡Oponente encontrado! (${jugadores.length}/2). Presiona INICIAR BATALLA.`;
+                lobbyStatusText.innerText = `¡Oponente encontrado! (${jugadores.length} de 2). Presiona INICIAR BATALLA.`;
             } else if (data.estado === 'esperando') {
                 btnStartWar.classList.add('hidden');
                 lobbyStatusText.innerText = `Esperando oponente real (${jugadores.length} de 2)...`;
@@ -374,6 +375,509 @@ async function limpiarSala(salaId) {
 }
 
 
-// [Resto de funciones: validarDispositivo, onAuthStateChanged, terminarQuiz, etc.]
+// --- 7. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS) ---
+async function validarDispositivo(user) {
+    currentUserEmail = user.email;
+    uidJugadorPermanente = user.uid;
+    const miDeviceId = obtenerDeviceId(); 
+    
+    let limiteDispositivos = 1;
+    if (correosDosDispositivos.includes(currentUserEmail)) {
+        limiteDispositivos = 2;
+    }
 
-// El resto de funciones (validarDispositivo, onAuthStateChanged, terminarQuiz, etc.) son las mismas que te proporcioné anteriormente.
+    const docRef = doc(db, "usuarios_seguros", currentUserEmail);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        const datos = docSnap.data();
+        let listaDispositivos = datos.dispositivos || []; 
+        
+        if (listaDispositivos.includes(miDeviceId)) {
+            return true;
+        } else {
+            if (listaDispositivos.length >= limiteDispositivos) {
+                // ACCESO DENEGADO
+                alert(`⛔ ACCESO DENEGADO ⛔\n\nHas excedido tu límite de ${limiteDispositivos} dispositivos registrados. Debes cerrar sesión en otro equipo para continuar.`);
+                await signOut(auth);
+                location.reload();
+                return false;
+            } else {
+                // Si hay espacio, añadir el nuevo dispositivo
+                let nuevaLista = [...listaDispositivos, miDeviceId];
+                await setDoc(docRef, { dispositivos: nuevaLista }, { merge: true });
+                return true;
+            }
+        }
+    } else {
+        await setDoc(docRef, {
+            dispositivos: [miDeviceId],
+            fecha_registro: new Date().toISOString()
+        });
+        return true;
+    }
+}
+
+// --- 8. MONITOR DE AUTENTICACIÓN (Muestra Perfil de Google) ---
+onAuthStateChanged(auth, async (user) => {
+    document.getElementById('app-loader').classList.add('hidden');
+
+    if (user) {
+        if (correosPermitidos.includes(user.email)) {
+            
+            // LÓGICA PARA CAPITALIZAR EL NOMBRE: "Katty"
+            let nombre = user.displayName || user.email.split('@')[0];
+            const partes = nombre.toLowerCase().split(' ');
+            const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+            
+            const nombreCorto = nombreCompletoCorregido.split(' ')[0];
+            
+            uidJugadorPermanente = user.uid;
+            currentUserEmail = user.email;
+
+            const dispositivoValido = await validarDispositivo(user);
+            
+            if (dispositivoValido) {
+                // OCULTAR LOGIN y MOSTRAR SETUP
+                authScreen.classList.add('hidden');
+                setupScreen.classList.remove('hidden');
+                btnLogout.classList.remove('hidden');
+
+                // Mostrar Nombre y Foto en el SETUP
+                document.getElementById('user-display').innerText = nombreCompletoCorregido;
+                if (user.photoURL) {
+                    document.getElementById('user-google-photo').src = user.photoURL;
+                    document.getElementById('user-google-photo').classList.remove('hidden');
+                }
+                
+                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
+                document.getElementById('header-user-info').classList.add('hidden'); 
+
+                // Audio de bienvenida (TTS)
+                setTimeout(() => {
+                    hablar(`Bienvenido ${nombreCorto}, elija la opción que necesite.`);
+                }, 500);
+            }
+        } else {
+            alert("ACCESO RESTRINGIDO: Tu correo no está autorizado.");
+            signOut(auth);
+        }
+    } else {
+        // PANTALLA DE LOGOUT/NO LOGUEADO
+        authScreen.classList.remove('hidden');
+        setupScreen.classList.add('hidden');
+        document.getElementById('header-user-info').classList.add('hidden');
+    }
+});
+
+// --- 9. EVENTOS DE AUTENTICACIÓN ---
+document.getElementById('btn-google').addEventListener('click', () => {
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
+        console.error("Error Google:", e);
+        alert("Error de inicio de sesión. Revisa la consola o permisos de pop-ups.");
+    });
+});
+
+btnLogout.addEventListener('click', () => {
+    if(confirm("¿Cerrar sesión?")) {
+        signOut(auth);
+        location.reload();
+    }
+});
+
+// --- 10. LÓGICA DEL JUEGO / SETUP ---
+document.getElementById('btn-start').addEventListener('click', () => {
+    const modo = modeSelect.value;
+    
+    // 1. MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR (Solución a la UX)
+    const nombreCompleto = document.getElementById('user-display').innerText;
+    const nombreCorto = nombreCompleto.split(' ')[0];
+
+    document.getElementById('header-user-info').classList.remove('hidden');
+    document.getElementById('header-username').innerText = nombreCorto;
+    document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
+
+
+    if (modo === 'multiplayer') {
+        const alias = aliasInput.value.trim();
+        if (alias.length < 3) {
+            hablar("Por favor, introduce un alias de al menos tres letras para la batalla.");
+            aliasInput.focus();
+            return;
+        }
+        currentAlias = alias;
+        hablar(`¡Excelente, ${alias}! Elige tu avatar y tu zona de guerra.`);
+        iniciarBatalla(); // Redirige a la pantalla de Avatar/Alias
+    } else {
+        // TTS AL INICIAR EXAMEN/ESTUDIO
+        hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
+        iniciarJuegoReal();
+    }
+    
+    // ** ACTIVAR MÚSICA DE FONDO Y CLIC **
+    const bgMusic = document.getElementById('bg-music');
+    if(bgMusic) { bgMusic.volume = obtenerVolumen(); bgMusic.play().catch(()=>{}); }
+});
+
+// --- LÓGICA DE VISUALIZACIÓN DE ALIAS EN SETUP ---
+modeSelect.addEventListener('change', () => {
+    const isMultiplayer = modeSelect.value === 'multiplayer';
+    
+    if (isMultiplayer) {
+        aliasInputGroup.classList.remove('hidden');
+        btnStart.innerText = '⚔️ Unirse a Batalla';
+    } else {
+        aliasInputGroup.classList.add('hidden');
+        btnStart.innerText = 'Empezar';
+    }
+});
+
+// --- LÓGICA DE NAVEGACIÓN DENTRO DE BATALLA (Avatar -> Sala) ---
+document.addEventListener('DOMContentLoaded', () => {
+    const btnConfirmIdentity = document.getElementById('btn-confirm-identity');
+    
+    if (btnConfirmIdentity) {
+        btnConfirmIdentity.addEventListener('click', () => {
+            const nick = document.getElementById('player-nickname').value.trim();
+            
+            if (nick.length < 3) {
+                 hablar("Por favor, introduce un apodo de al menos tres letras.");
+                 return;
+            }
+            
+            // Si el nick es válido, pasamos a seleccionar la sala
+            mostrarSelectorSalas();
+        });
+    }
+    
+    // Navegación hacia atrás
+    const backToSetup = document.getElementById('back-to-setup');
+    const backToAvatar = document.getElementById('back-to-avatar');
+    
+    if(backToSetup) backToSetup.addEventListener('click', () => showScreen('setup-screen'));
+    if(backToAvatar) backToAvatar.addEventListener('click', () => showScreen('avatar-screen'));
+});
+
+
+function iniciarJuegoReal() {
+    const tiempo = document.getElementById('time-select').value;
+    const modo = document.getElementById('mode-select').value;
+
+    if (tiempo !== 'infinity') {
+        tiempoRestante = parseInt(tiempo) * 60;
+        iniciarReloj();
+    } else {
+        document.getElementById('timer-display').innerText = "--:--";
+    }
+
+    if (modo === 'study') {
+        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
+    } else {
+        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
+    }
+    
+    respuestasUsuario = [];
+    indiceActual = 0;
+    setupScreen.classList.add('hidden');
+    quizScreen.classList.remove('hidden');
+    cargarPregunta();
+}
+
+// --- 11. FUNCIONES DE QUIZ ---
+function cargarPregunta() {
+    seleccionTemporal = null; 
+    btnNextQuestion.classList.add('hidden'); 
+    
+    // Ocultar botón Rendirse en modo Estudio
+    if (modeSelect.value === 'study') {
+        btnQuitQuiz.classList.add('hidden'); 
+    } else {
+        btnQuitQuiz.classList.remove('hidden'); 
+    }
+
+    if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
+    
+    const data = preguntasExamen[indiceActual];
+    document.getElementById('question-text').innerText = `${indiceActual + 1}. ${data.texto}`;
+    const cont = document.getElementById('options-container'); cont.innerHTML = '';
+    
+    data.opciones.forEach((opcion, index) => {
+        const btn = document.createElement('button');
+        btn.innerText = opcion;
+        btn.onclick = () => seleccionarOpcion(index, btn); 
+        cont.appendChild(btn);
+    });
+    document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntasExamen.length}`;
+
+    if(indiceActual === preguntasExamen.length - 1) {
+        btnNextQuestion.innerHTML = 'Finalizar <i class="fa-solid fa-check"></i>';
+    } else {
+        btnNextQuestion.innerHTML = 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
+    }
+}
+
+function seleccionarOpcion(index, btnClickeado) {
+    const isStudyMode = modeSelect.value === 'study';
+
+    if (isStudyMode && seleccionTemporal !== null) {
+        return;
+    }
+    
+    seleccionTemporal = index;
+    const botones = document.getElementById('options-container').querySelectorAll('button');
+    botones.forEach(b => b.classList.remove('option-selected'));
+    btnClickeado.classList.add('option-selected');
+    
+    if (isStudyMode) {
+        mostrarResultadoInmediato(index);
+    } else {
+        btnNextQuestion.classList.remove('hidden');
+    }
+}
+
+function mostrarResultadoInmediato(seleccionada) {
+    const pregunta = preguntasExamen[indiceActual];
+    const correcta = pregunta.respuesta;
+    const cont = document.getElementById('options-container');
+    const botones = cont.querySelectorAll('button');
+    
+    // 2. Control de sonido por respuesta
+    const esCorrecta = (seleccionada === correcta);
+    if (esCorrecta) {
+        document.getElementById('correct-sound').play().catch(()=>{});
+    } else {
+        // Control de sonido fallido en modo Estudio (deshabilitado en modo estudio)
+        if (modeSelect.value !== 'study') { 
+            document.getElementById('fail-sound').play().catch(()=>{}); 
+        }
+    }
+
+    botones.forEach(btn => btn.disabled = true);
+    botones.forEach((btn, index) => {
+        btn.classList.remove('option-selected');
+        if (index === correcta) {
+            btn.classList.add('ans-correct', 'feedback-visible');
+        } else if (index === seleccionada) {
+            btn.classList.add('ans-wrong', 'feedback-visible');
+        }
+    });
+
+    const divExplicacion = document.createElement('div');
+    divExplicacion.className = 'explanation-feedback';
+    divExplicacion.innerHTML = `<strong>Explicación:</strong> ${pregunta.explicacion}`;
+    cont.appendChild(divExplicacion);
+    
+    respuestasUsuario.push(seleccionada);
+    btnNextQuestion.classList.remove('hidden');
+}
+
+// --- 12. EVENTO: Render Rendirse ---
+document.getElementById('btn-quit-quiz').addEventListener('click', () => {
+    if (confirm("¿Estás seguro que deseas rendirte? Tu progreso actual se guardará.")) {
+        terminarQuiz(true); 
+    }
+});
+
+
+// --- 13. FUNCIÓN TERMINAR QUIZ (Validación 100% y Animación) ---
+function terminarQuiz(abandono = false) {
+    const bgMusic = document.getElementById('bg-music');
+    if(bgMusic) { bgMusic.pause(); bgMusic.currentTime = 0; }
+    clearInterval(intervaloTiempo);
+
+    let aciertos = 0;
+    respuestasUsuario.forEach((r, i) => { 
+        if (r === preguntasExamen[i].respuesta) aciertos++; 
+    });
+    
+    const totalPreguntas = preguntasExamen.length;
+    const notaPorcentaje = totalPreguntas > 0 ? Math.round((aciertos / totalPreguntas) * 100) : 0;
+    
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+    document.getElementById('score-final').innerText = `${aciertos} / ${totalPreguntas}`;
+    
+    const msg = document.getElementById('custom-msg');
+    const sfxWin = document.getElementById('success-sound');
+    const sfxFail = document.getElementById('fail-sound');
+    const vol = obtenerVolumen();
+    
+    if (sfxWin) sfxWin.volume = vol;
+    if (sfxFail) sfxFail.volume = vol;
+
+    msg.className = ''; 
+
+    if (abandono) {
+        msg.innerText = "Finalizado por usuario. Se registraron las respuestas completadas."; 
+        msg.style.color = "#ea4335";
+        
+    } else if (aciertos === totalPreguntas) { // VALIDACIÓN: PUNTAJE PERFECTO (100%)
+        msg.innerHTML = '<i class="fa-solid fa-trophy moving-icon-win"></i> ¡FELICITACIONES! PUNTAJE PERFECTO 💯'; 
+        msg.style.color = "#28a745"; 
+        if (typeof createConfetti === 'function') createConfetti(); 
+        if (sfxWin) sfxWin.play().catch(()=>{});
+        hablar("¡Increíble! Has obtenido un puntaje perfecto. Eres un maestro en seguridad."); 
+
+    } else if (notaPorcentaje >= 85) { 
+        msg.innerHTML = '<i class="fa-solid fa-medal moving-icon-win"></i> ¡LEGENDARIO! 🏆'; 
+        msg.style.color = "#28a745"; 
+        if (typeof createConfetti === 'function') createConfetti(); 
+        if (sfxWin) sfxWin.play().catch(()=>{});
+
+    } else if (notaPorcentaje >= 70) { 
+        msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Misión Cumplida!'; 
+        msg.style.color = "#fbbc04";
+        if (sfxWin) sfxWin.play().catch(()=>{});
+
+    } else { 
+        msg.innerHTML = '<i class="fa-solid fa-face-sad-cry moving-icon-fail"></i> Entrenamiento fallido. Debes mejorar.'; 
+        msg.style.color = "#1a73e8"; 
+        if (sfxFail) sfxFail.play().catch(()=>{});
+    }
+    
+    // Ocultar botón Revisar Respuestas si es modo Estudio
+    if (modeSelect.value === 'study') {
+        document.getElementById('btn-review').classList.add('hidden');
+    } else {
+        document.getElementById('btn-review').classList.remove('hidden');
+    }
+}
+
+// --- 14. EVENTO SIGUIENTE PREGUNTA ---
+btnNextQuestion.addEventListener('click', () => {
+    const isStudyMode = modeSelect.value === 'study';
+    
+    if (isStudyMode && seleccionTemporal !== null) {
+        indiceActual++;
+        cargarPregunta();
+        return; 
+    }
+    
+    if (seleccionTemporal !== null) {
+        respuestasUsuario.push(seleccionTemporal);
+        indiceActual++;
+        cargarPregunta();
+    }
+});
+
+
+// --- 15. FUNCIONES AUXILIARES DE TIEMPO Y ANIMACIÓN ---
+function iniciarReloj() {
+    intervaloTiempo = setInterval(() => {
+        tiempoRestante--;
+        let m = Math.floor(tiempoRestante / 60), s = tiempoRestante % 60;
+        document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        if (tiempoRestante <= 0) { clearInterval(intervaloTiempo); terminarQuiz(); }
+    }, 1000);
+}
+
+function createConfetti() {
+    const w = document.getElementById('confetti-wrapper'); 
+    if (!w) return;
+    w.classList.remove('hidden'); 
+    w.innerHTML = '';
+    const c = ['#1a73e8', '#34a853', '#fbbc04', 'ea4335'];
+    for(let i=0; i<100; i++) {
+        const d = document.createElement('div');
+        d.style.position='absolute'; d.style.width='10px'; d.style.height='10px';
+        d.style.backgroundColor = c[Math.floor(Math.random()*c.length)];
+        d.style.left = Math.random()*100+'vw';
+        d.style.animation = `fall ${Math.random()*3+2}s linear forwards`;
+        w.appendChild(d);
+    }
+}
+
+// --- 16. REVISIÓN Y MÁS FUNCIONES AUXILIARES ---
+document.getElementById('btn-review').addEventListener('click', () => {
+    resultScreen.classList.add('hidden');
+    reviewScreen.classList.remove('hidden');
+    const cont = document.getElementById('review-container'); cont.innerHTML = '';
+    
+    preguntasExamen.forEach((p, i) => {
+        const dada = respuestasUsuario[i], ok = (dada === p.respuesta);
+        const card = document.createElement('div'); card.className = 'review-item';
+        let ops = '';
+        p.opciones.forEach((o, x) => {
+            let c = (x === p.respuesta) ? 'ans-correct' : (x === dada && !ok ? 'ans-wrong' : '');
+            let ico = (x === p.respuesta) ? '✅ ' : (x === dada && !ok ? '❌ ' : '');
+            let b = (x === dada) ? 'user-selected' : '';
+            ops += `<div class="review-answer ${c} ${b}">${ico}${o}</div>`;
+        });
+        card.innerHTML = `<div class="review-question">${i+1}. ${p.texto}</div>${ops}<div class="review-explanation"><strong>Explicación:</strong> ${p.explicacion}</div>`;
+        cont.appendChild(card);
+    });
+});
+
+// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (Corregidos) ---
+
+function obtenerVolumen() {
+    return parseFloat(document.getElementById('volume-slider').value);
+}
+
+function actualizarVolumen() {
+    const vol = obtenerVolumen();
+    document.querySelectorAll('audio').forEach(a => {
+        a.volume = vol;
+        a.muted = (vol === 0);
+    });
+
+    const icon = document.getElementById('vol-icon');
+    icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    actualizarVolumen();
+});
+
+document.getElementById('volume-slider').addEventListener('input', actualizarVolumen);
+
+document.getElementById('btn-mute').addEventListener('click', () => {
+    const slider = document.getElementById('volume-slider');
+    const vol = obtenerVolumen();
+    
+    if (vol > 0) {
+        slider.dataset.lastVolume = vol; 
+        slider.value = 0;
+    } else {
+        slider.value = slider.dataset.lastVolume || 0.4; 
+    }
+    actualizarVolumen();
+});
+
+// --- Funciones de Ranking/Historial (Mantenidas) ---
+async function guardarHistorialFirebase(nota) {
+    try {
+        await addDoc(collection(db, "historial_academico"), {
+            email: currentUserEmail,
+            score: nota,
+            date: new Date(),
+            uid: uidJugadorPermanente
+        });
+    } catch (e) { console.error("Error guardando historial:", e); }
+}
+
+async function guardarPuntajeGlobal(nota) {
+    try {
+        const today = new Date().toLocaleDateString();
+        const docRef = doc(db, "ranking_global", uidJugadorPermanente); 
+        
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().dateString === today) {
+            if (nota > docSnap.data().score) {
+                await updateDoc(docRef, {
+                    score: nota,
+                    date: new Date(),
+                    dateString: today
+                });
+            }
+        } else {
+            await setDoc(docRef, {
+                email: currentUserEmail,
+                score: nota,
+                date: new Date(),
+                dateString: today
+            });
+        }
+    } catch (e) { console.error("Error guardando puntaje global:", e); }
+}
