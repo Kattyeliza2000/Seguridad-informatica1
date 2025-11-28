@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Re-habilitamos arrayUnion, arrayRemove y onSnapshot para la lógica de Lobby
+// Se mantienen imports de Firestore para Ranking, Historial y Batalla
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
@@ -36,7 +36,9 @@ let currentStreak = 0;
 let startTime = 0; 
 let battleRoomID = null;    
 let currentAlias = null;    
-let tempBattleID = null;    
+let tempBattleID = null; // ID TEMPORAL DE SESIÓN
+let unsubscribeRoom = null; // Para detener el listener de Firebase
+
 
 // --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
@@ -86,7 +88,9 @@ const btnQuitQuiz = document.getElementById('btn-quit-quiz');
 const headerUserInfo = document.getElementById('header-user-info');
 const avatarGrid = document.getElementById('avatar-grid');
 const lobbyPlayers = document.getElementById('lobby-players');
+const lobbyTitle = document.getElementById('lobby-title');
 const lobbyStatusText = document.getElementById('lobby-status-text');
+const btnStartWar = document.getElementById('btn-start-war');
 
 
 // --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA ---
@@ -98,7 +102,7 @@ function showScreen(screenId) {
     }
 }
 
-// --- FUNCIÓN UTILITARIA: SONIDO CLIC (CORREGIDO: Definido tempranamente para evitar ReferenceError) ---
+// --- FUNCIÓN UTILITARIA: SONIDO CLIC ---
 function playClick() {
     const sfx = document.getElementById('click-sound');
     if(sfx) { sfx.currentTime = 0; sfx.play().catch(()=>{}); }
@@ -290,20 +294,18 @@ async function iniciarLobbySimulado(salaId) {
 
     const nick = currentAlias || "Agente";
 
-    // ** LÓGICA DE ESPERA REALÍSTICA: INICIALMENTE SOLO TÚ **
-    const jugadoresSimulados = [
-        { name: nick, isHost: true } // SOLO TÚ
-    ];
+    // ** LÓGICA DE ESPERA REALÍSTICA: SOLO MUESTRA AL JUGADOR ACTUAL **
+    const jugadorActual = { name: nick, isHost: true }; 
     
-    jugadoresSimulados.forEach(p => {
-        const name = p.name;
-        if (lobbyPlayers) lobbyPlayers.innerHTML += `<div class="player-badge"> ${name}</div>`;
-    });
+    // Muestra solo a ti mismo en el lobby
+    if (lobbyPlayers) {
+        lobbyPlayers.innerHTML = `<div class="player-badge"> ${jugadorActual.name}</div>`;
+    }
 
-    // REGLA DE INICIO: El botón está siempre oculto hasta que haya 2 jugadores (SIMULACIÓN DE REGLA)
+    // REGLA DE INICIO: Botón permanentemente oculto hasta que la lógica real lo muestre
     if (btnStartWar) {
         btnStartWar.classList.add('hidden'); 
-        document.getElementById('lobby-status-text').innerText = 'Esperando oponente...';
+        document.getElementById('lobby-status-text').innerText = 'Esperando oponente real...';
         hablar(`Esperando oponente para iniciar la batalla.`);
     }
     
