@@ -42,7 +42,9 @@ let unsubscribeRoom = null; // Para detener el listener de Firebase
 
 // --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
+    // MUJERES (7)
     { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff', tags: 'Femenino' }, { seed: 'Ana', style: 'avataaars', bg: 'ffd5dc', tags: 'Femenino' }, { seed: 'Sofia', style: 'avataaars', bg: 'b6e3f4', tags: 'Femenino' }, { seed: 'Laura', style: 'lorelei', bg: 'c0aede', tags: 'Femenino' }, { seed: 'Maya', style: 'lorelei', bg: 'f7c9e5', tags: 'Femenino' }, { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9', tags: 'Femenino' }, { seed: 'Mia', style: 'lorelei', bg: 'ffdfbf', tags: 'Femenino' },
+    // HOMBRES (7, resto del total)
     { seed: 'Felix', style: 'avataaars', bg: 'a0d6b3', tags: 'Masculino' }, { seed: 'Aneka', style: 'avataaars', bg: 'c7d0f8', tags: 'Masculino' }, { seed: 'John', style: 'avataaars', bg: 'ffc5a1', tags: 'Masculino' }, { seed: 'Buster', style: 'lorelei', bg: 'a6c0ff', tags: 'Masculino' }, { seed: 'Chester', style: 'avataaars', bg: 'f9d3b4', tags: 'Masculino' }, { seed: 'Bandit', style: 'lorelei', bg: 'ffdfbf', tags: 'Masculino' }, { seed: 'Chris', style: 'avataaars', bg: 'a1eafb', tags: 'Masculino' },
 ];
 
@@ -112,7 +114,7 @@ const bancoPreguntas = [
     { texto: "DES trabaja con bloques de:", opciones: ["32 bits", "256 bits", "64 bits", "128 bits"], respuesta: 2, explicacion: "Respuesta correcta: 64 bits" },
     { texto: "En un par de claves RSA, la clave que debe mantenerse secreta es la:", opciones: ["Compartida", "Certificada", "Pública", "Privada"], respuesta: 3, explicacion: "Respuesta correcta: Privada" },
     { texto: "Una firma digital permite verificar principalmente la:", opciones: ["Velocidad de red", "Compresión", "Fragmentación IP", "Integridad del mensaje y la identidad del remitente"], respuesta: 3, explicacion: "Respuesta correcta: Integridad del mensaje y la identidad del remitente" },
-    { texto: "Un cifrador en flujo cifra la información:", opciones: ["Con curvas elípticas", "Mediante RSA", "En bloques de 128 bits", "Bit a bit"], respuesta: 3, explicacion: "Respuesta correcta: Bit a bit" },
+    { texto: "Un cifrador en flujo cifra la información:", opciones: ["Con curvas celípticas", "Mediante RSA", "En bloques de 128 bits", "Bit a bit"], respuesta: 3, explicacion: "Respuesta correcta: Bit a bit" },
     { texto: "La propiedad que asegura que solo personas autorizadas lean un mensaje es la:", opciones: ["Confidencialidad", "Integridad", "No repudio", "Disponibilidad"], respuesta: 0, explicacion: "Respuesta correcta: Confidencialidad" },
     { texto: "La criptografía de curva elíptica (ECC) ofrece la misma seguridad que RSA con:", opciones: ["Claves más largas", "Claves más cortas", "OTP", "Hashes MD5"], respuesta: 1, explicacion: "Respuesta correcta: Claves más cortas" },
     { texto: "Un protocolo criptográfico es:", opciones: ["Un conjunto de pasos entre entidades para lograr un objetivo de seguridad", "Un certificado X.509", "Una clave pública", "Un algoritmo de hashing"], respuesta: 0, explicacion: "Respuesta correcta: Un conjunto de pasos entre entidades para lograr un objetivo de seguridad" },
@@ -190,10 +192,9 @@ async function iniciarBatalla() {
     tempBattleID = generarIDTemporal();
     currentMode = 'multiplayer';
     
-    // MOSTRAR PERFIL EN ENCABEZADO
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    // ** FLUJO CORREGIDO: Va a la pantalla de Avatar/Alias **
+    // Va a la pantalla de Avatar/Alias
     showScreen('avatar-screen'); 
     initAvatars(); 
 }
@@ -265,6 +266,14 @@ function mostrarSelectorSalas() {
 async function unirseASala(salaId) {
     if (!uidJugadorPermanente || !currentAlias) return; 
 
+    // Primero, verifica si ya estás en otra sala
+    const salaActiva = await verificarSesionActivaEnBatalla(uidJugadorPermanente);
+    if (salaActiva && salaActiva !== salaId) {
+        alert("Ya estás en otra sala. Por favor, abandónala primero.");
+        showScreen('setup-screen');
+        return;
+    }
+
     const salaRef = doc(db, "salas_activas", salaId);
     
     const jugadorData = { 
@@ -272,7 +281,8 @@ async function unirseASala(salaId) {
         uid: uidJugadorPermanente, // ID permanente para rastreo
         name: currentAlias, 
         avatar: currentAvatarUrl,
-        score: 0 
+        score: 0,
+        estado: 'activo'
     };
 
     // 1. Añadir el jugador a la sala (o crearla si es el primero)
@@ -343,7 +353,7 @@ async function unirseASala(salaId) {
         if (confirm("¿Seguro que quieres abandonar la sala?")) {
             await limpiarSala(salaId); // Limpia tu ID de la sala
             if(unsubscribeRoom) unsubscribeRoom();
-            showScreen('setup-screen');
+            showScreen('setup-screen'); // Vuelve a la pantalla de configuración (SETUP)
         }
     };
 }
@@ -425,7 +435,6 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             
-            // LÓGICA PARA CAPITALIZAR EL NOMBRE: "Katty"
             let nombre = user.displayName || user.email.split('@')[0];
             const partes = nombre.toLowerCase().split(' ');
             const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -438,22 +447,18 @@ onAuthStateChanged(auth, async (user) => {
             const dispositivoValido = await validarDispositivo(user);
             
             if (dispositivoValido) {
-                // OCULTAR LOGIN y MOSTRAR SETUP
                 authScreen.classList.add('hidden');
                 setupScreen.classList.remove('hidden');
                 btnLogout.classList.remove('hidden');
 
-                // Mostrar Nombre y Foto en el SETUP
                 document.getElementById('user-display').innerText = nombreCompletoCorregido;
                 if (user.photoURL) {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
                 
-                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
                 document.getElementById('header-user-info').classList.add('hidden'); 
 
-                // Audio de bienvenida (TTS)
                 setTimeout(() => {
                     hablar(`Bienvenido ${nombreCorto}, elija la opción que necesite.`);
                 }, 500);
@@ -463,7 +468,6 @@ onAuthStateChanged(auth, async (user) => {
             signOut(auth);
         }
     } else {
-        // PANTALLA DE LOGOUT/NO LOGUEADO
         authScreen.classList.remove('hidden');
         setupScreen.classList.add('hidden');
         document.getElementById('header-user-info').classList.add('hidden');
@@ -489,7 +493,6 @@ btnLogout.addEventListener('click', () => {
 document.getElementById('btn-start').addEventListener('click', () => {
     const modo = modeSelect.value;
     
-    // 1. MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR (Solución a la UX)
     const nombreCompleto = document.getElementById('user-display').innerText;
     const nombreCorto = nombreCompleto.split(' ')[0];
 
