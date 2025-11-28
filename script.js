@@ -1,9 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Re-habilitamos arrayUnion, arrayRemove y onSnapshot para la lógica de Lobby
+// Se mantienen imports de Firestore para Ranking, Historial y Batalla
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// --- 1. CONFIGURACIÓN FINAL DE FIREBASE (Asegúrate de que estas credenciales sean correctas) ---
+// --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -42,32 +42,12 @@ let unsubscribeRoom = null; // Para detener el listener de Firebase
 
 // --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
-    // MUJERES (7)
-    { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff', tags: 'Femenino' },
-    { seed: 'Ana', style: 'avataaars', bg: 'ffd5dc', tags: 'Femenino' },
-    { seed: 'Sofia', style: 'avataaars', bg: 'b6e3f4', tags: 'Femenino' },
-    { seed: 'Laura', style: 'lorelei', bg: 'c0aede', tags: 'Femenino' },
-    { seed: 'Maya', style: 'lorelei', bg: 'f7c9e5', tags: 'Femenino' },
-    { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9', tags: 'Femenino' },
-    { seed: 'Mia', style: 'lorelei', bg: 'ffdfbf', tags: 'Femenino' },
-    
-    // HOMBRES (7, resto del total)
-    { seed: 'Felix', style: 'avataaars', bg: 'a0d6b3', tags: 'Masculino' },
-    { seed: 'Aneka', style: 'avataaars', bg: 'c7d0f8', tags: 'Masculino' },
-    { seed: 'John', style: 'avataaars', bg: 'ffc5a1', tags: 'Masculino' },
-    { seed: 'Buster', style: 'lorelei', bg: 'a6c0ff', tags: 'Masculino' },
-    { seed: 'Chester', style: 'avataaars', bg: 'f9d3b4', tags: 'Masculino' },
-    { seed: 'Bandit', style: 'lorelei', bg: 'ffdfbf', tags: 'Masculino' },
-    { seed: 'Chris', style: 'avataaars', bg: 'a1eafb', tags: 'Masculino' },
+    { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff', tags: 'Femenino' }, { seed: 'Ana', style: 'avataaars', bg: 'ffd5dc', tags: 'Femenino' }, { seed: 'Sofia', style: 'avataaars', bg: 'b6e3f4', tags: 'Femenino' }, { seed: 'Laura', style: 'lorelei', bg: 'c0aede', tags: 'Femenino' }, { seed: 'Maya', style: 'lorelei', bg: 'f7c9e5', tags: 'Femenino' }, { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9', tags: 'Femenino' }, { seed: 'Mia', style: 'lorelei', bg: 'ffdfbf', tags: 'Femenino' },
+    { seed: 'Felix', style: 'avataaars', bg: 'a0d6b3', tags: 'Masculino' }, { seed: 'Aneka', style: 'avataaars', bg: 'c7d0f8', tags: 'Masculino' }, { seed: 'John', style: 'avataaars', bg: 'ffc5a1', tags: 'Masculino' }, { seed: 'Buster', style: 'lorelei', bg: 'a6c0ff', tags: 'Masculino' }, { seed: 'Chester', style: 'avataaars', bg: 'f9d3b4', tags: 'Masculino' }, { seed: 'Bandit', style: 'lorelei', bg: 'ffdfbf', tags: 'Masculino' }, { seed: 'Chris', style: 'avataaars', bg: 'a1eafb', tags: 'Masculino' },
 ];
 
 const ROOM_ICONS = {
-    "SALA_FIREWALL": "fa-fire",
-    "SALA_ENCRIPTADO": "fa-lock",
-    "SALA_ZERO_DAY": "fa-bug",
-    "SALA_PHISHING": "fa-fish",
-    "SALA_RANSOMWARE": "fa-skull-crossbones",
-    "SALA_BOTNET": "fa-robot"
+    "SALA_FIREWALL": "fa-fire", "SALA_ENCRIPTADO": "fa-lock", "SALA_ZERO_DAY": "fa-bug", "SALA_PHISHING": "fa-fish", "SALA_RANSOMWARE": "fa-skull-crossbones", "SALA_BOTNET": "fa-robot"
 };
 
 // REFERENCIAS HTML
@@ -202,34 +182,28 @@ function generarIDTemporal() {
     return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
 }
 
-// --- FUNCIONES DE BATALLA (SIMPLIFICADAS/SIMULADAS) ---
-const salasRef = collection(db, 'salas');
+// --- FUNCIONES DE BATALLA (REAL-TIME IMPLEMENTATION) ---
+const salasRef = collection(db, 'salas_activas');
 
 async function iniciarBatalla() {
-    console.log("Modo Batalla iniciado (Lógica de sala simulada).");
+    console.log("Modo Batalla iniciado: Flujo real-time.");
     tempBattleID = generarIDTemporal();
     currentMode = 'multiplayer';
     
-    // MOSTRAR PERFIL EN ENCABEZADO AL INICIAR BATALLA (PUNTO DE ACTIVACIÓN DE PERFIL)
+    // MOSTRAR PERFIL EN ENCABEZADO
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    // ** FLUJO CORREGIDO: Va a la pantalla de Avatar/Alias **
+    // ** FLUJO: Va a la pantalla de Avatar/Alias **
     showScreen('avatar-screen'); 
-    initAvatars(); // Inicia la grilla de avatares
+    initAvatars(); 
 }
-async function crearSala() { /* Simulada */ }
-async function unirseASala(salaDoc) { /* Simulada */ }
-async function limpiarSalaBatalla() { /* Simulada */ }
-async function verificarSesionActivaEnBatalla(uid) { return null; /* Simulada */ }
 
-
-// --- FUNCIÓN: Inicializa la grilla de avatares (Corregida la selección de click) ---
+// --- FUNCIÓN: Inicializa la grilla de avatares ---
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(!grid) return; 
     grid.innerHTML = '';
     
-    // Carga los avatares disponibles
     AVATAR_CONFIG.forEach((av, index) => {
         const url = `https://api.dicebear.com/7.x/${av.style}/svg?seed=${av.seed}&backgroundColor=${av.bg}`;
         const img = document.createElement('img');
@@ -243,7 +217,6 @@ function initAvatars() {
         
         img.onclick = () => {
             playClick();
-            // LÓGICA DE SELECCIÓN: Deseleccionar todos, seleccionar el actual
             document.querySelectorAll('.avatar-option').forEach(x => x.classList.remove('avatar-selected'));
             img.classList.add('avatar-selected');
             currentAvatarUrl = url;
@@ -251,7 +224,6 @@ function initAvatars() {
         grid.appendChild(img);
     });
     
-    // Establecer el apodo inicial si está disponible
     const currentName = document.getElementById('user-display').innerText.split(' ')[0];
     document.getElementById('player-nickname').value = currentName;
 }
@@ -268,67 +240,124 @@ function mostrarSelectorSalas() {
         const btn = document.createElement('div');
         btn.className = 'room-btn';
         const iconClass = ROOM_ICONS[salaId] || 'fa-users';
-        // CORRECCIÓN: Contador Simulado a 0 Agentes
-        btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count">0 Agentes</span>`; 
         
-        // EVENTO DE CLICK: Inicia el juego
+        // CORRECCIÓN: Usar onSnapshot para el contador de jugadores reales (ASUMIENDO QUE LA COLECCIÓN EXISTE)
+        const salaRef = doc(db, "salas_activas", salaId);
+        onSnapshot(salaRef, (docSnap) => {
+            const count = docSnap.exists() ? (docSnap.data().jugadores || []).length : 0;
+            if(document.getElementById(`count-${salaId}`)) {
+                 document.getElementById(`count-${salaId}`).innerText = `${count} Agentes`;
+            } else {
+                 // Si el elemento aún no existe, lo insertamos con el valor correcto
+                 btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">${count} Agentes</span>`; 
+            }
+        });
+        
+        // ESTO ASEGURA QUE EL BOTÓN SEA SELECCIONABLE
         btn.onclick = () => { 
             playClick(); 
-            // ** FLUJO CORREGIDO: Llama al Lobby de Espera **
-            iniciarLobbySimulado(salaId);
+            unirseASala(salaId); 
         };
         list.appendChild(btn);
     });
 }
 
-// --- FUNCIÓN ADICIONAL: Iniciar Lobby (Espera) ---
-async function iniciarLobbySimulado(salaId) {
+// --- LÓGICA CLAVE: UNIRSE A SALA Y GESTIÓN DE LOBBY EN TIEMPO REAL ---
+async function unirseASala(salaId) {
+    if (!uidJugadorPermanente) return; 
+
+    const salaRef = doc(db, "salas_activas", salaId);
+    
+    const jugadorData = { 
+        id: tempBattleID, // ID temporal de sesión
+        uid: uidJugadorPermanente, // ID permanente para rastreo
+        name: currentAlias || 'Agente', 
+        avatar: currentAvatarUrl,
+        score: 0 
+    };
+
+    // 1. Añadir el jugador a la sala (usando arrayUnion para atomicidad)
+    await updateDoc(salaRef, { 
+        jugadores: arrayUnion(jugadorData),
+        estado: "esperando"
+    }, { merge: true });
+
     showScreen('lobby-screen');
-    const lobbyTitle = document.getElementById('lobby-title');
-    const lobbyPlayers = document.getElementById('lobby-players');
-    const btnStartWar = document.getElementById('btn-start-war');
-
     if (lobbyTitle) lobbyTitle.innerText = `SALA: ${salaId.replace('SALA_', '').replace(/_/g, ' ')}`;
-    if (lobbyPlayers) lobbyPlayers.innerHTML = '';
-
-    const nick = currentAlias || "Agente";
-
-    // ** LÓGICA DE ESPERA REALÍSTICA: INICIALMENTE SOLO TÚ **
-    const jugadorActual = { name: nick, isHost: true }; 
     
-    // Muestra solo a ti mismo en el lobby
-    if (lobbyPlayers) {
-        lobbyPlayers.innerHTML = `<div class="player-badge"> ${jugadorActual.name}</div>`;
-    }
-
-    // REGLA DE INICIO: Botón permanentemente oculto hasta que la lógica real lo muestre
-    if (btnStartWar) {
-        btnStartWar.classList.add('hidden'); 
-        document.getElementById('lobby-status-text').innerText = 'Esperando oponente real...';
-        hablar(`Esperando oponente para iniciar la batalla.`);
-    }
-    
-    // ** SIMULACIÓN DE TIEMPO DE ESPERA Y COMPAÑERO (4 segundos de prueba) **
-    setTimeout(() => {
-        if (btnStartWar) {
-            // Lógica para simular la adición de un oponente y activar el botón
-            lobbyPlayers.innerHTML += `<div class="player-badge"> Oponente_007</div>`;
-            document.getElementById('lobby-status-text').innerText = 'Oponente encontrado. Listo para iniciar.';
-            
-            btnStartWar.classList.remove('hidden');
-            btnStartWar.onclick = () => {
-                hablar("Iniciando la secuencia de examen. ¡Que gane el mejor agente!");
-                iniciarJuegoReal(); // Inicia el juego
-            };
+    // 2. ESCUCHA EN TIEMPO REAL DEL LOBBY (EL CORAZÓN DE LA BATALLA)
+    unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
+        if (!docSnap.exists()) {
+             // Si la sala fue eliminada (ej. por el último jugador)
+             if(unsubscribeRoom) unsubscribeRoom();
+             showScreen('setup-screen');
+             hablar("La sala fue cerrada.");
+             return;
         }
-    }, 4000); // Muestra el botón después de 4 segundos para simular la espera
-    
-    // Evento para abandonar la sala
-    document.getElementById('btn-leave-lobby').onclick = () => {
-        if (confirm("¿Seguro que quieres abandonar la sala de batalla?")) {
+
+        const data = docSnap.data();
+        const jugadores = data.jugadores || [];
+        const esHost = jugadores.length > 0 && jugadores[0].uid === uidJugadorPermanente;
+
+        // Renderizar Jugadores
+        if (lobbyPlayers) {
+            lobbyPlayers.innerHTML = jugadores.map(p => 
+                `<div class="player-badge">${p.name} ${p.uid === uidJugadorPermanente ? '(Tú)' : ''}</div>`
+            ).join('');
+        }
+
+        // Controlar el Botón de Inicio
+        if (btnStartWar) {
+            if (jugadores.length >= 2 && esHost) {
+                btnStartWar.classList.remove('hidden');
+                lobbyStatusText.innerText = 'Listo para iniciar. Presiona INICIAR BATALLA.';
+            } else {
+                btnStartWar.classList.add('hidden');
+                lobbyStatusText.innerText = `Esperando oponente real (${jugadores.length}/2)...`;
+            }
+        }
+        
+        // Iniciar la partida si el estado es 'jugando' (set por el Host)
+        if (data.estado === 'jugando') {
+             if(unsubscribeRoom) unsubscribeRoom(); // Detener la escucha del lobby
+             iniciarJuegoReal();
+        }
+    });
+
+    // 3. EVENTO PARA ABANDONAR LA SALA (Limpia el registro de Firebase)
+    document.getElementById('btn-leave-lobby').onclick = async () => {
+        if (confirm("¿Seguro que quieres abandonar la sala?")) {
+            await limpiarSala(salaId); // Limpia tu ID de la sala
+            if(unsubscribeRoom) unsubscribeRoom();
             showScreen('setup-screen');
         }
     };
+}
+
+// --- FUNCIÓN CLAVE: LIMPIEZA DE SALA (Para Abandono/Finalización) ---
+async function limpiarSala(salaId) {
+    const salaRef = doc(db, "salas_activas", salaId);
+    
+    try {
+        const snap = await getDoc(salaRef);
+        if(snap.exists()) {
+            const jugadores = snap.data().jugadores || [];
+            
+            // Filtra el array para eliminar al jugador actual por ID TEMPORAL
+            const jugadoresActualizados = jugadores.filter(j => j.id !== tempBattleID);
+            
+            await updateDoc(salaRef, { 
+                jugadores: jugadoresActualizados 
+            });
+            
+            // Si no quedan jugadores, elimina la sala por completo.
+            if(jugadoresActualizados.length === 0) {
+                 await deleteDoc(salaRef);
+            }
+        }
+    } catch (e) { 
+        console.error("Error limpiando sala:", e); 
+    }
 }
 
 
@@ -382,7 +411,6 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             
-            // LÓGICA PARA CAPITALIZAR EL NOMBRE: "Katty"
             let nombre = user.displayName || user.email.split('@')[0];
             const partes = nombre.toLowerCase().split(' ');
             const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -395,22 +423,18 @@ onAuthStateChanged(auth, async (user) => {
             const dispositivoValido = await validarDispositivo(user);
             
             if (dispositivoValido) {
-                // OCULTAR LOGIN y MOSTRAR SETUP
                 authScreen.classList.add('hidden');
                 setupScreen.classList.remove('hidden');
                 btnLogout.classList.remove('hidden');
 
-                // Mostrar Nombre y Foto en el SETUP
                 document.getElementById('user-display').innerText = nombreCompletoCorregido;
                 if (user.photoURL) {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
                 
-                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
                 document.getElementById('header-user-info').classList.add('hidden'); 
 
-                // Audio de bienvenida (TTS)
                 setTimeout(() => {
                     hablar(`Bienvenido ${nombreCorto}, elija la opción que necesite.`);
                 }, 500);
@@ -420,7 +444,6 @@ onAuthStateChanged(auth, async (user) => {
             signOut(auth);
         }
     } else {
-        // PANTALLA DE LOGOUT/NO LOGUEADO
         authScreen.classList.remove('hidden');
         setupScreen.classList.add('hidden');
         document.getElementById('header-user-info').classList.add('hidden');
