@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Se mantienen imports de Firestore para Ranking, Historial y Batalla
+// Se mantienen imports de Firestore para el control en tiempo real (onSnapshot, arrayUnion/Remove)
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
@@ -183,7 +183,7 @@ function generarIDTemporal() {
 }
 
 // --- FUNCIONES DE BATALLA (REAL-TIME IMPLEMENTATION) ---
-const salasRef = collection(db, 'salas_activas');
+const salasActivasRef = collection(db, 'salas_activas');
 
 async function iniciarBatalla() {
     console.log("Modo Batalla iniciado: Flujo real-time.");
@@ -193,7 +193,7 @@ async function iniciarBatalla() {
     // MOSTRAR PERFIL EN ENCABEZADO
     document.getElementById('header-user-info').classList.remove('hidden'); 
     
-    // ** FLUJO: Va a la pantalla de Avatar/Alias **
+    // REDIRECCIÓN INTERMEDIA: Ir a selección de Avatar/Alias
     showScreen('avatar-screen'); 
     initAvatars(); 
 }
@@ -228,10 +228,11 @@ function initAvatars() {
     document.getElementById('player-nickname').value = currentName;
 }
 
-// --- FUNCIÓN: Muestra la pantalla de selección de salas ---
+// --- FUNCIÓN: Muestra la pantalla de selección de salas (Con contador real) ---
 function mostrarSelectorSalas() {
     showScreen('rooms-screen');
     const list = document.getElementById('rooms-list');
+    if (!list) return;
     list.innerHTML = '';
     
     const SALAS_PREDEFINIDAS = ["SALA_FIREWALL", "SALA_ENCRIPTADO", "SALA_ZERO_DAY", "SALA_PHISHING", "SALA_RANSOMWARE", "SALA_BOTNET"];
@@ -241,19 +242,20 @@ function mostrarSelectorSalas() {
         btn.className = 'room-btn';
         const iconClass = ROOM_ICONS[salaId] || 'fa-users';
         
-        // CORRECCIÓN: Usar onSnapshot para el contador de jugadores reales (ASUMIENDO QUE LA COLECCIÓN EXISTE)
+        // CONEXIÓN REAL: Usar onSnapshot para el contador de jugadores
         const salaRef = doc(db, "salas_activas", salaId);
         onSnapshot(salaRef, (docSnap) => {
             const count = docSnap.exists() ? (docSnap.data().jugadores || []).length : 0;
-            if(document.getElementById(`count-${salaId}`)) {
-                 document.getElementById(`count-${salaId}`).innerText = `${count} Agentes`;
+            const el = document.getElementById(`count-${salaId}`);
+            if(el) {
+                 el.innerText = `${count} Agentes`;
             } else {
-                 // Si el elemento aún no existe, lo insertamos con el valor correcto
+                 // Si el elemento aún no existe, lo inicializamos
                  btn.innerHTML = `<i class="fa-solid ${iconClass} room-icon"></i><strong>${salaId.replace('SALA_', '').replace(/_/g, ' ')}</strong><span class="room-count" id="count-${salaId}">${count} Agentes</span>`; 
             }
         });
         
-        // ESTO ASEGURA QUE EL BOTÓN SEA SELECCIONABLE
+        // EVENTO DE CLICK: Inicia el juego
         btn.onclick = () => { 
             playClick(); 
             unirseASala(salaId); 
@@ -264,31 +266,32 @@ function mostrarSelectorSalas() {
 
 // --- LÓGICA CLAVE: UNIRSE A SALA Y GESTIÓN DE LOBBY EN TIEMPO REAL ---
 async function unirseASala(salaId) {
-    if (!uidJugadorPermanente) return; 
+    if (!uidJugadorPermanente || !currentAlias) return; 
 
     const salaRef = doc(db, "salas_activas", salaId);
     
     const jugadorData = { 
         id: tempBattleID, // ID temporal de sesión
         uid: uidJugadorPermanente, // ID permanente para rastreo
-        name: currentAlias || 'Agente', 
+        name: currentAlias, 
         avatar: currentAvatarUrl,
-        score: 0 
+        score: 0,
+        estado: 'activo'
     };
 
-    // 1. Añadir el jugador a la sala (usando arrayUnion para atomicidad)
-    await updateDoc(salaRef, { 
+    // 1. Añadir el jugador a la sala (o crearla si es el primero)
+    await setDoc(salaRef, { 
         jugadores: arrayUnion(jugadorData),
-        estado: "esperando"
+        estado: "esperando",
+        fechaCreacion: new Date()
     }, { merge: true });
 
     showScreen('lobby-screen');
     if (lobbyTitle) lobbyTitle.innerText = `SALA: ${salaId.replace('SALA_', '').replace(/_/g, ' ')}`;
     
-    // 2. ESCUCHA EN TIEMPO REAL DEL LOBBY (EL CORAZÓN DE LA BATALLA)
-    unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
+    // 2. ESCUCHA EN TIEMPO REAL DEL LOBBY
+    unsubscribeRoom = onSnapshot(salaRef, async (docSnap) => {
         if (!docSnap.exists()) {
-             // Si la sala fue eliminada (ej. por el último jugador)
              if(unsubscribeRoom) unsubscribeRoom();
              showScreen('setup-screen');
              hablar("La sala fue cerrada.");
@@ -302,18 +305,20 @@ async function unirseASala(salaId) {
         // Renderizar Jugadores
         if (lobbyPlayers) {
             lobbyPlayers.innerHTML = jugadores.map(p => 
-                `<div class="player-badge">${p.name} ${p.uid === uidJugadorPermanente ? '(Tú)' : ''}</div>`
+                `<div class="player-badge" style="background-color: ${p.isHost ? '#e6f4ea' : '#f0f7ff'};">
+                    <img src="${p.avatar}" class="lobby-avatar-small" /> ${p.name} ${p.uid === uidJugadorPermanente ? '(Tú)' : ''}
+                </div>`
             ).join('');
         }
 
         // Controlar el Botón de Inicio
         if (btnStartWar) {
-            if (jugadores.length >= 2 && esHost) {
+            if (jugadores.length >= 2 && esHost && data.estado === 'esperando') {
                 btnStartWar.classList.remove('hidden');
-                lobbyStatusText.innerText = 'Listo para iniciar. Presiona INICIAR BATALLA.';
-            } else {
+                lobbyStatusText.innerText = '¡Oponente encontrado! Presiona INICIAR BATALLA.';
+            } else if (data.estado === 'esperando') {
                 btnStartWar.classList.add('hidden');
-                lobbyStatusText.innerText = `Esperando oponente real (${jugadores.length}/2)...`;
+                lobbyStatusText.innerText = `Esperando oponente real (${jugadores.length} de 2)...`;
             }
         }
         
@@ -324,9 +329,19 @@ async function unirseASala(salaId) {
         }
     });
 
-    // 3. EVENTO PARA ABANDONAR LA SALA (Limpia el registro de Firebase)
+    // 3. EVENTOS DE CONTROL DEL LOBBY
+    // Evento para el botón INICIAR BATALLA (Solo disponible para el Host)
+    if (btnStartWar) {
+        btnStartWar.onclick = async () => {
+            // El Host marca el estado como 'jugando'
+            await updateDoc(salaRef, { estado: 'jugando' });
+            hablar("Iniciando la secuencia de examen. ¡Que gane el mejor agente!");
+        };
+    }
+
+    // Evento para abandonar la sala
     document.getElementById('btn-leave-lobby').onclick = async () => {
-        if (confirm("¿Seguro que quieres abandonar la sala?")) {
+        if (confirm("¿Seguro que quieres abandonar la sala de batalla?")) {
             await limpiarSala(salaId); // Limpia tu ID de la sala
             if(unsubscribeRoom) unsubscribeRoom();
             showScreen('setup-screen');
@@ -411,6 +426,7 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             
+            // LÓGICA PARA CAPITALIZAR EL NOMBRE: "Katty"
             let nombre = user.displayName || user.email.split('@')[0];
             const partes = nombre.toLowerCase().split(' ');
             const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -423,18 +439,22 @@ onAuthStateChanged(auth, async (user) => {
             const dispositivoValido = await validarDispositivo(user);
             
             if (dispositivoValido) {
+                // OCULTAR LOGIN y MOSTRAR SETUP
                 authScreen.classList.add('hidden');
                 setupScreen.classList.remove('hidden');
                 btnLogout.classList.remove('hidden');
 
+                // Mostrar Nombre y Foto en el SETUP
                 document.getElementById('user-display').innerText = nombreCompletoCorregido;
                 if (user.photoURL) {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
                 
+                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
                 document.getElementById('header-user-info').classList.add('hidden'); 
 
+                // Audio de bienvenida (TTS)
                 setTimeout(() => {
                     hablar(`Bienvenido ${nombreCorto}, elija la opción que necesite.`);
                 }, 500);
@@ -444,6 +464,7 @@ onAuthStateChanged(auth, async (user) => {
             signOut(auth);
         }
     } else {
+        // PANTALLA DE LOGOUT/NO LOGUEADO
         authScreen.classList.remove('hidden');
         setupScreen.classList.add('hidden');
         document.getElementById('header-user-info').classList.add('hidden');
