@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-// Se mantienen imports de Firestore para Ranking, Historial y Batalla
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, arrayRemove, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+// Mantenemos imports de Firestore para el control en tiempo real (onSnapshot, arrayUnion, deleteDoc)
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
 const firebaseConfig = {
@@ -42,9 +42,7 @@ let unsubscribeRoom = null; // Para detener el listener de Firebase
 
 // --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
-    // MUJERES (7)
     { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff', tags: 'Femenino' }, { seed: 'Ana', style: 'avataaars', bg: 'ffd5dc', tags: 'Femenino' }, { seed: 'Sofia', style: 'avataaars', bg: 'b6e3f4', tags: 'Femenino' }, { seed: 'Laura', style: 'lorelei', bg: 'c0aede', tags: 'Femenino' }, { seed: 'Maya', style: 'lorelei', bg: 'f7c9e5', tags: 'Femenino' }, { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9', tags: 'Femenino' }, { seed: 'Mia', style: 'lorelei', bg: 'ffdfbf', tags: 'Femenino' },
-    // HOMBRES (7, resto del total)
     { seed: 'Felix', style: 'avataaars', bg: 'a0d6b3', tags: 'Masculino' }, { seed: 'Aneka', style: 'avataaars', bg: 'c7d0f8', tags: 'Masculino' }, { seed: 'John', style: 'avataaars', bg: 'ffc5a1', tags: 'Masculino' }, { seed: 'Buster', style: 'lorelei', bg: 'a6c0ff', tags: 'Masculino' }, { seed: 'Chester', style: 'avataaars', bg: 'f9d3b4', tags: 'Masculino' }, { seed: 'Bandit', style: 'lorelei', bg: 'ffdfbf', tags: 'Masculino' }, { seed: 'Chris', style: 'avataaars', bg: 'a1eafb', tags: 'Masculino' },
 ];
 
@@ -68,7 +66,6 @@ const aliasInput = document.getElementById('alias-input');
 const btnStart = document.getElementById('btn-start');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz'); 
 const headerUserInfo = document.getElementById('header-user-info');
-const avatarGrid = document.getElementById('avatar-grid');
 const lobbyTitle = document.getElementById('lobby-title');
 const lobbyPlayers = document.getElementById('lobby-players');
 const btnStartWar = document.getElementById('btn-start-war');
@@ -152,10 +149,7 @@ const bancoPreguntas = [
     { texto: "Política que define quién accede a qué datos dentro de una BD:", opciones: ["Cifrado TLS", "Autorización / control de acceso", "Compilación", "Backup"], respuesta: 1, explicacion: "Respuesta correcta: Autorización / control de acceso" },
     { texto: "Antes de aplicar parches en producción se debe:", opciones: ["Cambiar el FQDN", "Borrar registros", "Probar el parche en un entorno de pruebas", "Reiniciar IDS"], respuesta: 2, explicacion: "Respuesta correcta: Probar el parche en un entorno de pruebas" },
     { texto: "Una inyección SQL basada en errores aprovecha:", opciones: ["Cifrado AES", "Tiempo de respuesta", "Mensajes de error devueltos por la aplicación", "Token OTP"], respuesta: 2, explicacion: "Respuesta correcta: Mensajes de error devueltos por la aplicación" },
-    { texto: "Ventaja de un firewall perimetral bien configurado:", opciones: ["Mejora la batería de los clientes", "Elimina todos los virus", "Reduce la superficie de ataque expuesta a Internet", "Incrementa la velocidad Wi-Fi"], respuesta: 2, explicacion: "Respuesta correcta: Reduce la superficie de ataque expuesta a Internet" },
-    { texto: "Herramienta que identifica puertos abiertos y sistema operativo desde consola:", opciones: ["OpenVAS", "Wireshark", "Nessus", "Nmap"], respuesta: 3, explicacion: "Respuesta correcta: Nmap" },
-    { texto: "Un IDS normalmente responde:", opciones: ["Eliminando archivos", "Aumentando ancho de banda", "Generando alertas o registrando eventos", "Cambiando contraseñas"], respuesta: 2, explicacion: "Respuesta correcta: Generando alertas o registrando eventos." },
-    { texto: "Un objetivo clave de la seguridad de bases de datos es mantener la:", opciones: ["Confidencialidad, integridad y disponibilidad (CIA)", "Fragmentación", "Redundancia excesiva", "Compresión"], respuesta: 0, explicacion: "Respuesta correcta: CIA." }
+    { texto: "Ventaja de un firewall perimetral bien configurado:", opciones: ["Mejora la batería de los clientes", "Elimina todos los virus", "Reduce la superficie de ataque expuesta a Internet", "Incrementa la velocidad Wi-Fi"], respuesta: 2, explicacion: "Respuesta correcta: Reduce la superficie de ataque expuesta a Internet" }
 ];
 
 // --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
@@ -256,7 +250,7 @@ function mostrarSelectorSalas() {
         
         btn.onclick = () => { 
             playClick(); 
-            unirseASala(salaId); 
+            unirseASala(salaId); // ** LLAMA AL LOBBY REAL **
         };
         list.appendChild(btn);
     });
@@ -266,16 +260,23 @@ function mostrarSelectorSalas() {
 async function unirseASala(salaId) {
     if (!uidJugadorPermanente || !currentAlias) return; 
 
-    // Primero, verifica si ya estás en otra sala
-    const salaActiva = await verificarSesionActivaEnBatalla(uidJugadorPermanente);
-    if (salaActiva && salaActiva !== salaId) {
-        alert("Ya estás en otra sala. Por favor, abandónala primero.");
-        showScreen('setup-screen');
-        return;
-    }
+    // 0. DETENER LISTENER VIEJO SI EXISTE
+    if (unsubscribeRoom) unsubscribeRoom();
 
     const salaRef = doc(db, "salas_activas", salaId);
     
+    // 1. ELIMINAR CUALQUIER SESIÓN ANTERIOR ACTIVA (Robustez contra jugadores fantasma)
+    const limpiarJugadorAnterior = async () => {
+        const snap = await getDoc(salaRef);
+        if (snap.exists()) {
+            const jugadores = snap.data().jugadores || [];
+            // Filtra por UID permanente para eliminar cualquier sesión antigua del mismo usuario
+            const jugadoresLimpios = jugadores.filter(j => j.uid !== uidJugadorPermanente);
+            await updateDoc(salaRef, { jugadores: jugadoresLimpios });
+        }
+    };
+    await limpiarJugadorAnterior(); // Ejecuta la limpieza
+
     const jugadorData = { 
         id: tempBattleID, // ID temporal de sesión
         uid: uidJugadorPermanente, // ID permanente para rastreo
@@ -285,7 +286,7 @@ async function unirseASala(salaId) {
         estado: 'activo'
     };
 
-    // 1. Añadir el jugador a la sala (o crearla si es el primero)
+    // 2. Añadir el jugador a la sala (o crearla si es el primero)
     await setDoc(salaRef, { 
         jugadores: arrayUnion(jugadorData),
         estado: "esperando",
@@ -295,7 +296,7 @@ async function unirseASala(salaId) {
     showScreen('lobby-screen');
     if (lobbyTitle) lobbyTitle.innerText = `SALA: ${salaId.replace('SALA_', '').replace(/_/g, ' ')}`;
     
-    // 2. ESCUCHA EN TIEMPO REAL DEL LOBBY
+    // 3. ESCUCHA EN TIEMPO REAL DEL LOBBY
     unsubscribeRoom = onSnapshot(salaRef, async (docSnap) => {
         if (!docSnap.exists()) {
              if(unsubscribeRoom) unsubscribeRoom(); 
@@ -306,7 +307,6 @@ async function unirseASala(salaId) {
 
         const data = docSnap.data();
         const jugadores = data.jugadores || [];
-        // Determina si eres el anfitrión (el primero en la lista)
         const esHost = jugadores.length > 0 && jugadores[0].uid === uidJugadorPermanente;
 
         // Renderizar Jugadores
@@ -331,19 +331,18 @@ async function unirseASala(salaId) {
             }
         }
         
-        // 3. INICIAR LA PARTIDA SINCRONIZADAMENTE
+        // 4. INICIAR LA PARTIDA SINCRONIZADAMENTE
         if (data.estado === 'jugando') {
              if(unsubscribeRoom) unsubscribeRoom(); // Detener la escucha del lobby
              iniciarJuegoReal();
         }
     });
 
-    // 4. EVENTOS DE CONTROL DEL LOBBY
+    // 5. EVENTOS DE CONTROL DEL LOBBY
     if (btnStartWar) {
         btnStartWar.onclick = async () => {
-            // El Host marca el estado como 'jugando'
-            const jugadorActualRef = doc(db, "salas_activas", salaId);
-            await updateDoc(jugadorActualRef, { estado: 'jugando' });
+            const salaActualRef = doc(db, "salas_activas", salaId);
+            await updateDoc(salaActualRef, { estado: 'jugando' });
             hablar("Iniciando la secuencia de examen. ¡Que gane el mejor agente!");
         };
     }
@@ -435,6 +434,7 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             
+            // LÓGICA PARA CAPITALIZAR EL NOMBRE: "Katty"
             let nombre = user.displayName || user.email.split('@')[0];
             const partes = nombre.toLowerCase().split(' ');
             const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -447,18 +447,22 @@ onAuthStateChanged(auth, async (user) => {
             const dispositivoValido = await validarDispositivo(user);
             
             if (dispositivoValido) {
+                // OCULTAR LOGIN y MOSTRAR SETUP
                 authScreen.classList.add('hidden');
                 setupScreen.classList.remove('hidden');
                 btnLogout.classList.remove('hidden');
 
+                // Mostrar Nombre y Foto en el SETUP
                 document.getElementById('user-display').innerText = nombreCompletoCorregido;
                 if (user.photoURL) {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
                 
+                // OCULTAR PERFIL EN EL ENCABEZADO AL INICIO
                 document.getElementById('header-user-info').classList.add('hidden'); 
 
+                // Audio de bienvenida (TTS)
                 setTimeout(() => {
                     hablar(`Bienvenido ${nombreCorto}, elija la opción que necesite.`);
                 }, 500);
@@ -468,6 +472,7 @@ onAuthStateChanged(auth, async (user) => {
             signOut(auth);
         }
     } else {
+        // PANTALLA DE LOGOUT/NO LOGUEADO
         authScreen.classList.remove('hidden');
         setupScreen.classList.add('hidden');
         document.getElementById('header-user-info').classList.add('hidden');
@@ -493,6 +498,7 @@ btnLogout.addEventListener('click', () => {
 document.getElementById('btn-start').addEventListener('click', () => {
     const modo = modeSelect.value;
     
+    // 1. MOSTRAR PERFIL EN ENCABEZADO AL EMPEZAR (Solución a la UX)
     const nombreCompleto = document.getElementById('user-display').innerText;
     const nombreCorto = nombreCompleto.split(' ')[0];
 
