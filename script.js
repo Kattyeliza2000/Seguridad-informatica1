@@ -204,6 +204,12 @@ async function iniciarBatalla() {
     if (playerNicknameInput && currentAlias) {
         playerNicknameInput.value = currentAlias;
     }
+    // ** CORRECCIÓN UX: DESHABILITAR EDICIÓN DEL ALIAS **
+    if (playerNicknameInput) {
+        playerNicknameInput.disabled = true;
+        playerNicknameInput.style.backgroundColor = '#f1f3f4';
+        playerNicknameInput.style.color = '#555';
+    }
 }
 
 // --- FUNCIÓN: Inicializa la grilla de avatares (MODIFICADA) ---
@@ -238,6 +244,7 @@ function initAvatars() {
     // ** LÓGICA DE COPIA DE ALIAS: Si ya hay un alias temporal (currentAlias), úsalo. **
     if (playerNicknameInput) {
         playerNicknameInput.value = currentAlias || currentName;
+        // Se mantiene deshabilitado desde iniciarBatalla()
     }
 }
 
@@ -855,10 +862,16 @@ async function terminarQuiz(abandono = false) {
         
         // 1. Actualizar el score y flag de "terminado" del jugador local
         const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
+        
+        // Filtrar los jugadores que no se han salido (manteniendo solo activos y terminados)
+        const jugadoresActivos = jugadoresActualizados.filter(j => j.estado === 'activo' || j.terminado === true);
+        
+        // Contar cuantos faltan por terminar
+        const jugadoresFaltantes = jugadoresActivos.filter(j => j.terminado === false);
+        const countFaltantes = jugadoresFaltantes.length;
 
         // 2. Comprobar si todos han terminado
-        const jugadoresAunEnSala = jugadoresActualizados.filter(j => j.estado === 'activo' || j.terminado === false);
-        const todosTerminados = jugadoresAunEnSala.every(j => j.terminado);
+        const todosTerminados = countFaltantes === 0;
 
         if (todosTerminados) {
             // ** TODOS TERMINARON: DIBUJAR PODIO **
@@ -873,7 +886,12 @@ async function terminarQuiz(abandono = false) {
             roomResultsBox.classList.add('hidden'); 
             document.getElementById('btn-review').classList.add('hidden');
             
-            msg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Esperando que los demás agentes terminen...';
+            // Mensaje Dinámico:
+            const mensajeEspera = countFaltantes > 1 
+                ? `Esperando a ${countFaltantes} agentes que siguen en juego...` 
+                : `Esperando a 1 agente que sigue en juego...`;
+
+            msg.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${mensajeEspera}`;
             msg.style.color = "#fbbc04";
             
             // Mostrar avatar local
@@ -882,13 +900,13 @@ async function terminarQuiz(abandono = false) {
                 finalAvatarDisplay.classList.remove('hidden');
             }
 
-            // 3. Iniciar listener de espera
+            // 3. Iniciar listener de espera (si el que espera soy yo, necesito el listener)
             const salaRef = doc(db, "salas_activas", currentSalaId);
             unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
                 const jugadoresEsperando = docSnap.data().jugadores || [];
-                const jugadoresRestantes = jugadoresEsperando.filter(j => j.estado === 'activo' || j.terminado === false);
-
-                const todosHanTerminado = jugadoresRestantes.every(j => j.terminado);
+                const jugadoresActivosEnEspera = jugadoresEsperando.filter(j => j.estado === 'activo' || j.terminado === true);
+                
+                const todosHanTerminado = jugadoresActivosEnEspera.every(j => j.terminado);
                 
                 if (todosHanTerminado) {
                     if (unsubscribeRoom) unsubscribeRoom(); // Detener la escucha
@@ -905,6 +923,10 @@ async function terminarQuiz(abandono = false) {
 
     } else { 
         // LÓGICA INDIVIDUAL / ESTUDIO
+        // ... (lógica de mensajes de puntaje individual) ...
+        const sfxWin = document.getElementById('success-sound');
+        const sfxFail = document.getElementById('fail-sound');
+
         if (abandono) {
             msg.innerText = "Finalizado por usuario. Se registraron las respuestas completadas."; 
             msg.style.color = "#ea4335";
