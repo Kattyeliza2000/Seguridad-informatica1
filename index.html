@@ -160,7 +160,8 @@
         
         <div id="room-results-box" class="hidden ranking-box">
             <h3 style="color: #f9a825; margin: 0 0 10px 0;">🏆 Tabla de Posiciones</h3>
-            <div id="room-leaderboard">Esperando datos...</div>
+            <div id="podium-container">
+                </div>
         </div>
         
         <button id="btn-review" class="btn-secondary">Revisar</button>
@@ -190,6 +191,15 @@
         </div>
     </div>
 
+    <div id="battle-results-modal" class="hidden modal-overlay">
+        <div class="modal-card" style="max-width: 700px; width: 95%;">
+            <button id="btn-exit-war-modal" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">Salir de la Guerra</button>
+            <h2 style="color: #fbbc04; text-transform: uppercase;">🏆 Resultados de la Guerra</h2>
+            <div id="podium-container" class="podium-container">
+                 </div>
+        </div>
+    </div>
+
     <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
     <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
     <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
@@ -198,6 +208,6 @@
 
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=301"></script> 
+    <script type="module" src="app.js?v=301"></script> 
 </body>
 </html>
