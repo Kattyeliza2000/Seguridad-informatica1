@@ -38,7 +38,7 @@ let battleRoomID = null;
 let currentAlias = null;    
 let tempBattleID = null; // ID TEMPORAL DE SESIÓN
 let unsubscribeRoom = null; // Para detener el listener de Firebase
-
+let currentSalaId = null; // Sala actual del jugador
 
 // --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
@@ -69,7 +69,7 @@ const headerUserInfo = document.getElementById('header-user-info');
 const lobbyTitle = document.getElementById('lobby-title');
 const lobbyPlayers = document.getElementById('lobby-players');
 const btnStartWar = document.getElementById('btn-start-war');
-
+const lobbyStatusText = document.getElementById('lobby-status-text'); // Asegurar referencia
 
 // --- FUNCIÓN UTILITARIA: CAMBIAR PANTALLA ---
 function showScreen(screenId) {
@@ -87,7 +87,7 @@ function playClick() {
 }
 
 
-// --- 4. BANCO DE PREGUNTAS COMPLETO (CORREGIDA PREGUNTA 3) ---
+// --- 4. BANCO DE PREGUNTAS COMPLETO (Mantenido) ---
 const bancoPreguntas = [
     { texto: "¿Cuál es un ejemplo de amenaza técnica según el documento?", opciones: ["Phishing", "Baja tensión eléctrica", "Inyección SQL", "Insider"], respuesta: 1, explicacion: "Respuesta correcta: Baja tensión eléctrica (Fallo técnico/suministro)." },
     { texto: "¿Qué herramienta open-source permite escaneos de gran escala en red y sistemas?", opciones: ["Nmap", "Fortinet WVS", "OpenVAS", "Nessus Essentials"], respuesta: 2, explicacion: "Respuesta correcta: OpenVAS. Nmap es para mapeo, pero OpenVAS es para escaneo de vulnerabilidades a gran escala." }, // <--- CORRECCIÓN A ÍNDICE 2 (OpenVAS)
@@ -152,7 +152,7 @@ const bancoPreguntas = [
     { texto: "Ventaja de un firewall perimetral bien configurado:", opciones: ["Mejora la batería de los clientes", "Elimina todos los virus", "Reduce la superficie de ataque expuesta a Internet", "Incrementa la velocidad Wi-Fi"], respuesta: 2, explicacion: "Respuesta correcta: Reduce la superficie de ataque expuesta a Internet" }
 ];
 
-// --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
+// --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO (Mantenido) ---
 function obtenerDeviceId() {
     let deviceId = localStorage.getItem('device_id_seguro');
     if (!deviceId) {
@@ -162,7 +162,7 @@ function obtenerDeviceId() {
     return deviceId;
 }
 
-// --- 6. FUNCIÓN DE VOZ (TTS) ---
+// --- 6. FUNCIÓN DE VOZ (TTS) (Mantenido) ---
 function hablar(texto) {
     const synth = window.speechSynthesis;
     if (!synth) return;
@@ -173,12 +173,12 @@ function hablar(texto) {
     synth.speak(utterance);
 }
 
-// --- FUNCIÓN DE UTILIDAD: ID Temporal (Para Batalla) ---
+// --- FUNCIÓN DE UTILIDAD: ID Temporal (Para Batalla) (Mantenido) ---
 function generarIDTemporal() {
     return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
 }
 
-// --- FUNCIONES DE BATALLA (REAL-TIME IMPLEMENTATION) ---
+// --- FUNCIONES DE BATALLA (REAL-TIME IMPLEMENTATION) (Mantenido) ---
 const salasActivasRef = collection(db, 'salas_activas');
 
 async function iniciarBatalla() {
@@ -193,7 +193,7 @@ async function iniciarBatalla() {
     initAvatars(); 
 }
 
-// --- FUNCIÓN: Inicializa la grilla de avatares ---
+// --- FUNCIÓN: Inicializa la grilla de avatares (Mantenido) ---
 function initAvatars() {
     const grid = document.getElementById('avatar-grid');
     if(!grid) return; 
@@ -223,7 +223,7 @@ function initAvatars() {
     document.getElementById('player-nickname').value = currentName;
 }
 
-// --- FUNCIÓN: Muestra la pantalla de selección de salas ---
+// --- FUNCIÓN: Muestra la pantalla de selección de salas (Mantenido) ---
 function mostrarSelectorSalas() {
     showScreen('rooms-screen');
     const list = document.getElementById('rooms-list');
@@ -256,12 +256,13 @@ function mostrarSelectorSalas() {
     });
 }
 
-// --- FUNCIÓN CLAVE: UNIRSE A SALA Y GESTIÓN DE LOBBY EN TIEMPO REAL ---
+// --- FUNCIÓN CLAVE: UNIRSE A SALA Y GESTIÓN DE LOBBY EN TIEMPO REAL (CORREGIDA) ---
 async function unirseASala(salaId) {
     if (!uidJugadorPermanente || !currentAlias) return; 
 
     // 0. DETENER LISTENER VIEJO SI EXISTE
     if (unsubscribeRoom) unsubscribeRoom();
+    currentSalaId = salaId; // ASIGNAR SALA ACTUAL
 
     const salaRef = doc(db, "salas_activas", salaId);
     
@@ -300,35 +301,54 @@ async function unirseASala(salaId) {
     unsubscribeRoom = onSnapshot(salaRef, async (docSnap) => {
         if (!docSnap.exists()) {
              if(unsubscribeRoom) unsubscribeRoom(); 
+             currentSalaId = null; // Limpiar variable
              showScreen('setup-screen');
              hablar("La sala fue cerrada.");
              return;
         }
 
         const data = docSnap.data();
-        const jugadores = data.jugadores || [];
+        let jugadores = data.jugadores || [];
+        
+        // El Host es el jugador en el índice 0, gracias a cómo Firestore maneja la eliminación.
         const esHost = jugadores.length > 0 && jugadores[0].uid === uidJugadorPermanente;
 
         // Renderizar Jugadores
         if (lobbyPlayers) {
             lobbyPlayers.innerHTML = jugadores.map(p => {
                 const isYou = p.uid === uidJugadorPermanente;
-                const isHost = p.uid === jugadores[0].uid;
-                return `<div class="player-badge" style="background-color: ${isHost ? '#f0f7ff' : '#e6f4ea'};">
-                    <img src="${p.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default&backgroundColor=e0e0e0'}" class="lobby-avatar-small" /> ${p.name} ${isYou ? '(Tú)' : ''}
+                const isHostDisplay = p.uid === jugadores[0].uid;
+                const hostText = isHostDisplay ? ' (Host)' : '';
+                return `<div class="player-badge" style="background-color: ${isHostDisplay ? '#f0f7ff' : '#e6f4ea'};">
+                    <img src="${p.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default&backgroundColor=e0e0e0'}" class="lobby-avatar-small" /> ${p.name} ${isYou ? '(Tú)' : ''}${hostText}
                 </div>`;
             }).join('');
         }
-
-        // Controlar el Botón de Inicio (Solo visible si hay 2+ jugadores y eres el Host)
+        
+        // LÓGICA DE ASIGNACIÓN DE HOST Y BOTÓN DE INICIO
         if (btnStartWar) {
-            if (jugadores.length >= 2 && esHost && data.estado === 'esperando') {
-                btnStartWar.classList.remove('hidden');
-                lobbyStatusText.innerText = `¡Oponente encontrado! (${jugadores.length} de 2). Presiona INICIAR BATALLA.`;
-            } else if (data.estado === 'esperando') {
-                btnStartWar.classList.add('hidden');
-                lobbyStatusText.innerText = `Esperando oponente real (${jugadores.length} de 2)...`;
-            }
+            if (data.estado === 'esperando') {
+                
+                // CONTROLAR EL BOTÓN DE INICIO (Solo host)
+                if (esHost) {
+                    btnStartWar.classList.remove('hidden');
+                    if (jugadores.length >= 2) {
+                        lobbyStatusText.innerText = `¡Oponente(s) encontrado(s) (${jugadores.length} de 2). Presiona INICIAR BATALLA.`;
+                        btnStartWar.style.background = '#28a745'; 
+                    } else {
+                        // Cuando el Host está solo, DEBE esperar un oponente real, NO iniciar.
+                        // ******* AJUSTE CRÍTICO SOLICITADO *******
+                        btnStartWar.classList.add('hidden'); // Ocultar si está solo
+                        lobbyStatusText.innerText = `Esperando oponente real (1 de 2)...`; 
+                    }
+                } else {
+                    btnStartWar.classList.add('hidden');
+                    lobbyStatusText.innerText = `Esperando al Host (${jugadores[0].name}) para iniciar...`;
+                }
+
+            } 
+            // NOTA: Si data.estado es 'jugando', el botón de inicio es irrelevante.
+            // La lógica de continuación está implícita porque el jugador ya está en la pantalla quiz-screen.
         }
         
         // 4. INICIAR LA PARTIDA SINCRONIZADAMENTE
@@ -342,8 +362,14 @@ async function unirseASala(salaId) {
     if (btnStartWar) {
         btnStartWar.onclick = async () => {
             const salaActualRef = doc(db, "salas_activas", salaId);
-            await updateDoc(salaActualRef, { estado: 'jugando' });
-            hablar("Iniciando la secuencia de examen. ¡Que gane el mejor agente!");
+            // Solo el host puede cambiar el estado a 'jugando'
+            const snap = await getDoc(salaActualRef);
+            if (snap.exists() && snap.data().jugadores[0].uid === uidJugadorPermanente && snap.data().jugadores.length >= 2) {
+                await updateDoc(salaActualRef, { estado: 'jugando' });
+                hablar("Iniciando la secuencia de examen. ¡Que gane el mejor agente!");
+            } else {
+                 hablar("Necesitas al menos un oponente para iniciar la batalla.");
+            }
         };
     }
 
@@ -352,12 +378,13 @@ async function unirseASala(salaId) {
         if (confirm("¿Seguro que quieres abandonar la sala?")) {
             await limpiarSala(salaId); // Limpia tu ID de la sala
             if(unsubscribeRoom) unsubscribeRoom();
+            currentSalaId = null; // Limpiar variable
             showScreen('setup-screen'); // Vuelve a la pantalla de configuración (SETUP)
         }
     };
 }
 
-// --- FUNCIÓN CLAVE: LIMPIEZA DE SALA (Para Abandono/Finalización) ---
+// --- FUNCIÓN CLAVE: LIMPIEZA DE SALA (Para Abandono/Finalización) (Mantenido) ---
 async function limpiarSala(salaId) {
     const salaRef = doc(db, "salas_activas", salaId);
     
@@ -369,6 +396,7 @@ async function limpiarSala(salaId) {
             // Filtra el array para eliminar al jugador actual por ID TEMPORAL
             const jugadoresActualizados = jugadores.filter(j => j.id !== tempBattleID);
             
+            // NOTA: Si el host se va, el siguiente jugador en la lista se convierte en el índice [0] (nuevo host).
             await updateDoc(salaRef, { 
                 jugadores: jugadoresActualizados 
             });
@@ -384,7 +412,7 @@ async function limpiarSala(salaId) {
 }
 
 
-// --- 7. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS) ---
+// --- 7. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS) (Mantenido) ---
 async function validarDispositivo(user) {
     currentUserEmail = user.email;
     uidJugadorPermanente = user.uid;
@@ -427,7 +455,7 @@ async function validarDispositivo(user) {
     }
 }
 
-// --- 8. MONITOR DE AUTENTICACIÓN (Muestra Perfil de Google) ---
+// --- 8. MONITOR DE AUTENTICACIÓN (Muestra Perfil de Google) (Mantenido) ---
 onAuthStateChanged(auth, async (user) => {
     document.getElementById('app-loader').classList.add('hidden');
 
@@ -479,7 +507,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- 9. EVENTOS DE AUTENTICACIÓN ---
+// --- 9. EVENTOS DE AUTENTICACIÓN (Mantenido) ---
 document.getElementById('btn-google').addEventListener('click', () => {
     signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
         console.error("Error Google:", e);
@@ -494,7 +522,7 @@ btnLogout.addEventListener('click', () => {
     }
 });
 
-// --- 10. LÓGICA DEL JUEGO / SETUP ---
+// --- 10. LÓGICA DEL JUEGO / SETUP (Mantenido) ---
 document.getElementById('btn-start').addEventListener('click', () => {
     const modo = modeSelect.value;
     
@@ -528,7 +556,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
     if(bgMusic) { bgMusic.volume = obtenerVolumen(); bgMusic.play().catch(()=>{}); }
 });
 
-// --- LÓGICA DE VISUALIZACIÓN DE ALIAS EN SETUP ---
+// --- LÓGICA DE VISUALIZACIÓN DE ALIAS EN SETUP (Mantenido) ---
 modeSelect.addEventListener('change', () => {
     const isMultiplayer = modeSelect.value === 'multiplayer';
     
@@ -541,7 +569,7 @@ modeSelect.addEventListener('change', () => {
     }
 });
 
-// --- LÓGICA DE NAVEGACIÓN DENTRO DE BATALLA (Avatar -> Sala) ---
+// --- LÓGICA DE NAVEGACIÓN DENTRO DE BATALLA (Avatar -> Sala) (Mantenido) ---
 document.addEventListener('DOMContentLoaded', () => {
     const btnConfirmIdentity = document.getElementById('btn-confirm-identity');
     
@@ -592,7 +620,7 @@ function iniciarJuegoReal() {
     cargarPregunta();
 }
 
-// --- 11. FUNCIONES DE QUIZ ---
+// --- 11. FUNCIONES DE QUIZ (Mantenido) ---
 function cargarPregunta() {
     seleccionTemporal = null; 
     btnNextQuestion.classList.add('hidden'); 
@@ -680,7 +708,7 @@ function mostrarResultadoInmediato(seleccionada) {
     btnNextQuestion.classList.remove('hidden');
 }
 
-// --- 12. EVENTO: Render Rendirse ---
+// --- 12. EVENTO: Render Rendirse (Mantenido) ---
 document.getElementById('btn-quit-quiz').addEventListener('click', () => {
     if (confirm("¿Estás seguro que deseas rendirte? Tu progreso actual se guardará.")) {
         terminarQuiz(true); 
@@ -688,11 +716,17 @@ document.getElementById('btn-quit-quiz').addEventListener('click', () => {
 });
 
 
-// --- 13. FUNCIÓN TERMINAR QUIZ (Validación 100% y Animación) ---
+// --- 13. FUNCIÓN TERMINAR QUIZ (Validación 100% y Animación) (Mantenido) ---
 function terminarQuiz(abandono = false) {
     const bgMusic = document.getElementById('bg-music');
     if(bgMusic) { bgMusic.pause(); bgMusic.currentTime = 0; }
     clearInterval(intervaloTiempo);
+    
+    // Si era modo Batalla, limpiar la sala antes de terminar
+    if (currentMode === 'multiplayer' && currentSalaId) {
+        limpiarSala(currentSalaId);
+        currentSalaId = null; 
+    }
 
     let aciertos = 0;
     respuestasUsuario.forEach((r, i) => { 
@@ -752,7 +786,7 @@ function terminarQuiz(abandono = false) {
     }
 }
 
-// --- 14. EVENTO SIGUIENTE PREGUNTA ---
+// --- 14. EVENTO SIGUIENTE PREGUNTA (Mantenido) ---
 btnNextQuestion.addEventListener('click', () => {
     const isStudyMode = modeSelect.value === 'study';
     
@@ -770,7 +804,7 @@ btnNextQuestion.addEventListener('click', () => {
 });
 
 
-// --- 15. FUNCIONES AUXILIARES DE TIEMPO Y ANIMACIÓN ---
+// --- 15. FUNCIONES AUXILIARES DE TIEMPO Y ANIMACIÓN (Mantenido) ---
 function iniciarReloj() {
     intervaloTiempo = setInterval(() => {
         tiempoRestante--;
@@ -796,7 +830,7 @@ function createConfetti() {
     }
 }
 
-// --- 16. REVISIÓN Y MÁS FUNCIONES AUXILIARES ---
+// --- 16. REVISIÓN Y MÁS FUNCIONES AUXILIARES (Mantenido) ---
 document.getElementById('btn-review').addEventListener('click', () => {
     resultScreen.classList.add('hidden');
     reviewScreen.classList.remove('hidden');
@@ -817,7 +851,7 @@ document.getElementById('btn-review').addEventListener('click', () => {
     });
 });
 
-// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (Corregidos) ---
+// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (Corregidos) (Mantenido) ---
 
 function obtenerVolumen() {
     return parseFloat(document.getElementById('volume-slider').value);
@@ -890,3 +924,23 @@ async function guardarPuntajeGlobal(nota) {
         }
     } catch (e) { console.error("Error guardando puntaje global:", e); }
 }
+
+
+// --- 18. GESTIÓN DE SALA AL CERRAR VENTANA/PESTAÑA (Mantenido) ---
+
+window.addEventListener('beforeunload', async (e) => {
+    // Intenta limpiar la sala si el usuario la está abandonando
+    if (currentSalaId && tempBattleID) {
+        // La limpieza se hará de forma asíncrona, pero el navegador lo intentará.
+        await limpiarSala(currentSalaId); 
+    }
+});
+
+document.addEventListener('visibilitychange', async () => {
+    // Si la página se oculta (minimiza o cambia de pestaña) y está en modo Batalla, limpiar la sesión
+    // Nota: Esta limpieza solo es crucial en el lobby. Si ya está jugando, el juego continúa localmente.
+    if (document.hidden && currentSalaId && tempBattleID) {
+        // Podríamos decidir NO limpiar si data.estado === 'jugando', pero la limpieza evita fantasmas.
+        await limpiarSala(currentSalaId);
+    }
+});
