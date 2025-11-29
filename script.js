@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// === IMPORTAR LAS PREGUNTAS (ESTO REEMPLAZA AL ARRAY GIGANTE) ===
+// === IMPORTAR LAS PREGUNTAS ===
 import { bancoPreguntas } from './preguntas.js'; 
 
 // --- 1. CONFIGURACIÓN FINAL DE FIREBASE ---
@@ -118,42 +118,32 @@ function generarIDTemporal() {
 }
 
 // --- FUNCIONES PARA GUARDAR/CARGAR PROGRESO (MODO ESTUDIO) ---
-
-// 1. Guardar progreso (Autoguardado cada vez que respondes)
 async function guardarProgresoEstudio() {
     if (!uidJugadorPermanente || modeSelect.value !== 'study') return;
-
-    // Mapeamos las preguntas actuales a sus índices originales en el bancoPreguntas
     const indicesOrdenados = preguntasExamen.map(p => bancoPreguntas.indexOf(p));
-
     const progreso = {
         uid: uidJugadorPermanente,
         indiceActual: indiceActual,
-        respuestasUsuario: respuestasUsuario, // Array de tus respuestas
-        indicesPreguntas: indicesOrdenados,   // El orden en que te salieron las preguntas
+        respuestasUsuario: respuestasUsuario,
+        indicesPreguntas: indicesOrdenados,
         fecha: new Date()
     };
-
     try {
         await setDoc(doc(db, "progreso_estudio", uidJugadorPermanente), progreso);
-        console.log("Progreso de estudio guardado.");
     } catch (e) {
         console.error("Error guardando progreso:", e);
     }
 }
 
-// 2. Borrar progreso (Se llama al finalizar el examen para limpiar)
 async function borrarProgresoEstudio() {
     if (!uidJugadorPermanente) return;
     try {
         await deleteDoc(doc(db, "progreso_estudio", uidJugadorPermanente));
-        console.log("Progreso borrado al finalizar.");
     } catch (e) {
         console.error("No se pudo borrar progreso:", e);
     }
 }
 
-// 3. Verificar si existe progreso guardado
 async function verificarProgresoEstudio() {
     if (!uidJugadorPermanente) return null;
     const docRef = doc(db, "progreso_estudio", uidJugadorPermanente);
@@ -263,28 +253,36 @@ async function unirseASala(salaId) {
 
     const salaRef = doc(db, "salas_activas", salaId);
     
-    // --- LÓGICA DE LIMPIEZA ROBUSTA (FIX PARA HOSTS E HISTORIAL) ---
+    // --- LÓGICA DE LIMPIEZA ROBUSTA (FIX PARA "SALA SUCIA") ---
     const prepararSalaParaIngreso = async () => {
         const snap = await getDoc(salaRef);
         if (snap.exists()) {
             const data = snap.data();
             let jugadores = data.jugadores || [];
 
-            // 1. Eliminar cualquier sesión anterior de ESTE usuario (basado en UID permanente)
+            // 1. Limpieza básica: Sacar al usuario actual si ya estaba (para evitar duplicados)
             jugadores = jugadores.filter(j => j.uid !== uidJugadorPermanente);
 
-            // 2. CORRECCIÓN IMPORTANTE: Si la sala quedó "sucia" (todos terminaron o está vacía de activos), resetear estado.
-            const jugadoresActivos = jugadores.filter(j => !j.terminado);
+            // 2. DETECCIÓN DE SALA SUCIA (CASO 1: LOBBY CON ZOMBIES)
+            // Si la sala está en 'esperando' (lobby) pero hay jugadores marcados como 'terminado',
+            // significa que es basura de la partida anterior. RESETEAR.
+            const hayJugadoresViejos = jugadores.some(j => j.terminado === true);
             
-            // Si no quedan jugadores activos, o si la lista está vacía, REINICIAMOS la sala para evitar bugs de historial.
-            if (jugadores.length === 0 || (data.estado === 'jugando' && jugadoresActivos.length === 0)) {
+            // 3. DETECCIÓN DE PARTIDA ABANDONADA (CASO 2: FANTASMAS)
+            // Si dice 'jugando' pero no queda nadie activo, resetear.
+            const jugadoresActivos = jugadores.filter(j => !j.terminado);
+            const partidaAbandonada = (data.estado === 'jugando' && jugadoresActivos.length === 0);
+
+            // === ACCIÓN DE LIMPIEZA AGRESIVA ===
+            if (jugadores.length === 0 || hayJugadoresViejos || partidaAbandonada) {
+                 console.log("Sala sucia detectada. Limpiando para nueva partida...");
                  await updateDoc(salaRef, { 
-                     jugadores: [], // Vaciar lista para nueva partida
-                     estado: "esperando" // Resetear estado
+                     jugadores: [], // Vaciar lista totalmente
+                     estado: "esperando" // Resetear estado a Lobby
                  });
-                 return []; // Retornamos lista vacía
+                 return []; // Retornamos limpio
             } else {
-                 // Si hay una partida en curso legítima, solo guardamos el filtrado del usuario actual
+                 // Si la sala parece válida, guardamos solo el filtrado del usuario actual
                  await updateDoc(salaRef, { jugadores: jugadores });
                  return jugadores;
             }
@@ -307,7 +305,7 @@ async function unirseASala(salaId) {
     // Añadir el jugador a la sala
     await setDoc(salaRef, { 
         jugadores: arrayUnion(jugadorData),
-        estado: "esperando", // Forzamos o mantenemos "esperando" al entrar alguien nuevo si se reseteó antes
+        estado: "esperando", // Forzamos o mantenemos "esperando"
         fechaCreacion: new Date()
     }, { merge: true });
 
@@ -829,8 +827,6 @@ async function terminarQuiz(abandono = false) {
     if (btnInicio) btnInicio.disabled = true;
 
     // --- LOGICA DE BORRADO DE PROGRESO DE ESTUDIO ---
-    // Si termina el estudio completo (llega al final), borramos el progreso.
-    // Si abandona, NO borramos (para que pueda continuar luego si así lo desea, o reiniciar).
     if (modeSelect.value === 'study' && !abandono) {
         await borrarProgresoEstudio();
     }
@@ -857,8 +853,7 @@ async function terminarQuiz(abandono = false) {
 
     msg.className = ''; 
     
-    // --- LÓGICA MULTIPLAYER PARA CUALQUIER SALA (FIX) ---
-    // Usamos currentSalaId dinámicamente, funcionará para cualquier sala seleccionada
+    // --- LÓGICA MULTIPLAYER PARA CUALQUIER SALA ---
     if (currentMode === 'multiplayer' && currentSalaId) {
         
         const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
@@ -979,7 +974,7 @@ btnNextQuestion.addEventListener('click', () => {
     if (isStudyMode && seleccionTemporal !== null) {
         indiceActual++;
         cargarPregunta();
-        guardarProgresoEstudio(); // <--- GUARDAR EL AVANCE
+        guardarProgresoEstudio(); 
         return; 
     }
     
