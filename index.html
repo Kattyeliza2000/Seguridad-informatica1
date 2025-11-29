@@ -180,6 +180,23 @@
 
     <div id="confetti-wrapper" class="hidden"></div>
 
+    <div id="resume-modal" class="hidden modal-overlay">
+        <div class="modal-card">
+            <h2 style="color: #1a73e8; margin-top: 0;">¡Sesión Encontrada!</h2>
+            <p id="resume-text" style="font-size: 1rem; color: #555; margin: 20px 0;">
+                Tienes un progreso guardado.
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button id="btn-resume-yes" class="btn-primary" style="background-color: #28a745;">
+                    <i class="fa-solid fa-play"></i> Continuar
+                </button>
+                <button id="btn-resume-no" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">
+                    <i class="fa-solid fa-trash"></i> Empezar de Cero
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="script.js"></script> 
 </body>
 </html>
