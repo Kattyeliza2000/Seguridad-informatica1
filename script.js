@@ -88,9 +88,16 @@ function showScreen(screenId) {
     }
 }
 
+// CORRECCIÓN VOLUMEN: playClick ahora lee el volumen actual
 function playClick() {
     const sfx = document.getElementById('click-sound');
-    if(sfx) { sfx.currentTime = 0; sfx.play().catch(()=>{}); }
+    if(sfx) { 
+        // Obtener volumen actual del slider
+        const vol = parseFloat(document.getElementById('volume-slider').value);
+        sfx.volume = vol;
+        sfx.currentTime = 0; 
+        sfx.play().catch(()=>{}); 
+    }
 }
 
 // --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
@@ -103,13 +110,21 @@ function obtenerDeviceId() {
     return deviceId;
 }
 
+// CORRECCIÓN VOLUMEN: hablar ahora aplica el volumen del slider
 function hablar(texto) {
     const synth = window.speechSynthesis;
     if (!synth) return;
     synth.cancel();
+    
     const utterance = new SpeechSynthesisUtterance(texto);
+    
+    // Obtener volumen actual del slider
+    const vol = parseFloat(document.getElementById('volume-slider').value);
+    
     utterance.lang = 'es-ES';
     utterance.rate = 1.0;
+    utterance.volume = vol; // Aplicar volumen a la voz
+    
     synth.speak(utterance);
 }
 
@@ -605,12 +620,12 @@ async function iniciarJuegoReal() {
     if (modo === 'study') {
         const progresoGuardado = await verificarProgresoEstudio();
         
-        // Si hay progreso guardado, MOSTRAMOS EL MODAL PROPIO (No confirm)
+        // Si hay progreso guardado, MOSTRAMOS EL MODAL PROPIO
         if (progresoGuardado) {
             const total = progresoGuardado.indicesPreguntas.length;
             const vasEn = progresoGuardado.indiceActual + 1;
             
-            // 1. Mostrar el modal
+            // 1. Mostrar el modal (YA NO USA confirm())
             const resumeModal = document.getElementById('resume-modal');
             const resumeText = document.getElementById('resume-text');
             const btnYes = document.getElementById('btn-resume-yes');
@@ -619,7 +634,7 @@ async function iniciarJuegoReal() {
             resumeText.innerHTML = `Has completado ${vasEn} de ${total} preguntas.<br>¿Deseas continuar?`;
             resumeModal.classList.remove('hidden');
             
-            // 2. Definir acciones de los botones (Event Listeners de un solo uso)
+            // 2. Definir acciones de los botones
             
             // OPCIÓN SI: RECUPERAR
             btnYes.onclick = () => {
@@ -1063,7 +1078,7 @@ document.getElementById('btn-review').addEventListener('click', () => {
     });
 });
 
-// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN ---
+// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (CORREGIDO) ---
 
 function obtenerVolumen() {
     return parseFloat(document.getElementById('volume-slider').value);
@@ -1071,11 +1086,13 @@ function obtenerVolumen() {
 
 function actualizarVolumen() {
     const vol = obtenerVolumen();
+    // Actualizar audio tags
     document.querySelectorAll('audio').forEach(a => {
         a.volume = vol;
         a.muted = (vol === 0);
     });
 
+    // Actualizar ícono
     const icon = document.getElementById('vol-icon');
     icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
 }
