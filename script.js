@@ -253,36 +253,45 @@ async function unirseASala(salaId) {
 
     const salaRef = doc(db, "salas_activas", salaId);
     
-    // --- LÓGICA DE LIMPIEZA ROBUSTA (FIX PARA "SALA SUCIA") ---
+    // --- LÓGICA DE LIMPIEZA AGRESIVA PARA HOSTS FANTASMAS ---
     const prepararSalaParaIngreso = async () => {
         const snap = await getDoc(salaRef);
         if (snap.exists()) {
             const data = snap.data();
             let jugadores = data.jugadores || [];
 
-            // 1. Limpieza básica: Sacar al usuario actual si ya estaba (para evitar duplicados)
+            // 1. Limpieza básica: Eliminar mi propia sesión anterior
             jugadores = jugadores.filter(j => j.uid !== uidJugadorPermanente);
 
-            // 2. DETECCIÓN DE SALA SUCIA (CASO 1: LOBBY CON ZOMBIES)
-            // Si la sala está en 'esperando' (lobby) pero hay jugadores marcados como 'terminado',
-            // significa que es basura de la partida anterior. RESETEAR.
-            const hayJugadoresViejos = jugadores.some(j => j.terminado === true);
+            // 2. DETECCIÓN DE SALA CADUCADA O FANTASMA (Solución al Host Sucio)
+            let fechaCreacion = data.fechaCreacion;
             
-            // 3. DETECCIÓN DE PARTIDA ABANDONADA (CASO 2: FANTASMAS)
-            // Si dice 'jugando' pero no queda nadie activo, resetear.
-            const jugadoresActivos = jugadores.filter(j => !j.terminado);
-            const partidaAbandonada = (data.estado === 'jugando' && jugadoresActivos.length === 0);
+            // Convertir fecha de Firebase a JS Date
+            if (fechaCreacion && typeof fechaCreacion.toDate === 'function') {
+                fechaCreacion = fechaCreacion.toDate();
+            } else {
+                fechaCreacion = new Date(); // Si no hay fecha, asumimos ahora (para no borrar por error sin saber)
+            }
 
-            // === ACCIÓN DE LIMPIEZA AGRESIVA ===
-            if (jugadores.length === 0 || hayJugadoresViejos || partidaAbandonada) {
-                 console.log("Sala sucia detectada. Limpiando para nueva partida...");
+            const ahora = new Date();
+            const diferenciaMinutos = (ahora - fechaCreacion) / 1000 / 60; // Diferencia en minutos
+
+            // CONDICIÓN: Si la sala tiene más de 10 minutos creada y sigue en 'esperando', 
+            // O si está 'jugando' pero no queda nadie activo -> RESETEO TOTAL.
+            const salaVieja = diferenciaMinutos > 10;
+            const partidaAbandonada = (data.estado === 'jugando' && jugadores.filter(j => !j.terminado).length === 0);
+            const hayZombies = jugadores.some(j => j.terminado === true); // Jugadores viejos terminados
+
+            if (salaVieja || partidaAbandonada || hayZombies || jugadores.length === 0) {
+                 console.log("Limpiando sala fantasma/vieja...");
                  await updateDoc(salaRef, { 
-                     jugadores: [], // Vaciar lista totalmente
-                     estado: "esperando" // Resetear estado a Lobby
+                     jugadores: [], // ¡LIMPIEZA TOTAL!
+                     estado: "esperando",
+                     fechaCreacion: new Date() // Renovamos la fecha
                  });
                  return []; // Retornamos limpio
             } else {
-                 // Si la sala parece válida, guardamos solo el filtrado del usuario actual
+                 // Si la sala es reciente y válida, solo guardamos mi eliminación (paso 1)
                  await updateDoc(salaRef, { jugadores: jugadores });
                  return jugadores;
             }
@@ -302,12 +311,23 @@ async function unirseASala(salaId) {
         estado: 'activo'
     };
 
-    // Añadir el jugador a la sala
-    await setDoc(salaRef, { 
+    // Añadir el jugador a la sala (si se reseteó, entra como Host automáticamente)
+    // Usamos new Date() aquí para asegurar que la fecha se renueve si es el primer jugador
+    // Nota: arrayUnion no funciona bien si queremos reiniciar la fecha solo cuando está vacía,
+    // así que lo manejamos con la lógica de arriba.
+    
+    // Verificamos si soy el primero para poner la fecha
+    const snapCheck = await getDoc(salaRef);
+    let payload = { 
         jugadores: arrayUnion(jugadorData),
-        estado: "esperando", // Forzamos o mantenemos "esperando"
-        fechaCreacion: new Date()
-    }, { merge: true });
+        estado: "esperando"
+    };
+    
+    if (!snapCheck.exists() || (snapCheck.data().jugadores || []).length === 0) {
+        payload.fechaCreacion = new Date(); // Solo actualizamos fecha si soy el primero
+    }
+
+    await setDoc(salaRef, payload, { merge: true });
 
     showScreen('lobby-screen');
     if (lobbyTitle) lobbyTitle.innerText = `SALA: ${salaId.replace('SALA_', '').replace(/_/g, ' ')}`;
