@@ -243,55 +243,46 @@ function mostrarSelectorSalas() {
     });
 }
 
-// --- FUNCIÓN CLAVE CORREGIDA: UNIRSE A SALA Y LIMPIEZA DE HOST ---
+// --- FUNCIÓN UNIRSE A SALA ---
 async function unirseASala(salaId) {
     if (!uidJugadorPermanente || !currentAlias) return; 
 
-    // 0. DETENER LISTENER VIEJO
     if (unsubscribeRoom) unsubscribeRoom();
-    currentSalaId = salaId; // ASIGNAR SALA ACTUAL
+    currentSalaId = salaId;
 
     const salaRef = doc(db, "salas_activas", salaId);
     
-    // --- LÓGICA DE LIMPIEZA AGRESIVA PARA HOSTS FANTASMAS ---
     const prepararSalaParaIngreso = async () => {
         const snap = await getDoc(salaRef);
         if (snap.exists()) {
             const data = snap.data();
             let jugadores = data.jugadores || [];
 
-            // 1. Limpieza básica: Eliminar mi propia sesión anterior
             jugadores = jugadores.filter(j => j.uid !== uidJugadorPermanente);
 
-            // 2. DETECCIÓN DE SALA CADUCADA O FANTASMA (Solución al Host Sucio)
             let fechaCreacion = data.fechaCreacion;
-            
-            // Convertir fecha de Firebase a JS Date
             if (fechaCreacion && typeof fechaCreacion.toDate === 'function') {
                 fechaCreacion = fechaCreacion.toDate();
             } else {
-                fechaCreacion = new Date(); // Si no hay fecha, asumimos ahora (para no borrar por error sin saber)
+                fechaCreacion = new Date();
             }
 
             const ahora = new Date();
-            const diferenciaMinutos = (ahora - fechaCreacion) / 1000 / 60; // Diferencia en minutos
+            const diferenciaMinutos = (ahora - fechaCreacion) / 1000 / 60;
 
-            // CONDICIÓN: Si la sala tiene más de 10 minutos creada y sigue en 'esperando', 
-            // O si está 'jugando' pero no queda nadie activo -> RESETEO TOTAL.
             const salaVieja = diferenciaMinutos > 10;
             const partidaAbandonada = (data.estado === 'jugando' && jugadores.filter(j => !j.terminado).length === 0);
-            const hayZombies = jugadores.some(j => j.terminado === true); // Jugadores viejos terminados
+            const hayZombies = jugadores.some(j => j.terminado === true);
 
             if (salaVieja || partidaAbandonada || hayZombies || jugadores.length === 0) {
                  console.log("Limpiando sala fantasma/vieja...");
                  await updateDoc(salaRef, { 
-                     jugadores: [], // ¡LIMPIEZA TOTAL!
+                     jugadores: [],
                      estado: "esperando",
-                     fechaCreacion: new Date() // Renovamos la fecha
+                     fechaCreacion: new Date()
                  });
-                 return []; // Retornamos limpio
+                 return [];
             } else {
-                 // Si la sala es reciente y válida, solo guardamos mi eliminación (paso 1)
                  await updateDoc(salaRef, { jugadores: jugadores });
                  return jugadores;
             }
@@ -299,11 +290,11 @@ async function unirseASala(salaId) {
         return [];
     };
 
-    await prepararSalaParaIngreso(); // Ejecutar limpieza previa
+    await prepararSalaParaIngreso(); 
 
     const jugadorData = { 
-        id: tempBattleID, // ID temporal de sesión
-        uid: uidJugadorPermanente, // ID permanente para rastreo
+        id: tempBattleID, 
+        uid: uidJugadorPermanente, 
         name: currentAlias, 
         avatar: currentAvatarUrl,
         score: 0,
@@ -311,12 +302,6 @@ async function unirseASala(salaId) {
         estado: 'activo'
     };
 
-    // Añadir el jugador a la sala (si se reseteó, entra como Host automáticamente)
-    // Usamos new Date() aquí para asegurar que la fecha se renueve si es el primer jugador
-    // Nota: arrayUnion no funciona bien si queremos reiniciar la fecha solo cuando está vacía,
-    // así que lo manejamos con la lógica de arriba.
-    
-    // Verificamos si soy el primero para poner la fecha
     const snapCheck = await getDoc(salaRef);
     let payload = { 
         jugadores: arrayUnion(jugadorData),
@@ -324,7 +309,7 @@ async function unirseASala(salaId) {
     };
     
     if (!snapCheck.exists() || (snapCheck.data().jugadores || []).length === 0) {
-        payload.fechaCreacion = new Date(); // Solo actualizamos fecha si soy el primero
+        payload.fechaCreacion = new Date(); 
     }
 
     await setDoc(salaRef, payload, { merge: true });
@@ -332,7 +317,6 @@ async function unirseASala(salaId) {
     showScreen('lobby-screen');
     if (lobbyTitle) lobbyTitle.innerText = `SALA: ${salaId.replace('SALA_', '').replace(/_/g, ' ')}`;
     
-    // ESCUCHA EN TIEMPO REAL DEL LOBBY
     unsubscribeRoom = onSnapshot(salaRef, async (docSnap) => {
         if (!docSnap.exists()) {
              if(unsubscribeRoom) unsubscribeRoom(); 
@@ -345,7 +329,6 @@ async function unirseASala(salaId) {
         const data = docSnap.data();
         let jugadores = data.jugadores || [];
         
-        // El Host es el jugador en el índice 0
         const esHost = jugadores.length > 0 && jugadores[0].uid === uidJugadorPermanente;
 
         if (lobbyPlayers) {
@@ -420,12 +403,9 @@ async function limpiarSala(salaId) {
         const snap = await getDoc(salaRef);
         if(snap.exists()) {
             const jugadores = snap.data().jugadores || [];
-            
             const jugadoresActualizados = jugadores.filter(j => j.id !== tempBattleID);
             
-            await updateDoc(salaRef, { 
-                jugadores: jugadoresActualizados 
-            });
+            await updateDoc(salaRef, { jugadores: jugadoresActualizados });
             
             if(jugadoresActualizados.length === 0) {
                  await deleteDoc(salaRef);
@@ -437,7 +417,7 @@ async function limpiarSala(salaId) {
 }
 
 
-// --- 7. LÓGICA DE SEGURIDAD AVANZADA (CUPOS DIFERENCIADOS) ---
+// --- 7. LÓGICA DE SEGURIDAD AVANZADA ---
 async function validarDispositivo(user) {
     currentUserEmail = user.email;
     uidJugadorPermanente = user.uid;
@@ -606,6 +586,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// =========================================================
+// === INICIAR JUEGO (CON MODAL PERSONALIZADO) ===
+// =========================================================
 async function iniciarJuegoReal() {
     const tiempo = document.getElementById('time-select').value;
     const modo = document.getElementById('mode-select').value;
@@ -622,48 +605,75 @@ async function iniciarJuegoReal() {
     if (modo === 'study') {
         const progresoGuardado = await verificarProgresoEstudio();
         
-        // Si hay progreso, preguntamos
+        // Si hay progreso guardado, MOSTRAMOS EL MODAL PROPIO (No confirm)
         if (progresoGuardado) {
             const total = progresoGuardado.indicesPreguntas.length;
             const vasEn = progresoGuardado.indiceActual + 1;
             
-            const deseaContinuar = confirm(
-                `¡Tienes una sesión de estudio guardada!\n\n` +
-                `Quedaste en la pregunta ${vasEn} de ${total}.\n` +
-                `¿Deseas CONTINUAR donde lo dejaste?\n\n` +
-                `[Aceptar] = Continuar\n[Cancelar] = Empezar de cero`
-            );
-
-            if (deseaContinuar) {
-                // RECONSTRUIR EL EXAMEN DESDE EL GUARDADO
-                // 1. Recuperar preguntas en el orden exacto
+            // 1. Mostrar el modal
+            const resumeModal = document.getElementById('resume-modal');
+            const resumeText = document.getElementById('resume-text');
+            const btnYes = document.getElementById('btn-resume-yes');
+            const btnNo = document.getElementById('btn-resume-no');
+            
+            resumeText.innerHTML = `Has completado ${vasEn} de ${total} preguntas.<br>¿Deseas continuar?`;
+            resumeModal.classList.remove('hidden');
+            
+            // 2. Definir acciones de los botones (Event Listeners de un solo uso)
+            
+            // OPCIÓN SI: RECUPERAR
+            btnYes.onclick = () => {
+                playClick();
+                resumeModal.classList.add('hidden'); // Cerrar modal
+                
+                // Cargar datos
                 preguntasExamen = progresoGuardado.indicesPreguntas.map(i => bancoPreguntas[i]);
-                // 2. Recuperar respuestas y posición
                 respuestasUsuario = progresoGuardado.respuestasUsuario || [];
                 indiceActual = progresoGuardado.indiceActual;
                 
                 hablar("Recuperando tu sesión de estudio. ¡Adelante!");
-            } else {
-                // SI CANCELA, BORRAMOS LO VIEJO Y EMPEZAMOS NUEVO
-                await borrarProgresoEstudio();
+                
+                // Iniciar UI
+                setupScreen.classList.add('hidden');
+                quizScreen.classList.remove('hidden');
+                cargarPregunta();
+            };
+
+            // OPCIÓN NO: BORRAR Y EMPEZAR
+            btnNo.onclick = async () => {
+                playClick();
+                resumeModal.classList.add('hidden'); // Cerrar modal
+                
+                await borrarProgresoEstudio(); // Borrar BD
+                
+                // Empezar de cero
                 preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
                 respuestasUsuario = [];
                 indiceActual = 0;
-            }
+                
+                // Iniciar UI
+                setupScreen.classList.add('hidden');
+                quizScreen.classList.remove('hidden');
+                cargarPregunta();
+            };
+            
+            // IMPORTANTE: Detenemos la ejecución aquí. El juego sigue SOLO cuando el usuario pulsa un botón.
+            return; 
+
         } else {
-            // No hay guardado previo, iniciar normal
+            // Si no había nada guardado, iniciamos normal directo
             preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
             respuestasUsuario = [];
             indiceActual = 0;
         }
     } else {
-        // --- MODOS EXAMEN / MULTIPLAYER (No guardan progreso) ---
+        // --- MODOS EXAMEN / MULTIPLAYER (No guardan progreso, lógica normal) ---
         preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
         respuestasUsuario = [];
         indiceActual = 0;
     }
     
-    // Cambiar pantallas
+    // Cambiar pantallas (Este bloque solo corre si NO entramos al if del modal)
     setupScreen.classList.add('hidden');
     quizScreen.classList.remove('hidden');
     cargarPregunta();
