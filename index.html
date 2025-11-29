@@ -10,14 +10,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://api.dicebear.com">
-    
-    <link rel="stylesheet" href="style.css?v=270">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="app-loader" class="hidden">
+    <div id="app-loader">
         <div class="spinner"></div>
         <p>Cargando...</p>
     </div>
@@ -25,7 +25,7 @@
     <header>
         <div class="logo">
             <i class="fa-solid fa-shield-halved" style="color: #1a73e8;"></i>
-            <h1>Simulador <span class="subtitle">Seguridad</span></h1>
+            <h1>Simulador <span style="font-weight: 300;">Seguridad</span></h1>
         </div>
         
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -49,7 +49,7 @@
 
     <div id="combo-display" class="hidden">¡RACHA x3! 🔥</div>
 
-    <div class="container" id="auth-screen" style="border: none; box-shadow: none; padding-top: 20px;">
+    <div class="container" id="auth-screen" style="border: none; box-shadow: none;">
         <h1 class="auth-title">Bienvenido</h1>
         <p class="auth-subtitle">Accede con tu cuenta institucional</p>
         <button id="btn-google" class="btn-google-style">
@@ -74,7 +74,7 @@
             <select id="mode-select">
                 <option value="exam">📝 Examen (20 Preguntas)</option>
                 <option value="study">📚 Estudio (Todas las preguntas)</option>
-                <option value="multiplayer">⚔️ Batalla Multiusuarios (64 Preguntas)</option>
+                <option value="multiplayer">⚔️ Batalla Multiusuarios</option>
             </select>
         </div>
 
@@ -128,13 +128,12 @@
     </div>
 
     <div class="container hidden" id="lobby-screen">
-        <h2 id="lobby-title" style="color: #1a73e8; text-align: center;">SALA: FIREWALL</h2>
+        <h2 id="lobby-title" style="color: #1a73e8; text-align: center;">SALA</h2>
         <div class="lobby-status">
             <div class="spinner"></div>
             <p id="lobby-status-text">Esperando al anfitrión...</p>
         </div>
-        <div id="lobby-players" class="lobby-list">
-             </div>
+        <div id="lobby-players" class="lobby-list"></div>
         <button id="btn-start-war" class="btn-primary hidden" style="background: #28a745; margin-top: 20px;">¡INICIAR BATALLA!</button>
         <button id="btn-leave-lobby" class="btn-secondary" style="margin-top: 10px; color: #ea4335;">Abandonar Sala</button>
     </div>
@@ -160,44 +159,17 @@
         
         <div id="room-results-box" class="hidden ranking-box">
             <h3 style="color: #f9a825; margin: 0 0 10px 0;">🏆 Tabla de Posiciones</h3>
-            <div id="podium-container" class="podium-container">
-                </div>
+            <div id="podium-container" class="podium-container"></div>
         </div>
         
-        <button id="btn-review" class="btn-secondary">Revisar</button>
-        <button onclick="location.reload()" class="btn-primary" id="btn-inicio-final">Inicio</button>
+        <button id="btn-review" class="btn-secondary">Revisar Respuestas</button>
+        <button onclick="location.reload()" class="btn-primary" id="btn-inicio-final">Volver al Inicio</button>
     </div>
 
     <div class="container hidden" id="review-screen" style="max-width: 700px; text-align: left;">
-        <h2 style="text-align: center; color: #1a73e8;">Informe</h2>
+        <h2 style="text-align: center; color: #1a73e8;">Informe Detallado</h2>
         <div id="review-container" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;"></div>
         <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Cerrar</button>
-    </div>
-
-    <div id="stats-modal" class="hidden modal-overlay">
-        <div class="modal-card">
-            <button id="close-stats" class="close-btn">&times;</button>
-            <h2 style="color: #1a73e8;">Mi Historial</h2>
-            <canvas id="progressChart"></canvas>
-            <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">* Solo exámenes finalizados.</p>
-        </div>
-    </div>
-
-    <div id="ranking-modal" class="hidden modal-overlay">
-        <div class="modal-card">
-            <button id="close-ranking" class="close-btn">&times;</button>
-            <h2 style="color: #fbbc04;">🏆 Ranking Global</h2>
-            <div id="ranking-list" style="text-align: left; max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>
-        </div>
-    </div>
-
-    <div id="battle-results-modal" class="hidden modal-overlay">
-        <div class="modal-card" style="max-width: 700px; width: 95%;">
-            <button id="btn-exit-war-modal" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">Salir de la Guerra</button>
-            <h2 style="color: #fbbc04; text-transform: uppercase;">🏆 Resultados de la Guerra</h2>
-            <div id="podium-container" class="podium-container">
-                 </div>
-        </div>
     </div>
 
     <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
@@ -208,6 +180,6 @@
 
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=301"></script> 
+    <script type="module" src="script.js"></script> 
 </body>
 </html>
