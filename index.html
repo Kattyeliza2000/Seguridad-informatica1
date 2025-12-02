@@ -1,4 +1,149 @@
-<div class="container hidden" id="quiz-screen" style="max-width: 700px;">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Seguridad Informática</title>
+    
+    <link rel="icon" type="image/x-icon" href="favicon.ico"> 
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="preconnect" href="https://api.dicebear.com">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="style.css?v=412">
+</head>
+<body>
+
+    <div id="app-loader">
+        <div class="spinner"></div>
+        <p>Cargando...</p>
+    </div>
+
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-shield-halved" style="color: #1a73e8;"></i>
+            <h1>Simulador <span style="font-weight: 300;">Seguridad</span></h1>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div id="header-user-info" class="header-user-info hidden">
+                <span id="header-username" class="header-username-text">Usuario</span>
+                <img id="header-photo" src="" class="header-profile-pic" alt="Perfil" referrerpolicy="no-referrer">
+            </div>
+            
+            <div class="header-controls">
+                <button id="btn-admin-settings" class="btn-icon hidden" title="Panel de Control" style="color: #ea4335;">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+
+                <button id="btn-ranking" class="btn-icon hidden" title="Ranking Global"><i class="fa-solid fa-trophy"></i></button>
+                <button id="btn-stats" class="btn-icon hidden" title="Mis Estadísticas"><i class="fa-solid fa-chart-pie"></i></button>
+                
+                <div class="volume-control-box">
+                    <button id="btn-mute" class="btn-icon"><i class="fa-solid fa-volume-high" id="vol-icon"></i></button>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.5">
+                </div>
+                <button id="btn-logout" class="btn-secondary hidden" style="font-size: 0.8rem; padding: 5px 15px;">Salir</button>
+            </div>
+        </div>
+    </header>
+
+    <div id="combo-display" class="hidden">¡RACHA x3! 🔥</div>
+
+    <div class="container" id="auth-screen" style="border: none; box-shadow: none;">
+        <h1 class="auth-title">Bienvenido</h1>
+        <p class="auth-subtitle">Accede con tu cuenta institucional</p>
+        <button id="btn-google" class="btn-google-style">
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="width: 20px; height: 20px; display: block;">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+            </svg>
+            Ingresar con Google
+        </button>
+    </div>
+
+    <div class="container hidden" id="setup-screen" style="text-align: left;">
+        <div class="control-group">
+            <label>Materia</label>
+            <select disabled style="background-color: #f1f3f4; color: #888;"><option>Seguridad Informática</option></select>
+        </div>
+
+        <div class="control-group">
+            <label>Modo</label>
+            <select id="mode-select">
+                <option value="exam">📝 Examen (20 Preguntas)</option>
+                <option value="study">📚 Estudio (Todas las preguntas)</option>
+                <option value="multiplayer">⚔️ Batalla Multiusuarios</option>
+            </select>
+        </div>
+
+        <div class="control-group hidden" id="alias-input-group" style="margin-top: 15px;">
+            <label for="alias-input">Alias para Batalla</label>
+            <input type="text" id="alias-input" placeholder="Ej: Agente Secreto" maxlength="15">
+            <small style="color: #666;">Tu alias se usará para el ranking temporal.</small>
+        </div>
+
+        <div class="control-group">
+            <label>Tiempo</label>
+            <select id="time-select">
+                <option value="30">30 minutos</option>
+                <option value="60">60 minutos</option>
+                <option value="15">15 minutos</option>
+                <option value="infinity">Sin tiempo</option>
+            </select>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+        <div style="text-align: center;">
+            <div class="profile-row">
+                <p style="font-size: 0.95rem; color: #555; margin: 0;">
+                    Hola, <span id="user-display" style="font-weight: bold; color: #1a73e8;">...</span>
+                </p>
+                <img id="user-google-photo" src="" alt="Foto" class="google-profile-pic hidden" referrerpolicy="no-referrer">
+            </div>
+            <div class="verified-badge">
+                <i class="fa-solid fa-square-check"></i> Dispositivo verificado
+            </div>
+        </div>
+
+        <button id="btn-start" class="btn-primary" style="margin-top: 20px;">Empezar</button>
+    </div>
+
+    <div class="container hidden" id="avatar-screen">
+        <button id="back-to-setup" class="btn-text"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+        <h2 style="text-align: center;">Elige tu Personaje</h2>
+        <div class="avatar-section">
+            <div class="avatar-grid" id="avatar-grid"></div>
+            <input type="text" id="player-nickname" placeholder="Tu Apodo" maxlength="12" style="text-align: center;">
+        </div>
+        <button id="btn-confirm-identity" class="btn-primary">BUSCAR SALA <i class="fa-solid fa-radar"></i></button>
+    </div>
+
+    <div class="container hidden" id="rooms-screen">
+        <button id="back-to-avatar" class="btn-text"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+        <h2 style="text-align: center;">Zonas de Guerra</h2>
+        <div id="rooms-list" class="rooms-grid"></div>
+    </div>
+
+    <div class="container hidden" id="lobby-screen">
+        <h2 id="lobby-title" style="color: #1a73e8; text-align: center;">SALA</h2>
+        <div class="lobby-status">
+            <div class="spinner"></div>
+            <p id="lobby-status-text">Esperando al anfitrión...</p>
+        </div>
+        <div id="lobby-players" class="lobby-list"></div>
+        <button id="btn-start-war" class="btn-primary hidden" style="background: #28a745; margin-top: 20px;">¡INICIAR BATALLA!</button>
+        <button id="btn-leave-lobby" class="btn-secondary" style="margin-top: 10px; color: #ea4335;">Abandonar Sala</button>
+    </div>
+    
+    <div class="container hidden" id="quiz-screen" style="max-width: 700px;">
+        
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <button id="btn-exit-quiz" class="btn-text" style="font-size: 0.9rem; color: #666;">
                 <i class="fa-solid fa-arrow-left"></i> Salir al Menú
@@ -21,3 +166,98 @@
             </button>
         </div>
     </div>
+
+    <div class="container hidden" id="result-screen" style="text-align: center;">
+        <img id="final-avatar-display" src="" alt="Avatar" class="final-avatar hidden">
+        <h2 id="result-title">Finalizado</h2>
+        <h1 id="score-final">0/0</h1>
+        <p id="custom-msg"></p>
+        
+        <div id="room-results-box" class="hidden ranking-box">
+            <h3 style="color: #f9a825; margin: 0 0 10px 0;">🏆 Tabla de Posiciones</h3>
+            <div id="podium-container" class="podium-container"></div>
+        </div>
+        
+        <button id="btn-review" class="btn-secondary">Revisar Respuestas</button>
+        <button onclick="location.reload()" class="btn-primary" id="btn-inicio-final">Volver al Inicio</button>
+    </div>
+
+    <div class="container hidden" id="review-screen" style="max-width: 700px; text-align: left;">
+        <h2 style="text-align: center; color: #1a73e8;">Informe Detallado</h2>
+        <div id="review-container" style="max-height: 60vh; overflow-y: auto; padding-right: 10px;"></div>
+        <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Cerrar</button>
+    </div>
+
+    <div id="resume-modal" class="hidden modal-overlay">
+        <div class="modal-card">
+            <h2 style="color: #1a73e8; margin-top: 0;">¡Sesión Encontrada!</h2>
+            <p id="resume-text" style="font-size: 1rem; color: #555; margin: 20px 0;">
+                Tienes un progreso guardado.
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button id="btn-resume-yes" class="btn-primary" style="background-color: #28a745;">
+                    <i class="fa-solid fa-play"></i> Continuar
+                </button>
+                <button id="btn-resume-no" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">
+                    <i class="fa-solid fa-trash"></i> Empezar de Cero
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="hidden modal-overlay">
+        <div class="modal-card">
+            <button id="close-admin" class="close-btn">&times;</button>
+            <h2 style="color: #ea4335;"><i class="fa-solid fa-user-shield"></i> Panel de Control</h2>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; text-align: left; max-height: 70vh; overflow-y: auto;">
+                
+                <div style="background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
+                    <label style="font-weight: bold; font-size: 0.9rem; color: #1a73e8;">➕ Agregar Nuevo Usuario</label>
+                    <input type="text" id="admin-new-email" placeholder="usuario@unemi.edu.ec" style="margin: 5px 0; padding: 8px; width: 100%;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <label><input type="radio" name="device-limit" value="1" checked> 1 Equipo</label>
+                        <label><input type="radio" name="device-limit" value="2"> 2 Equipos</label>
+                    </div>
+                    <button id="btn-admin-add-user" class="btn-primary" style="padding: 8px; font-size: 0.9rem;">Guardar Acceso</button>
+                </div>
+
+                <div>
+                    <label style="font-weight: bold; font-size: 0.9rem;">📋 Usuarios Autorizados</label>
+                    <div id="admin-users-list" style="background: #fff; border: 1px solid #eee; max-height: 150px; overflow-y: auto; border-radius: 4px; margin-top: 5px;">
+                        <p style="padding:10px; color:#999; text-align:center;">Cargando...</p>
+                    </div>
+                </div>
+
+                <hr style="width: 100%; border: 0; border-top: 1px solid #eee;">
+                
+                <div>
+                    <label style="font-weight: bold; font-size: 0.9rem;">🔓 Desbloquear Dispositivos</label>
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <input type="text" id="admin-reset-email" placeholder="bloqueado@unemi.edu.ec" style="margin: 0; padding: 8px; flex-grow: 1;">
+                        <button id="btn-admin-reset-user" class="btn-primary" style="width: auto; background-color: #ea4335; padding: 0 15px;">
+                            <i class="fa-solid fa-unlock"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <hr style="width: 100%; border: 0; border-top: 1px solid #eee;">
+
+                <button id="btn-admin-clean-rooms" class="btn-secondary" style="border-color: #fbbc04; color: #d68b00;">
+                    <i class="fa-solid fa-broom"></i> Limpiar Todas las Salas
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
+    <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
+    <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
+    <audio id="correct-sound" preload="auto"><source src="audio/correct.mp3" type="audio/mpeg"></audio>
+    <audio id="click-sound" preload="auto"><source src="audio/click.mp3" type="audio/mpeg"></audio>
+
+    <div id="confetti-wrapper" class="hidden"></div>
+
+    <script type="module" src="script.js?v=412"></script> 
+</body>
+</html>
