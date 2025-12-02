@@ -21,7 +21,6 @@ const db = getFirestore(app);
 // --- 2. LISTA DE CORREOS AUTORIZADOS ---
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
 
-// CORRECCIÓN AQUÍ: Se agregaron las comas que faltaban para evitar que se trabe la carga
 const correosUnDispositivo = [
     "cnavarretem4@unemi.edu.ec", 
     "iastudillol@unemi.edu.ec", 
@@ -103,7 +102,6 @@ function showScreen(screenId) {
     }
 }
 
-// CORRECCIÓN VOLUMEN: playClick ahora lee el volumen actual
 function playClick() {
     const sfx = document.getElementById('click-sound');
     if(sfx) { 
@@ -114,17 +112,33 @@ function playClick() {
     }
 }
 
+// === GENERADOR DE HUELLA DIGITAL (FINGERPRINT) ===
+function generarHuellaDigital() {
+    const nav = window.navigator;
+    const screen = window.screen;
+    // Creamos una cadena con datos que no cambian al borrar caché
+    const rawString = `${nav.userAgent}||${nav.language}||${screen.colorDepth}||${screen.width}x${screen.height}||${new Date().getTimezoneOffset()}`;
+    
+    // Función simple de Hash
+    let hash = 0;
+    for (let i = 0; i < rawString.length; i++) {
+        const char = rawString.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
+    }
+    return "DEV_" + Math.abs(hash).toString(36);
+}
+
 // --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
 function obtenerDeviceId() {
     let deviceId = localStorage.getItem('device_id_seguro');
     if (!deviceId) {
-        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + Date.now();
+        deviceId = generarHuellaDigital(); // Usamos la huella digital
         localStorage.setItem('device_id_seguro', deviceId);
     }
     return deviceId;
 }
 
-// CORRECCIÓN VOLUMEN: hablar ahora aplica el volumen del slider
 function hablar(texto) {
     const synth = window.speechSynthesis;
     if (!synth) return;
@@ -238,8 +252,41 @@ function initAvatars() {
     }
 }
 
+// === FUNCIÓN DE LIMPIEZA AUTOMÁTICA (CONSERJE) ===
+async function limpiarSalasViejasAutomaticamente() {
+    try {
+        const salasSnapshot = await getDocs(collection(db, "salas_activas"));
+        const ahora = new Date();
+        
+        salasSnapshot.forEach(async (docSnap) => {
+            const data = docSnap.data();
+            let fechaCreacion = data.fechaCreacion;
+            
+            if (fechaCreacion && typeof fechaCreacion.toDate === 'function') {
+                fechaCreacion = fechaCreacion.toDate();
+            } else {
+                fechaCreacion = new Date(0); 
+            }
+            
+            const diferenciaMinutos = (ahora - fechaCreacion) / 1000 / 60;
+            const jugadores = data.jugadores || [];
+            
+            const esLobbyViejo = (data.estado === 'esperando' && diferenciaMinutos > 10);
+            const esJuegoMuyViejo = (data.estado === 'jugando' && diferenciaMinutos > 60);
+            const estaVacia = jugadores.length === 0;
+
+            if (esLobbyViejo || esJuegoMuyViejo || estaVacia) {
+                console.log(`🧹 Limpiando sala automática: ${docSnap.id}`);
+                await deleteDoc(doc(db, "salas_activas", docSnap.id));
+            }
+        });
+    } catch(e) { console.error("Error en limpieza automática", e); }
+}
+
 function mostrarSelectorSalas() {
     showScreen('rooms-screen');
+    limpiarSalasViejasAutomaticamente();
+
     const list = document.getElementById('rooms-list');
     if (!list) return;
     list.innerHTML = '';
@@ -270,7 +317,6 @@ function mostrarSelectorSalas() {
     });
 }
 
-// --- FUNCIÓN CLAVE: REINICIAR SALA SUCIA MANUALMENTE ---
 async function forzarReinicioSala(salaId) {
     if(!salaId) return;
     if(confirm("¿Seguro que quieres eliminar a todos y reiniciar esta sala? Úsalo si el Host no responde.")) {
@@ -293,7 +339,6 @@ async function unirseASala(salaId) {
 
     const salaRef = doc(db, "salas_activas", salaId);
     
-    // Limpieza preliminar automática
     const prepararSalaParaIngreso = async () => {
         const snap = await getDoc(salaRef);
         if (snap.exists()) {
@@ -311,8 +356,11 @@ async function unirseASala(salaId) {
             const ahora = new Date();
             const diferenciaMinutos = (ahora - fechaCreacion) / 1000 / 60;
 
-            if (diferenciaMinutos > 5) {
-                 console.log("Sala expirada. Limpiando...");
+            const esLobbyViejo = (data.estado === 'esperando' && diferenciaMinutos > 10);
+            const esJuegoMuyViejo = (data.estado === 'jugando' && diferenciaMinutos > 60);
+
+            if (esLobbyViejo || esJuegoMuyViejo) {
+                 console.log("Sala expirada detectada al unirse. Reseteando...");
                  await updateDoc(salaRef, { jugadores: [], estado: "esperando", fechaCreacion: new Date() });
                  return [];
             } else {
@@ -479,10 +527,11 @@ async function limpiarSala(salaId) {
 }
 
 
-// --- 7. LÓGICA DE SEGURIDAD AVANZADA ---
+// --- 7. LÓGICA DE SEGURIDAD AVANZADA (MODO ESTRICTO + HUELLA DIGITAL) ---
 async function validarDispositivo(user) {
     currentUserEmail = user.email;
     uidJugadorPermanente = user.uid;
+    
     const miDeviceId = obtenerDeviceId(); 
     
     let limiteDispositivos = 1;
@@ -500,8 +549,9 @@ async function validarDispositivo(user) {
         if (listaDispositivos.includes(miDeviceId)) {
             return true;
         } else {
+            // BLOQUEO ESTRICTO (TU REQUISITO)
             if (listaDispositivos.length >= limiteDispositivos) {
-                alert(`⛔ ACCESO DENEGADO ⛔\n\nHas excedido tu límite de ${limiteDispositivos} dispositivos registrados. Debes cerrar sesión en otro equipo para continuar.`);
+                alert(`⛔ ACCESO DENEGADO ⛔\n\nTu cuenta ya está activa en ${limiteDispositivos} dispositivo(s) registrados.\n\nAunque borres la caché, tu equipo sigue siendo reconocido. Si cambiaste de PC real, contacta al administrador.`);
                 await signOut(auth);
                 location.reload();
                 return false;
@@ -527,6 +577,17 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         if (correosPermitidos.includes(user.email)) {
             
+            if (user.email === 'kholguinb2@unemi.edu.ec') {
+                const btnAdmin = document.getElementById('btn-admin-settings');
+                if(btnAdmin) {
+                    btnAdmin.classList.remove('hidden');
+                    btnAdmin.onclick = () => {
+                        const adminModal = document.getElementById('admin-modal');
+                        adminModal.classList.remove('hidden');
+                    };
+                }
+            }
+
             let nombre = user.displayName || user.email.split('@')[0];
             const partes = nombre.toLowerCase().split(' ');
             const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
@@ -566,6 +627,52 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+// EVENTOS DE CIERRE DEL MODAL ADMIN
+const closeAdminBtn = document.getElementById('close-admin');
+if(closeAdminBtn) {
+    closeAdminBtn.onclick = () => {
+        document.getElementById('admin-modal').classList.add('hidden');
+    };
+}
+
+const btnCleanRooms = document.getElementById('btn-admin-clean-rooms');
+if(btnCleanRooms) {
+    btnCleanRooms.onclick = async () => {
+        if(confirm("⚠️ ¿Estás segura de borrar TODAS las salas activas? Esto sacará a todos los jugadores.")) {
+            const snapshot = await getDocs(collection(db, "salas_activas"));
+            snapshot.forEach(async (doc) => {
+                await deleteDoc(doc.ref);
+            });
+            alert("🧹 Todas las salas han sido eliminadas.");
+            document.getElementById('admin-modal').classList.add('hidden');
+        }
+    };
+}
+
+const btnResetUser = document.getElementById('btn-admin-reset-user');
+if(btnResetUser) {
+    btnResetUser.onclick = async () => {
+        const input = document.getElementById('admin-user-email');
+        const emailToReset = input ? input.value.trim() : null;
+        
+        if (emailToReset && emailToReset.includes("@")) {
+            if(confirm(`¿Seguro que deseas desbloquear los dispositivos de ${emailToReset}?`)) {
+                try {
+                    await deleteDoc(doc(db, "usuarios_seguros", emailToReset));
+                    alert(`✅ Dispositivos de ${emailToReset} reseteados correctamente.`);
+                    input.value = ""; 
+                } catch (error) {
+                    alert("❌ Error al resetear: " + error.message);
+                }
+                document.getElementById('admin-modal').classList.add('hidden');
+            }
+        } else {
+            alert("Por favor ingresa un correo válido.");
+        }
+    };
+}
+
+
 // --- 9. EVENTOS DE AUTENTICACIÓN ---
 document.getElementById('btn-google').addEventListener('click', () => {
     signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
@@ -574,9 +681,12 @@ document.getElementById('btn-google').addEventListener('click', () => {
     });
 });
 
-btnLogout.addEventListener('click', () => {
+btnLogout.addEventListener('click', async () => {
     if(confirm("¿Cerrar sesión?")) {
-        signOut(auth);
+        if (currentSalaId && tempBattleID) {
+            await limpiarSala(currentSalaId); 
+        }
+        await signOut(auth);
         location.reload();
     }
 });
@@ -655,7 +765,6 @@ async function iniciarJuegoReal() {
     const tiempo = document.getElementById('time-select').value;
     const modo = document.getElementById('mode-select').value;
 
-    // Configuración del reloj
     if (tiempo !== 'infinity') {
         tiempoRestante = parseInt(tiempo) * 60;
         iniciarReloj();
@@ -663,16 +772,13 @@ async function iniciarJuegoReal() {
         document.getElementById('timer-display').innerText = "--:--";
     }
 
-    // --- LÓGICA DE RECUPERACIÓN PARA MODO ESTUDIO ---
     if (modo === 'study') {
         const progresoGuardado = await verificarProgresoEstudio();
         
-        // Si hay progreso guardado, MOSTRAMOS EL MODAL PROPIO
         if (progresoGuardado) {
             const total = progresoGuardado.indicesPreguntas.length;
             const vasEn = progresoGuardado.indiceActual + 1;
             
-            // 1. Mostrar el modal (YA NO USA confirm())
             const resumeModal = document.getElementById('resume-modal');
             const resumeText = document.getElementById('resume-text');
             const btnYes = document.getElementById('btn-resume-yes');
@@ -681,67 +787,47 @@ async function iniciarJuegoReal() {
             resumeText.innerHTML = `Has completado ${vasEn} de ${total} preguntas.<br>¿Deseas continuar?`;
             resumeModal.classList.remove('hidden');
             
-            // 2. Definir acciones de los botones
-            
-            // OPCIÓN SI: RECUPERAR
             btnYes.onclick = () => {
                 playClick();
-                resumeModal.classList.add('hidden'); // Cerrar modal
-                
-                // Cargar datos
+                resumeModal.classList.add('hidden');
                 preguntasExamen = progresoGuardado.indicesPreguntas.map(i => bancoPreguntas[i]);
                 respuestasUsuario = progresoGuardado.respuestasUsuario || [];
                 indiceActual = progresoGuardado.indiceActual;
-                
                 hablar("Recuperando tu sesión de estudio. ¡Adelante!");
-                
-                // Iniciar UI
                 setupScreen.classList.add('hidden');
                 quizScreen.classList.remove('hidden');
                 cargarPregunta();
             };
 
-            // OPCIÓN NO: BORRAR Y EMPEZAR
             btnNo.onclick = async () => {
                 playClick();
-                resumeModal.classList.add('hidden'); // Cerrar modal
-                
-                await borrarProgresoEstudio(); // Borrar BD
-                
-                // Empezar de cero
+                resumeModal.classList.add('hidden');
+                await borrarProgresoEstudio();
                 preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
                 respuestasUsuario = [];
                 indiceActual = 0;
-                
-                // Iniciar UI
                 setupScreen.classList.add('hidden');
                 quizScreen.classList.remove('hidden');
                 cargarPregunta();
             };
-            
-            // IMPORTANTE: Detenemos la ejecución aquí. El juego sigue SOLO cuando el usuario pulsa un botón.
             return; 
 
         } else {
-            // Si no había nada guardado, iniciamos normal directo
             preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
             respuestasUsuario = [];
             indiceActual = 0;
         }
     } else {
-        // --- MODOS EXAMEN / MULTIPLAYER (No guardan progreso, lógica normal) ---
         preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
         respuestasUsuario = [];
         indiceActual = 0;
     }
     
-    // Cambiar pantallas (Este bloque solo corre si NO entramos al if del modal)
     setupScreen.classList.add('hidden');
     quizScreen.classList.remove('hidden');
     cargarPregunta();
 }
 
-// --- 11. FUNCIONES DE QUIZ ---
 function cargarPregunta() {
     seleccionTemporal = null; 
     btnNextQuestion.classList.add('hidden'); 
@@ -775,8 +861,9 @@ function cargarPregunta() {
 
 function seleccionarOpcion(index, btnClickeado) {
     const isStudyMode = modeSelect.value === 'study';
+    const isMultiplayer = currentMode === 'multiplayer';
 
-    if (isStudyMode && seleccionTemporal !== null) {
+    if ((isStudyMode || isMultiplayer) && seleccionTemporal !== null) {
         return;
     }
     
@@ -785,11 +872,10 @@ function seleccionarOpcion(index, btnClickeado) {
     botones.forEach(b => b.classList.remove('option-selected'));
     btnClickeado.classList.add('option-selected');
     
-    if (isStudyMode) {
+    if (isStudyMode || isMultiplayer) {
         mostrarResultadoInmediato(index);
-        
-        // === GUARDAR AUTOMÁTICAMENTE AL RESPONDER (MODO ESTUDIO) ===
-        setTimeout(() => { guardarProgresoEstudio(); }, 500); 
+        if (isStudyMode) setTimeout(() => { guardarProgresoEstudio(); }, 500); 
+        if (isMultiplayer) currentStreak++;
     } else {
         btnNextQuestion.classList.remove('hidden');
     }
@@ -800,14 +886,25 @@ function mostrarResultadoInmediato(seleccionada) {
     const correcta = pregunta.respuesta;
     const cont = document.getElementById('options-container');
     const botones = cont.querySelectorAll('button');
+    const comboDisplay = document.getElementById('combo-display');
     
     const esCorrecta = (seleccionada === correcta);
     if (esCorrecta) {
         document.getElementById('correct-sound').play().catch(()=>{});
-    } else {
-        if (modeSelect.value !== 'study') { 
-            document.getElementById('fail-sound').play().catch(()=>{}); 
+        
+        if (currentMode === 'multiplayer') {
+            if (currentStreak > 1) {
+                comboDisplay.innerText = `¡RACHA x${currentStreak}! 🔥`;
+                comboDisplay.classList.remove('hidden');
+                comboDisplay.style.animation = 'none';
+                comboDisplay.offsetHeight; 
+                comboDisplay.style.animation = 'popIn 0.5s';
+            }
         }
+    } else {
+        document.getElementById('fail-sound').play().catch(()=>{}); 
+        currentStreak = 0;
+        if(comboDisplay) comboDisplay.classList.add('hidden');
     }
 
     botones.forEach(btn => btn.disabled = true);
@@ -858,7 +955,6 @@ async function actualizarScoreEnSala(salaId, aciertos) {
             }
 
             await updateDoc(salaRef, { jugadores: jugadores });
-            
             return jugadores; 
         }
         return [];
@@ -918,7 +1014,6 @@ async function terminarQuiz(abandono = false) {
     if (btnReview) btnReview.disabled = true;
     if (btnInicio) btnInicio.disabled = true;
 
-    // --- LOGICA DE BORRADO DE PROGRESO DE ESTUDIO ---
     if (modeSelect.value === 'study' && !abandono) {
         await borrarProgresoEstudio();
     }
@@ -945,16 +1040,13 @@ async function terminarQuiz(abandono = false) {
 
     msg.className = ''; 
     
-    // --- LÓGICA MULTIPLAYER PARA CUALQUIER SALA ---
     if (currentMode === 'multiplayer' && currentSalaId) {
         
         const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
 
         const jugadoresActivos = jugadoresActualizados.filter(j => j.estado === 'activo' || j.terminado === true);
-        
         const jugadoresFaltantes = jugadoresActivos.filter(j => j.terminado === false);
         const countFaltantes = jugadoresFaltantes.length;
-
         const todosTerminados = countFaltantes === 0;
 
         if (todosTerminados) {
@@ -967,9 +1059,10 @@ async function terminarQuiz(abandono = false) {
             if (btnInicio) btnInicio.disabled = false;
 
         } else {
-            
             roomResultsBox.classList.add('hidden'); 
             document.getElementById('btn-review').classList.add('hidden');
+            if (btnReview) btnReview.disabled = true;
+            if (btnInicio) btnInicio.disabled = true;
             
             const mensajeEspera = countFaltantes > 1 
                 ? `Esperando a ${countFaltantes} agentes que siguen en juego...` 
@@ -985,9 +1078,9 @@ async function terminarQuiz(abandono = false) {
 
             const salaRef = doc(db, "salas_activas", currentSalaId);
             unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
+                if(!docSnap.exists()) return;
                 const jugadoresEsperando = docSnap.data().jugadores || [];
                 const jugadoresActivosEnEspera = jugadoresEsperando.filter(j => j.id !== tempBattleID);
-                
                 const countFaltantesListener = jugadoresActivosEnEspera.filter(j => j.terminado === false).length;
                 const todosHanTerminado = countFaltantesListener === 0;
                 
@@ -1014,29 +1107,24 @@ async function terminarQuiz(abandono = false) {
         }
 
     } else { 
-        // LÓGICA INDIVIDUAL
         if (abandono) {
             msg.innerText = "Finalizado por usuario. Se registraron las respuestas completadas."; 
             msg.style.color = "#ea4335";
-            
         } else if (aciertos === totalPreguntas) { 
             msg.innerHTML = '<i class="fa-solid fa-trophy moving-icon-win"></i> ¡FELICITACIONES! PUNTAJE PERFECTO 💯'; 
             msg.style.color = "#28a745"; 
             if (typeof createConfetti === 'function') createConfetti(); 
             if (sfxWin) sfxWin.play().catch(()=>{});
             hablar("¡Increíble! Has obtenido un puntaje perfecto. Eres un maestro en seguridad."); 
-
         } else if (notaPorcentaje >= 85) { 
             msg.innerHTML = '<i class="fa-solid fa-medal moving-icon-win"></i> ¡LEGENDARIO! 🏆'; 
             msg.style.color = "#28a745"; 
             if (typeof createConfetti === 'function') createConfetti(); 
             if (sfxWin) sfxWin.play().catch(()=>{});
-
         } else if (notaPorcentaje >= 70) { 
             msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Misión Cumplida!'; 
             msg.style.color = "#fbbc04";
             if (sfxWin) sfxWin.play().catch(()=>{});
-
         } else { 
             msg.innerHTML = '<i class="fa-solid fa-face-sad-cry moving-icon-fail"></i> Entrenamiento fallido. Debes mejorar.'; 
             msg.style.color = "#1a73e8"; 
@@ -1059,14 +1147,26 @@ async function terminarQuiz(abandono = false) {
     }
 }
 
+// Botón explícito para limpiar sala al "Volver al Inicio"
+// Esto es vital para asegurar que la sala quede limpia al terminar
+const btnInicioFinal = document.getElementById('btn-inicio-final');
+if(btnInicioFinal) {
+    btnInicioFinal.onclick = async () => {
+        if (currentSalaId && tempBattleID) {
+            await limpiarSala(currentSalaId); 
+        }
+        location.reload();
+    };
+}
+
 btnNextQuestion.addEventListener('click', () => {
     const isStudyMode = modeSelect.value === 'study';
+    const isMultiplayer = currentMode === 'multiplayer';
     
-    // Si estamos en modo estudio, guardamos cada vez que avanza
-    if (isStudyMode && seleccionTemporal !== null) {
+    if ((isStudyMode || isMultiplayer) && seleccionTemporal !== null) {
         indiceActual++;
         cargarPregunta();
-        guardarProgresoEstudio(); 
+        if(isStudyMode) guardarProgresoEstudio(); 
         return; 
     }
     
