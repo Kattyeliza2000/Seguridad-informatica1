@@ -15,6 +15,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// --- LISTAS DE ACCESO ---
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
 const correosUnDispositivo = [
     "cnavarretem4@unemi.edu.ec", "iastudillol@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", 
@@ -22,6 +23,7 @@ const correosUnDispositivo = [
 ];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
+// --- VARIABLES ---
 let preguntasExamen = []; 
 let indiceActual = 0;
 let respuestasUsuario = []; 
@@ -61,29 +63,44 @@ const btnLogout = document.getElementById('btn-logout');
 const btnNextQuestion = document.getElementById('btn-next-question');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz');
 const modeSelect = document.getElementById('mode-select');
+const volumeSlider = document.getElementById('volume-slider');
 
+// --- UTILS ---
 function showScreen(screenId) {
     document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
     document.getElementById(screenId).classList.remove('hidden');
 }
 
-// === LÓGICA DE VOLUMEN CORREGIDA ===
+// VOLUMEN
 function obtenerVolumen() {
-    const slider = document.getElementById('volume-slider');
-    return slider ? parseFloat(slider.value) : 0.5;
+    return volumeSlider ? parseFloat(volumeSlider.value) : 0.5;
 }
 
 function actualizarVolumen() {
     const vol = obtenerVolumen();
     document.querySelectorAll('audio').forEach(a => {
         a.volume = vol;
-        a.muted = (vol === 0);
+        a.muted = (vol <= 0);
     });
     const icon = document.getElementById('vol-icon');
-    if(icon) {
-        icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
-    }
+    if(icon) icon.className = 'fa-solid ' + (vol <= 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
 }
+
+if(volumeSlider) {
+    volumeSlider.addEventListener('input', actualizarVolumen);
+    // Inicializar volumen al cargar
+    actualizarVolumen();
+}
+
+document.getElementById('btn-mute').addEventListener('click', () => {
+    if (obtenerVolumen() > 0) {
+        volumeSlider.dataset.lastVolume = volumeSlider.value; 
+        volumeSlider.value = 0;
+    } else {
+        volumeSlider.value = volumeSlider.dataset.lastVolume || 0.5; 
+    }
+    actualizarVolumen();
+});
 
 function playClick() {
     const sfx = document.getElementById('click-sound');
@@ -93,30 +110,6 @@ function playClick() {
         sfx.play().catch(()=>{}); 
     }
 }
-
-function hablar(texto) {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(texto);
-    u.lang = 'es-ES';
-    u.volume = obtenerVolumen(); 
-    synth.speak(u);
-}
-
-// --- EVENTOS DE VOLUMEN ---
-document.getElementById('volume-slider').addEventListener('input', actualizarVolumen);
-document.getElementById('btn-mute').addEventListener('click', () => {
-    const slider = document.getElementById('volume-slider');
-    const vol = obtenerVolumen();
-    if (vol > 0) {
-        slider.dataset.lastVolume = vol; 
-        slider.value = 0;
-    } else {
-        slider.value = slider.dataset.lastVolume || 0.5; 
-    }
-    actualizarVolumen();
-});
 
 function generarHuellaDigital() {
     const nav = window.navigator;
@@ -138,6 +131,16 @@ function obtenerDeviceId() {
         localStorage.setItem('device_id_seguro', deviceId);
     }
     return deviceId;
+}
+
+function hablar(texto) {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang = 'es-ES';
+    u.volume = obtenerVolumen(); 
+    synth.speak(u);
 }
 
 function generarIDTemporal() { return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9); }
@@ -241,7 +244,7 @@ onAuthStateChanged(auth, async (user) => {
                 }
                 document.getElementById('header-user-info').classList.add('hidden');
                 
-                // *** CORRECCIÓN BOTÓN SALIR ***
+                // FORZAR VISIBILIDAD BOTÓN SALIR
                 btnLogout.classList.remove('hidden');
                 
                 setTimeout(() => hablar(`Hola ${user.displayName.split(' ')[0]}`), 500);
@@ -319,17 +322,19 @@ btnLogout.onclick = async () => {
 
 // --- JUEGO START ---
 document.getElementById('btn-start').onclick = () => {
-    currentMode = modeSelect.value; // FIX: Capturar modo actual
+    currentMode = modeSelect.value; // Capturar modo
     
     document.getElementById('header-user-info').classList.remove('hidden');
     const usr = document.getElementById('user-display').innerText;
     document.getElementById('header-username').innerText = usr.split(' ')[0];
     document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
 
+    // VERIFICACIÓN DE ALIAS PARA MULTIPLAYER
     if(currentMode === 'multiplayer') {
-        if(document.getElementById('alias-input').value.length < 3) { hablar("Falta alias"); return; }
-        currentAlias = document.getElementById('alias-input').value;
-        iniciarBatalla();
+        const aliasValue = document.getElementById('alias-input').value;
+        if(aliasValue.length < 3) { hablar("Falta alias"); return; }
+        currentAlias = aliasValue;
+        iniciarBatalla(); // Ir a selección de avatar
     } else {
         hablar("Iniciando.");
         iniciarJuegoReal();
@@ -348,17 +353,14 @@ modeSelect.onchange = () => {
     document.getElementById('btn-start').innerText = isMulti ? '⚔️ Unirse a Batalla' : 'Empezar';
 };
 
-// --- LÓGICA DE PREGUNTAS (CORREGIDA) ---
+// --- PREGUNTAS ---
 function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // *** CORRECCIÓN: Ocultar 'Rendirse' en Modo Examen ***
-    if (currentMode === 'exam') {
-        btnQuitQuiz.classList.add('hidden'); 
-    } else {
-        btnQuitQuiz.classList.remove('hidden');
-    }
+    // CORRECCIÓN: OCULTAR RENDIRSE EN EXAMEN
+    if (currentMode === 'exam') btnQuitQuiz.classList.add('hidden');
+    else btnQuitQuiz.classList.remove('hidden');
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
 
@@ -380,19 +382,8 @@ function seleccionarOpcion(index, btnClickeado) {
     const isStudy = currentMode === 'study';
     const isMulti = currentMode === 'multiplayer';
     
-    // En examen: solo marcar visualmente, NO mostrar respuesta aun
-    if (!isStudy && !isMulti) {
-        if (seleccionTemporal !== null) return; // Ya seleccionó
-        seleccionTemporal = index;
-        const buttons = document.getElementById('options-container').querySelectorAll('button');
-        buttons.forEach(b => b.classList.remove('option-selected'));
-        btnClickeado.classList.add('option-selected');
-        btnNextQuestion.classList.remove('hidden');
-        return;
-    }
+    if ((isStudy || isMulti) && seleccionTemporal !== null) return;
 
-    // En Estudio/Multi:
-    if (seleccionTemporal !== null) return;
     seleccionTemporal = index;
     const buttons = document.getElementById('options-container').querySelectorAll('button');
     buttons.forEach(b => b.classList.remove('option-selected'));
@@ -440,18 +431,15 @@ function mostrarResultadoInmediato(seleccionada) {
     respuestasUsuario.push(seleccionada);
 }
 
-// === CORRECCIÓN CLAVE DEL BOTÓN SIGUIENTE ===
 btnNextQuestion.onclick = () => {
     const isStudy = currentMode === 'study';
     const isMulti = currentMode === 'multiplayer';
     
-    // En Estudio/Multi ya se guardó la respuesta al hacer clic en la opción
     if (isStudy || isMulti) {
         indiceActual++;
         cargarPregunta();
         if(isStudy) guardarProgresoEstudio();
     } 
-    // En Examen, la guardamos AHORA al dar Siguiente
     else if (seleccionTemporal !== null) {
         respuestasUsuario.push(seleccionTemporal);
         indiceActual++;
@@ -459,7 +447,7 @@ btnNextQuestion.onclick = () => {
     }
 };
 
-// --- RESTO DE LÓGICA DE INICIO ---
+// --- INICIAR JUEGO ---
 async function iniciarJuegoReal() {
     const tiempo = document.getElementById('time-select').value;
     if (tiempo !== 'infinity') {
@@ -519,7 +507,6 @@ async function terminarQuiz(abandono = false) {
     const msg = document.getElementById('custom-msg');
     
     if (currentMode === 'multiplayer' && currentSalaId) {
-        // ... (Lógica multiplayer) ...
         const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
         const pendientes = jugadoresActualizados.filter(j => !j.terminado).length;
         
@@ -568,7 +555,10 @@ function iniciarReloj() {
 }
 
 // --- AVATARES Y SALAS ---
-document.getElementById('btn-confirm-identity').onclick = () => mostrarSelectorSalas();
+document.getElementById('btn-confirm-identity').onclick = () => {
+    if(document.getElementById('player-nickname').value.length < 3) return;
+    mostrarSelectorSalas();
+};
 document.getElementById('back-to-setup').onclick = () => showScreen('setup-screen');
 document.getElementById('back-to-avatar').onclick = () => showScreen('avatar-screen');
 window.addEventListener('beforeunload', () => { if(currentSalaId) limpiarSala(currentSalaId); });
