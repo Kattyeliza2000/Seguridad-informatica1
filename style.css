@@ -1,4 +1,4 @@
-/* === ESTILOS v270 (Corregidos) === */
+/* === ESTILOS v302 (Final) === */
 * { box-sizing: border-box; }
 body { 
     font-family: 'Segoe UI', 'Roboto', sans-serif; 
@@ -6,17 +6,14 @@ body {
     color: #333; 
     margin: 0; 
     min-height: 100vh; 
-    
-    /* CORRECCIÓN: Centrado y posicionamiento para header fijo */
     display: flex; 
     flex-direction: column; 
-    align-items: center; /* Centrar horizontalmente el contenido */
-    justify-content: flex-start; /* Iniciar el contenido después del header */
-    padding-top: 80px; /* Espacio para el header fijo */
+    align-items: center; 
+    justify-content: flex-start; 
+    padding-top: 80px; 
     overflow-x: hidden; 
 }
 
-/* CORRECCIÓN: Asegurar que el Header ocupe el ancho total */
 header { 
     width: 100vw; 
     padding: 12px 20px; 
@@ -37,7 +34,6 @@ header {
 .header-profile-pic { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #ddd; object-fit: cover; }
 .header-controls { display: flex; align-items: center; gap: 10px; }
 
-/* CORRECCIÓN: Centrar el contenedor principal */
 .container { 
     width: 95%; 
     max-width: 380px; 
@@ -45,15 +41,12 @@ header {
     padding: 25px; 
     border-radius: 12px; 
     box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
-    
-    margin: 20px auto; /* Centrado automático */
-    
+    margin: 20px auto; 
     position: relative; 
     z-index: 10; 
     border: 1px solid #e1e4e8; 
 }
 
-/* === ESTILOS ESPECÍFICOS DE PANTALLAS === */
 .auth-title { color: #1a73e8; font-size: 1.6rem; font-weight: 600; margin: 0 0 8px 0; letter-spacing: -0.5px; }
 .auth-subtitle { color: #5f6368; font-size: 0.9rem; margin: 0 0 25px 0; }
 .btn-google-style { background: white; color: #3c4043; border: 1px solid #dadce0; padding: 12px 20px; width: 100%; border-radius: 50px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; font-weight: 500; transition: all 0.2s; font-size: 0.95rem; font-family: 'Google Sans', 'Roboto', arial, sans-serif; }
@@ -74,7 +67,6 @@ header {
 .avatar-selected { border-color: #1a73e8 !important; background: #e8f0fe !important; transform: scale(1.1); }
 #player-nickname { width: 100%; padding: 10px; margin-top: 15px; border: 1px solid #dadce0; border-radius: 6px; font-size: 1rem; text-align: center; font-weight: bold; color: #1a73e8; outline: none; }
 #alias-input { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 1rem; text-align: center; font-weight: bold; color: #1a73e8; outline: none; }
-
 
 .control-group { margin-bottom: 15px; text-align: left; }
 label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #444; }
@@ -138,8 +130,6 @@ input[type=range] { width: 60px; accent-color: #1a73e8; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
 
-
-/* --- REGLAS CSS PARA ICONOS EN MOVIMIENTO (Añadidas) --- */
 .moving-icon-win, .moving-icon-fail {
     font-size: 1.5rem;
     margin-right: 10px;
@@ -147,11 +137,11 @@ input[type=range] { width: 60px; accent-color: #1a73e8; }
     display: inline-block; 
 }
 .moving-icon-win {
-    color: #28a745; /* Verde para la victoria/logro */
+    color: #28a745; 
     animation: bounce 1s infinite;
 }
 .moving-icon-fail {
-    color: #1a73e8; /* Azul para el ícono de tristeza/derrota */
+    color: #1a73e8; 
     animation: shake 0.5s infinite;
 }
 
