@@ -21,7 +21,7 @@ const db = getFirestore(app);
 // --- 2. LISTA DE CORREOS AUTORIZADOS ---
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
 
-// AGREGADO: iastudillol@unemi.edu.ec en la lista de 1 dispositivo
+// CORRECCIÓN AQUÍ: Se agregaron las comas que faltaban para evitar que se trabe la carga
 const correosUnDispositivo = [
     "cnavarretem4@unemi.edu.ec", 
     "iastudillol@unemi.edu.ec", 
@@ -56,6 +56,7 @@ let tempBattleID = null;
 let unsubscribeRoom = null; 
 let currentSalaId = null; 
 let jugadoresEnSalaAlFinal = []; 
+let ghostHostTimer = null; 
 
 // --- 3. CONFIGURACIÓN DE AVATARES Y SALAS ---
 const AVATAR_CONFIG = [
@@ -106,7 +107,6 @@ function showScreen(screenId) {
 function playClick() {
     const sfx = document.getElementById('click-sound');
     if(sfx) { 
-        // Obtener volumen actual del slider
         const vol = parseFloat(document.getElementById('volume-slider').value);
         sfx.volume = vol;
         sfx.currentTime = 0; 
@@ -131,13 +131,11 @@ function hablar(texto) {
     synth.cancel();
     
     const utterance = new SpeechSynthesisUtterance(texto);
-    
-    // Obtener volumen actual del slider
     const vol = parseFloat(document.getElementById('volume-slider').value);
     
     utterance.lang = 'es-ES';
     utterance.rate = 1.0;
-    utterance.volume = vol; // Aplicar volumen a la voz
+    utterance.volume = vol; 
     
     synth.speak(utterance);
 }
@@ -272,6 +270,20 @@ function mostrarSelectorSalas() {
     });
 }
 
+// --- FUNCIÓN CLAVE: REINICIAR SALA SUCIA MANUALMENTE ---
+async function forzarReinicioSala(salaId) {
+    if(!salaId) return;
+    if(confirm("¿Seguro que quieres eliminar a todos y reiniciar esta sala? Úsalo si el Host no responde.")) {
+        const salaRef = doc(db, "salas_activas", salaId);
+        await updateDoc(salaRef, { 
+            jugadores: [],
+            estado: "esperando",
+            fechaCreacion: new Date()
+        });
+        setTimeout(() => unirseASala(salaId), 500);
+    }
+}
+
 // --- FUNCIÓN UNIRSE A SALA ---
 async function unirseASala(salaId) {
     if (!uidJugadorPermanente || !currentAlias) return; 
@@ -281,6 +293,7 @@ async function unirseASala(salaId) {
 
     const salaRef = doc(db, "salas_activas", salaId);
     
+    // Limpieza preliminar automática
     const prepararSalaParaIngreso = async () => {
         const snap = await getDoc(salaRef);
         if (snap.exists()) {
@@ -295,21 +308,12 @@ async function unirseASala(salaId) {
             } else {
                 fechaCreacion = new Date();
             }
-
             const ahora = new Date();
             const diferenciaMinutos = (ahora - fechaCreacion) / 1000 / 60;
 
-            const salaVieja = diferenciaMinutos > 10;
-            const partidaAbandonada = (data.estado === 'jugando' && jugadores.filter(j => !j.terminado).length === 0);
-            const hayZombies = jugadores.some(j => j.terminado === true);
-
-            if (salaVieja || partidaAbandonada || hayZombies || jugadores.length === 0) {
-                 console.log("Limpiando sala fantasma/vieja...");
-                 await updateDoc(salaRef, { 
-                     jugadores: [],
-                     estado: "esperando",
-                     fechaCreacion: new Date()
-                 });
+            if (diferenciaMinutos > 5) {
+                 console.log("Sala expirada. Limpiando...");
+                 await updateDoc(salaRef, { jugadores: [], estado: "esperando", fechaCreacion: new Date() });
                  return [];
             } else {
                  await updateDoc(salaRef, { jugadores: jugadores });
@@ -346,6 +350,10 @@ async function unirseASala(salaId) {
     showScreen('lobby-screen');
     if (lobbyTitle) lobbyTitle.innerText = `SALA: ${salaId.replace('SALA_', '').replace(/_/g, ' ')}`;
     
+    const existingResetBtn = document.getElementById('btn-manual-reset');
+    if(existingResetBtn) existingResetBtn.remove();
+    if(ghostHostTimer) clearTimeout(ghostHostTimer);
+
     unsubscribeRoom = onSnapshot(salaRef, async (docSnap) => {
         if (!docSnap.exists()) {
              if(unsubscribeRoom) unsubscribeRoom(); 
@@ -359,6 +367,9 @@ async function unirseASala(salaId) {
         let jugadores = data.jugadores || [];
         
         const esHost = jugadores.length > 0 && jugadores[0].uid === uidJugadorPermanente;
+
+        const spinner = document.querySelector('.lobby-status .spinner');
+        if(spinner && jugadores.length > 0) spinner.classList.add('hidden');
 
         if (lobbyPlayers) {
             lobbyPlayers.innerHTML = jugadores.map(p => {
@@ -374,6 +385,9 @@ async function unirseASala(salaId) {
         if (btnStartWar) {
             if (data.estado === 'esperando') {
                 if (esHost) {
+                    const resetBtn = document.getElementById('btn-manual-reset');
+                    if(resetBtn) resetBtn.remove();
+
                     if (jugadores.length >= 2) {
                         btnStartWar.classList.remove('hidden');
                         lobbyStatusText.innerText = `¡Oponente(s) encontrado(s) (${jugadores.length} de 2). Presiona INICIAR BATALLA.`;
@@ -386,12 +400,30 @@ async function unirseASala(salaId) {
                     btnStartWar.classList.add('hidden');
                     const hostName = jugadores.length > 0 ? jugadores[0].name : 'Host Desconocido';
                     lobbyStatusText.innerText = `Esperando al Host (${hostName}) para iniciar...`;
+
+                    if (!document.getElementById('btn-manual-reset')) {
+                        ghostHostTimer = setTimeout(() => {
+                            const container = document.getElementById('lobby-screen');
+                            const btnReset = document.createElement('button');
+                            btnReset.id = 'btn-manual-reset';
+                            btnReset.className = 'btn-secondary';
+                            btnReset.innerText = '¿El Host no responde? Reiniciar Sala';
+                            btnReset.style.marginTop = '10px';
+                            btnReset.style.borderColor = '#ea4335';
+                            btnReset.style.color = '#ea4335';
+                            btnReset.onclick = () => forzarReinicioSala(salaId);
+                            
+                            const leaveBtn = document.getElementById('btn-leave-lobby');
+                            container.insertBefore(btnReset, leaveBtn);
+                        }, 4000);
+                    }
                 }
             } 
         }
         
         if (data.estado === 'jugando') {
              if(unsubscribeRoom) unsubscribeRoom(); 
+             if(ghostHostTimer) clearTimeout(ghostHostTimer);
              
              roomsScreen.classList.add('hidden');
              document.getElementById('lobby-screen').classList.add('hidden');
@@ -418,6 +450,7 @@ async function unirseASala(salaId) {
         if (confirm("¿Seguro que quieres abandonar la sala?")) {
             await limpiarSala(salaId); 
             if(unsubscribeRoom) unsubscribeRoom();
+            if(ghostHostTimer) clearTimeout(ghostHostTimer);
             currentSalaId = null; 
             showScreen('setup-screen'); 
         }
