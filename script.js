@@ -67,7 +67,6 @@ function showScreen(screenId) {
     document.getElementById(screenId).classList.remove('hidden');
 }
 
-// === VOLUMEN ===
 function obtenerVolumen() {
     return volumeSlider ? parseFloat(volumeSlider.value) : 0.5;
 }
@@ -313,10 +312,9 @@ btnLogout.onclick = async () => {
     }
 };
 
-// --- JUEGO START ---
+// --- JUEGO START (CORREGIDO UNIRSE A BATALLA) ---
 document.getElementById('btn-start').onclick = () => {
-    // CORRECCIÓN: Captura el modo directamente del select en el momento del click
-    currentMode = document.getElementById('mode-select').value;
+    currentMode = modeSelect.value; // Asegurar captura de modo
     
     document.getElementById('header-user-info').classList.remove('hidden');
     const usr = document.getElementById('user-display').innerText;
@@ -352,38 +350,16 @@ modeSelect.onchange = () => {
     document.getElementById('btn-start').innerText = isMulti ? '⚔️ Unirse a Batalla' : 'Empezar';
 };
 
-// --- EVENTO NUEVO BOTÓN "SALIR AL MENÚ" ---
-// Este botón aparece en el header del quiz (arriba a la izquierda)
-document.getElementById('btn-exit-quiz').onclick = async () => {
-    const confirmMsg = currentMode === 'exam' 
-        ? "¿Seguro? Si sales del examen perderás este intento." 
-        : "¿Salir al menú? Tu progreso en modo estudio se guardará.";
-        
-    if(confirm(confirmMsg)) {
-        if(currentMode === 'study') await guardarProgresoEstudio();
-        clearInterval(intervaloTiempo);
-        showScreen('setup-screen');
-        
-        // Ocultar header info al volver
-        document.getElementById('header-user-info').classList.add('hidden');
-        
-        // Detener música
-        const bg = document.getElementById('bg-music');
-        if(bg) { bg.pause(); bg.currentTime = 0; }
-    }
-};
-
 // --- PREGUNTAS ---
 function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // CORRECCIÓN: SOLO mostrar Rendirse en MULTIPLAYER
-    // En los otros modos, se usa "Salir al Menú" (arriba)
+    // CORRECCIÓN DEFINITIVA: RENDIRSE SOLO EN MULTIPLAYER
     if (currentMode === 'multiplayer') {
         btnQuitQuiz.classList.remove('hidden'); 
     } else {
-        btnQuitQuiz.classList.add('hidden');
+        btnQuitQuiz.classList.add('hidden'); // OCULTO EN ESTUDIO Y EXAMEN
     }
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
@@ -514,19 +490,16 @@ function empezarNuevoJuego() {
     cargarPregunta();
 }
 
-// --- TERMINAR ---
+// --- TERMINAR (CORRECCIÓN: BOTÓN REVISAR SIEMPRE DISPONIBLE EN EXAMEN/ESTUDIO) ---
 async function terminarQuiz(abandono = false) {
     clearInterval(intervaloTiempo);
     const btnReview = document.getElementById('btn-review');
     const btnInicio = document.getElementById('btn-inicio-final');
     
-    // Deshabilitar por defecto
     btnReview.disabled = true;
     btnInicio.disabled = true;
 
-    if(currentMode === 'study' && !abandono && indiceActual >= preguntasExamen.length - 1) {
-        await borrarProgresoEstudio();
-    }
+    if(currentMode === 'study' && !abandono) await borrarProgresoEstudio();
 
     let aciertos = 0;
     respuestasUsuario.forEach((r, i) => { if(r === preguntasExamen[i].respuesta) aciertos++; });
@@ -563,17 +536,18 @@ async function terminarQuiz(abandono = false) {
              });
         }
     } else {
-        // === INDIVIDUAL (EXAMEN/ESTUDIO) ===
+        // === MODO INDIVIDUAL (EXAMEN / ESTUDIO) ===
         if(aciertos === preguntasExamen.length) msg.innerText = "¡Perfecto!";
         else msg.innerText = "Finalizado.";
         
+        // Habilitar botones inmediatamente
         btnReview.disabled = false;
         btnInicio.disabled = false;
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
         
-        if(currentMode !== 'study') btnReview.classList.remove('hidden');
-        else btnReview.classList.add('hidden');
+        // MOSTRAR REVISAR SIEMPRE EN ESTOS MODOS
+        btnReview.classList.remove('hidden');
     }
 }
 
@@ -595,7 +569,7 @@ document.getElementById('btn-confirm-identity').onclick = () => {
 document.getElementById('back-to-setup').onclick = () => showScreen('setup-screen');
 document.getElementById('back-to-avatar').onclick = () => showScreen('avatar-screen');
 
-// Botón INICIO (Final)
+// Botón Volver al Inicio (Limpia y recarga)
 document.getElementById('btn-inicio-final').onclick = async () => {
     if (currentSalaId && tempBattleID) await limpiarSala(currentSalaId); 
     location.reload();
