@@ -15,7 +15,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- LISTAS DE ACCESO ---
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
 const correosUnDispositivo = [
     "cnavarretem4@unemi.edu.ec", "iastudillol@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", 
@@ -23,7 +22,6 @@ const correosUnDispositivo = [
 ];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
-// --- VARIABLES ---
 let preguntasExamen = []; 
 let indiceActual = 0;
 let respuestasUsuario = []; 
@@ -53,7 +51,6 @@ const AVATAR_CONFIG = [
 
 const ROOM_ICONS = { "SALA_FIREWALL": "fa-fire", "SALA_ENCRIPTADO": "fa-lock", "SALA_ZERO_DAY": "fa-bug", "SALA_PHISHING": "fa-fish", "SALA_RANSOMWARE": "fa-skull-crossbones", "SALA_BOTNET": "fa-robot" };
 
-// REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
@@ -65,31 +62,36 @@ const btnQuitQuiz = document.getElementById('btn-quit-quiz');
 const modeSelect = document.getElementById('mode-select');
 const volumeSlider = document.getElementById('volume-slider');
 
-// --- UTILS ---
 function showScreen(screenId) {
     document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
     document.getElementById(screenId).classList.remove('hidden');
 }
 
-// VOLUMEN
+// === GESTIÓN DE VOLUMEN MAESTRO ===
 function obtenerVolumen() {
     return volumeSlider ? parseFloat(volumeSlider.value) : 0.5;
 }
 
 function actualizarVolumen() {
     const vol = obtenerVolumen();
+    
+    // 1. Actualizar música y efectos
     document.querySelectorAll('audio').forEach(a => {
         a.volume = vol;
         a.muted = (vol <= 0);
     });
+    
+    // 2. Actualizar icono
     const icon = document.getElementById('vol-icon');
     if(icon) icon.className = 'fa-solid ' + (vol <= 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
+    
+    // 3. Actualizar voz (si está hablando ahora mismo, cancelar y re-hablar podría ser molesto, 
+    // pero la próxima vez que hable usará este volumen)
 }
 
 if(volumeSlider) {
     volumeSlider.addEventListener('input', actualizarVolumen);
-    // Inicializar volumen al cargar
-    actualizarVolumen();
+    setTimeout(actualizarVolumen, 500); // Inicializar al cargar
 }
 
 document.getElementById('btn-mute').addEventListener('click', () => {
@@ -133,13 +135,17 @@ function obtenerDeviceId() {
     return deviceId;
 }
 
+// === FUNCIÓN DE VOZ CONECTADA AL VOLUMEN ===
 function hablar(texto) {
     const synth = window.speechSynthesis;
     if (!synth) return;
     synth.cancel();
     const u = new SpeechSynthesisUtterance(texto);
     u.lang = 'es-ES';
+    
+    // Aquí conectamos la voz al slider
     u.volume = obtenerVolumen(); 
+    
     synth.speak(u);
 }
 
@@ -243,11 +249,10 @@ onAuthStateChanged(auth, async (user) => {
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
                 document.getElementById('header-user-info').classList.add('hidden');
-                
-                // FORZAR VISIBILIDAD BOTÓN SALIR
                 btnLogout.classList.remove('hidden');
                 
-                setTimeout(() => hablar(`Hola ${user.displayName.split(' ')[0]}`), 500);
+                // MENSAJE DE BIENVENIDA RECUPERADO
+                setTimeout(() => hablar(`Bienvenido ${user.displayName.split(' ')[0]}, elija la opción que necesite.`), 500);
             }
         } else {
             alert("Correo no autorizado"); signOut(auth);
@@ -322,21 +327,28 @@ btnLogout.onclick = async () => {
 
 // --- JUEGO START ---
 document.getElementById('btn-start').onclick = () => {
-    currentMode = modeSelect.value; // Capturar modo
+    currentMode = modeSelect.value; 
     
     document.getElementById('header-user-info').classList.remove('hidden');
     const usr = document.getElementById('user-display').innerText;
     document.getElementById('header-username').innerText = usr.split(' ')[0];
     document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
 
-    // VERIFICACIÓN DE ALIAS PARA MULTIPLAYER
     if(currentMode === 'multiplayer') {
-        const aliasValue = document.getElementById('alias-input').value;
-        if(aliasValue.length < 3) { hablar("Falta alias"); return; }
-        currentAlias = aliasValue;
-        iniciarBatalla(); // Ir a selección de avatar
+        const aliasVal = document.getElementById('alias-input').value.trim();
+        if(aliasVal.length < 3) { 
+            hablar("Por favor, introduce un alias de al menos tres letras."); 
+            document.getElementById('alias-input').focus();
+            return; 
+        }
+        currentAlias = aliasVal;
+        
+        // MENSAJE DE BATALLA RECUPERADO
+        hablar(`¡Excelente, ${currentAlias}! Elige tu avatar y tu zona de guerra.`);
+        iniciarBatalla(); 
     } else {
-        hablar("Iniciando.");
+        // MENSAJE DE MODO RECUPERADO
+        hablar(`Magnífico, has seleccionado el modo ${currentMode === 'exam' ? 'examen' : 'estudio'}. Buena suerte.`);
         iniciarJuegoReal();
     }
     
@@ -358,9 +370,13 @@ function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // CORRECCIÓN: OCULTAR RENDIRSE EN EXAMEN
-    if (currentMode === 'exam') btnQuitQuiz.classList.add('hidden');
-    else btnQuitQuiz.classList.remove('hidden');
+    // === CORRECCIÓN CRÍTICA: OCULTAR 'RENDIRSE' SOLO EN EXAMEN ===
+    // En Estudio y Batalla SÍ aparece.
+    if (currentMode === 'exam') {
+        btnQuitQuiz.classList.add('hidden'); 
+    } else {
+        btnQuitQuiz.classList.remove('hidden');
+    }
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
 
@@ -447,7 +463,7 @@ btnNextQuestion.onclick = () => {
     }
 };
 
-// --- INICIAR JUEGO ---
+// --- RESTO DE LÓGICA DE INICIO ---
 async function iniciarJuegoReal() {
     const tiempo = document.getElementById('time-select').value;
     if (tiempo !== 'infinity') {
@@ -466,6 +482,7 @@ async function iniciarJuegoReal() {
                 preguntasExamen = p.indicesPreguntas.map(i => bancoPreguntas[i]);
                 respuestasUsuario = p.respuestasUsuario || [];
                 indiceActual = p.indiceActual;
+                hablar("Recuperando tu sesión.");
                 showScreen('quiz-screen'); cargarPregunta();
             };
             document.getElementById('btn-resume-no').onclick = async () => {
@@ -494,8 +511,9 @@ async function terminarQuiz(abandono = false) {
     clearInterval(intervaloTiempo);
     const btnReview = document.getElementById('btn-review');
     const btnInicio = document.getElementById('btn-inicio-final');
-    if(btnReview) btnReview.disabled = true;
-    if(btnInicio) btnInicio.disabled = true;
+    
+    btnReview.disabled = true;
+    btnInicio.disabled = true;
 
     if(currentMode === 'study' && !abandono) await borrarProgresoEstudio();
 
@@ -518,6 +536,8 @@ async function terminarQuiz(abandono = false) {
         } else {
              msg.innerHTML = `Esperando a ${pendientes} jugadores...`;
              document.getElementById('room-results-box').classList.add('hidden');
+             btnReview.disabled = true;
+             btnInicio.disabled = true;
              
              unsubscribeRoom = onSnapshot(doc(db, "salas_activas", currentSalaId), (snap) => {
                  if(!snap.exists()) return;
@@ -532,8 +552,10 @@ async function terminarQuiz(abandono = false) {
              });
         }
     } else {
+        // === MODO EXAMEN/ESTUDIO ===
         if(aciertos === preguntasExamen.length) msg.innerText = "¡Perfecto!";
         else msg.innerText = "Finalizado.";
+        
         btnReview.disabled = false;
         btnInicio.disabled = false;
         document.getElementById('room-results-box').classList.add('hidden');
