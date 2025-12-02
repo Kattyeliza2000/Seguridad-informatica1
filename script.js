@@ -67,31 +67,24 @@ function showScreen(screenId) {
     document.getElementById(screenId).classList.remove('hidden');
 }
 
-// === GESTIÓN DE VOLUMEN MAESTRO ===
+// === VOLUMEN ===
 function obtenerVolumen() {
     return volumeSlider ? parseFloat(volumeSlider.value) : 0.5;
 }
 
 function actualizarVolumen() {
     const vol = obtenerVolumen();
-    
-    // 1. Actualizar música y efectos
     document.querySelectorAll('audio').forEach(a => {
         a.volume = vol;
         a.muted = (vol <= 0);
     });
-    
-    // 2. Actualizar icono
     const icon = document.getElementById('vol-icon');
     if(icon) icon.className = 'fa-solid ' + (vol <= 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
-    
-    // 3. Actualizar voz (si está hablando ahora mismo, cancelar y re-hablar podría ser molesto, 
-    // pero la próxima vez que hable usará este volumen)
 }
 
 if(volumeSlider) {
     volumeSlider.addEventListener('input', actualizarVolumen);
-    setTimeout(actualizarVolumen, 500); // Inicializar al cargar
+    setTimeout(actualizarVolumen, 500);
 }
 
 document.getElementById('btn-mute').addEventListener('click', () => {
@@ -135,17 +128,13 @@ function obtenerDeviceId() {
     return deviceId;
 }
 
-// === FUNCIÓN DE VOZ CONECTADA AL VOLUMEN ===
 function hablar(texto) {
     const synth = window.speechSynthesis;
     if (!synth) return;
     synth.cancel();
     const u = new SpeechSynthesisUtterance(texto);
     u.lang = 'es-ES';
-    
-    // Aquí conectamos la voz al slider
     u.volume = obtenerVolumen(); 
-    
     synth.speak(u);
 }
 
@@ -251,7 +240,6 @@ onAuthStateChanged(auth, async (user) => {
                 document.getElementById('header-user-info').classList.add('hidden');
                 btnLogout.classList.remove('hidden');
                 
-                // MENSAJE DE BIENVENIDA RECUPERADO
                 setTimeout(() => hablar(`Bienvenido ${user.displayName.split(' ')[0]}, elija la opción que necesite.`), 500);
             }
         } else {
@@ -342,12 +330,9 @@ document.getElementById('btn-start').onclick = () => {
             return; 
         }
         currentAlias = aliasVal;
-        
-        // MENSAJE DE BATALLA RECUPERADO
         hablar(`¡Excelente, ${currentAlias}! Elige tu avatar y tu zona de guerra.`);
         iniciarBatalla(); 
     } else {
-        // MENSAJE DE MODO RECUPERADO
         hablar(`Magnífico, has seleccionado el modo ${currentMode === 'exam' ? 'examen' : 'estudio'}. Buena suerte.`);
         iniciarJuegoReal();
     }
@@ -370,12 +355,11 @@ function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // === CORRECCIÓN CRÍTICA: OCULTAR 'RENDIRSE' SOLO EN EXAMEN ===
-    // En Estudio y Batalla SÍ aparece.
-    if (currentMode === 'exam') {
-        btnQuitQuiz.classList.add('hidden'); 
+    // === CORRECCIÓN: Ocultar Rendirse en Examen Y Estudio (Solo batalla) ===
+    if (currentMode === 'multiplayer') {
+        btnQuitQuiz.classList.remove('hidden'); 
     } else {
-        btnQuitQuiz.classList.remove('hidden');
+        btnQuitQuiz.classList.add('hidden');
     }
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
@@ -512,6 +496,7 @@ async function terminarQuiz(abandono = false) {
     const btnReview = document.getElementById('btn-review');
     const btnInicio = document.getElementById('btn-inicio-final');
     
+    // Deshabilitar por defecto
     btnReview.disabled = true;
     btnInicio.disabled = true;
 
@@ -552,7 +537,7 @@ async function terminarQuiz(abandono = false) {
              });
         }
     } else {
-        // === MODO EXAMEN/ESTUDIO ===
+        // === INDIVIDUAL (EXAMEN/ESTUDIO) ===
         if(aciertos === preguntasExamen.length) msg.innerText = "¡Perfecto!";
         else msg.innerText = "Finalizado.";
         
@@ -561,8 +546,8 @@ async function terminarQuiz(abandono = false) {
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
         
-        if(currentMode !== 'study') btnReview.classList.remove('hidden');
-        else btnReview.classList.add('hidden');
+        // MOSTRAR REVISAR
+        btnReview.classList.remove('hidden');
     }
 }
 
