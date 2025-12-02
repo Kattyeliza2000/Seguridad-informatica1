@@ -232,11 +232,15 @@ onAuthStateChanged(auth, async (user) => {
             
             if (valid) {
                 showScreen('setup-screen');
+                
+                // GUARDAR INFO EN VARIABLES PERO NO MOSTRAR EN HEADER AÚN
                 document.getElementById('user-display').innerText = user.displayName;
                 if (user.photoURL) {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
+                
+                // ** ASEGURAR QUE EL HEADER NO MUESTRA LA FOTO TODAVÍA **
                 document.getElementById('header-user-info').classList.add('hidden');
                 btnLogout.classList.remove('hidden');
                 
@@ -313,10 +317,11 @@ btnLogout.onclick = async () => {
     }
 };
 
-// --- JUEGO START ---
+// --- JUEGO START (HEADER Y NAVEGACIÓN) ---
 document.getElementById('btn-start').onclick = () => {
     currentMode = modeSelect.value; 
     
+    // 1. AHORA SÍ MOSTRAR LA FOTO EN EL HEADER
     document.getElementById('header-user-info').classList.remove('hidden');
     const usr = document.getElementById('user-display').innerText;
     document.getElementById('header-username').innerText = usr.split(' ')[0];
@@ -331,6 +336,8 @@ document.getElementById('btn-start').onclick = () => {
         }
         currentAlias = aliasVal;
         hablar(`¡Excelente, ${currentAlias}! Elige tu avatar y tu zona de guerra.`);
+        
+        // ** NAVEGACIÓN A AVATARES **
         iniciarBatalla(); 
     } else {
         hablar(`Magnífico, has seleccionado el modo ${currentMode === 'exam' ? 'examen' : 'estudio'}. Buena suerte.`);
@@ -355,10 +362,11 @@ function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // === CORRECCIÓN: Ocultar Rendirse en Examen Y Estudio (Solo batalla) ===
+    // === CORRECCIÓN DEFINITIVA: RENDIRSE SOLO EN MULTIPLAYER ===
     if (currentMode === 'multiplayer') {
         btnQuitQuiz.classList.remove('hidden'); 
     } else {
+        // EN EXAMEN Y ESTUDIO: OCULTO
         btnQuitQuiz.classList.add('hidden');
     }
 
@@ -546,8 +554,9 @@ async function terminarQuiz(abandono = false) {
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
         
-        // MOSTRAR REVISAR
-        btnReview.classList.remove('hidden');
+        // MOSTRAR REVISAR (EXCEPTO ESTUDIO DONDE YA SE VIO)
+        // Si quieres que SIEMPRE se pueda revisar, quita el if.
+        btnReview.classList.remove('hidden'); 
     }
 }
 
