@@ -21,10 +21,10 @@ const db = getFirestore(app);
 // --- 2. LISTA DE CORREOS AUTORIZADOS ---
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
 
-// *** AQUÍ ESTABA EL ERROR: FALTABA LA COMA DESPUÉS DE IASTUDILLOL ***
+// AGREGADO CORRECTAMENTE
 const correosUnDispositivo = [
     "cnavarretem4@unemi.edu.ec", 
-    "iastudillol@unemi.edu.ec", // <--- COMA AGREGADA AQUÍ
+    "iastudillol@unemi.edu.ec", 
     "gorellanas2@unemi.edu.ec", 
     "ehidalgoc4@unemi.edu.ec", 
     "lbrionesg3@unemi.edu.ec", 
@@ -113,23 +113,54 @@ function playClick() {
     }
 }
 
+// === GENERADOR DE HUELLA DIGITAL (Canvas Fingerprinting) ===
+// Esto soluciona el problema de "mismo dispositivo, caché borrada"
+function getCanvasFingerprint() {
+    try {
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        var txt = "i9asdm..$#poLP";
+        ctx.textBaseline = "top";
+        ctx.font = "14px 'Arial'";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(125,1,62,20);
+        ctx.fillStyle = "#069";
+        ctx.fillText(txt, 2, 15);
+        ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+        ctx.fillText(txt, 4, 17);
+        
+        // Convertimos el dibujo en un string base64
+        return canvas.toDataURL();
+    } catch (e) {
+        return "err"; 
+    }
+}
+
+// Generar un ID corto a partir de la huella larga
+function hashFingerprint(str) {
+    let hash = 0, i, chr;
+    if (str.length === 0) return hash;
+    for (i = 0; i < str.length; i++) {
+        chr = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0; 
+    }
+    return "DEV_" + Math.abs(hash).toString(36);
+}
+
 // --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
 function obtenerDeviceId() {
-    // GENERAR HUELLA SIMPLE
-    const nav = window.navigator;
-    const screen = window.screen;
-    const rawString = `${nav.userAgent}||${nav.language}||${screen.colorDepth}||${screen.width}x${screen.height}||${new Date().getTimezoneOffset()}`;
-    let hash = 0;
-    for (let i = 0; i < rawString.length; i++) {
-        const char = rawString.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; 
-    }
-    const fingerprint = "DEV_" + Math.abs(hash).toString(36);
+    // 1. Intentamos obtener la huella de hardware
+    const rawFingerprint = getCanvasFingerprint();
+    const hardwareId = hashFingerprint(rawFingerprint);
+    
+    // 2. Combinamos con datos de pantalla para evitar colisiones
+    const screenInfo = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
+    const finalId = hardwareId + "_" + hashFingerprint(screenInfo);
 
-    // Guardamos y retornamos
-    localStorage.setItem('device_id_seguro', fingerprint);
-    return fingerprint;
+    console.log("ID DE DISPOSITIVO DETECTADO:", finalId);
+    return finalId;
 }
 
 function hablar(texto) {
@@ -245,7 +276,7 @@ function initAvatars() {
     }
 }
 
-// === FUNCIÓN DE LIMPIEZA AUTOMÁTICA ===
+// === FUNCIÓN DE LIMPIEZA AUTOMÁTICA (CONSERJE) ===
 async function limpiarSalasViejasAutomaticamente() {
     try {
         const salasSnapshot = await getDocs(collection(db, "salas_activas"));
@@ -269,6 +300,7 @@ async function limpiarSalasViejasAutomaticamente() {
             const estaVacia = jugadores.length === 0;
 
             if (esLobbyViejo || esJuegoMuyViejo || estaVacia) {
+                console.log(`🧹 Limpiando sala automática: ${docSnap.id}`);
                 await deleteDoc(doc(db, "salas_activas", docSnap.id));
             }
         });
@@ -519,10 +551,12 @@ async function limpiarSala(salaId) {
 }
 
 
-// --- 7. LÓGICA DE SEGURIDAD AVANZADA ---
+// --- 7. LÓGICA DE SEGURIDAD AVANZADA (HUELLA HARDWARE) ---
 async function validarDispositivo(user) {
     currentUserEmail = user.email;
     uidJugadorPermanente = user.uid;
+    
+    // Usamos el ID de Hardware que NO cambia al borrar caché
     const miDeviceId = obtenerDeviceId(); 
     
     let limiteDispositivos = 1;
@@ -538,21 +572,25 @@ async function validarDispositivo(user) {
         let listaDispositivos = datos.dispositivos || []; 
         
         if (listaDispositivos.includes(miDeviceId)) {
+            // El dispositivo ya estaba registrado, entra directo
             return true;
         } else {
-            // BLOQUEO ESTRICTO
+            // Dispositivo NUEVO. Verificamos si hay cupo.
             if (listaDispositivos.length >= limiteDispositivos) {
-                alert(`⛔ ACCESO DENEGADO ⛔\n\nTu cuenta ya está activa en ${limiteDispositivos} dispositivo(s) registrados.\n\nSi borraste la caché o cambiaste de equipo, contacta al administrador.`);
+                // CUPO LLENO -> BLOQUEO (Seguridad estricta)
+                alert(`⛔ ACCESO DENEGADO ⛔\n\nTu cuenta ya está activa en ${limiteDispositivos} dispositivo(s) registrados.\n\nSi cambiaste de PC real, contacta al administrador.`);
                 await signOut(auth);
                 location.reload();
                 return false;
             } else {
+                // HAY CUPO -> Registramos el nuevo ID de hardware
                 let nuevaLista = [...listaDispositivos, miDeviceId];
                 await setDoc(docRef, { dispositivos: nuevaLista }, { merge: true });
                 return true;
             }
         }
     } else {
+        // Primera vez que entra
         await setDoc(docRef, {
             dispositivos: [miDeviceId],
             fecha_registro: new Date().toISOString()
@@ -573,7 +611,8 @@ onAuthStateChanged(auth, async (user) => {
                 if(btnAdmin) {
                     btnAdmin.classList.remove('hidden');
                     btnAdmin.onclick = () => {
-                        document.getElementById('admin-modal').classList.remove('hidden');
+                        const adminModal = document.getElementById('admin-modal');
+                        adminModal.classList.remove('hidden');
                     };
                 }
             }
@@ -581,6 +620,8 @@ onAuthStateChanged(auth, async (user) => {
             let nombre = user.displayName || user.email.split('@')[0];
             const partes = nombre.toLowerCase().split(' ');
             const nombreCompletoCorregido = partes.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+            
+            const nombreCorto = nombreCompletoCorregido.split(' ')[0];
             
             uidJugadorPermanente = user.uid;
             currentUserEmail = user.email;
@@ -601,7 +642,7 @@ onAuthStateChanged(auth, async (user) => {
                 document.getElementById('header-user-info').classList.add('hidden'); 
 
                 setTimeout(() => {
-                    hablar(`Bienvenido ${nombreCompletoCorregido.split(' ')[0]}, elija la opción que necesite.`);
+                    hablar(`Bienvenido ${nombreCorto}, elija la opción que necesite.`);
                 }, 500);
             }
         } else {
@@ -615,19 +656,23 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// EVENTOS ADMIN
+// EVENTOS DE CIERRE DEL MODAL ADMIN
 const closeAdminBtn = document.getElementById('close-admin');
 if(closeAdminBtn) {
-    closeAdminBtn.onclick = () => document.getElementById('admin-modal').classList.add('hidden');
+    closeAdminBtn.onclick = () => {
+        document.getElementById('admin-modal').classList.add('hidden');
+    };
 }
 
 const btnCleanRooms = document.getElementById('btn-admin-clean-rooms');
 if(btnCleanRooms) {
     btnCleanRooms.onclick = async () => {
-        if(confirm("¿Limpiar TODAS las salas?")) {
+        if(confirm("⚠️ ¿Estás segura de borrar TODAS las salas activas? Esto sacará a todos los jugadores.")) {
             const snapshot = await getDocs(collection(db, "salas_activas"));
-            snapshot.forEach(async (doc) => await deleteDoc(doc.ref));
-            alert("Salas limpiadas.");
+            snapshot.forEach(async (doc) => {
+                await deleteDoc(doc.ref);
+            });
+            alert("🧹 Todas las salas han sido eliminadas.");
             document.getElementById('admin-modal').classList.add('hidden');
         }
     };
@@ -638,52 +683,109 @@ if(btnResetUser) {
     btnResetUser.onclick = async () => {
         const input = document.getElementById('admin-user-email');
         const emailToReset = input ? input.value.trim() : null;
+        
         if (emailToReset && emailToReset.includes("@")) {
-            if(confirm(`¿Desbloquear a ${emailToReset}?`)) {
+            if(confirm(`¿Seguro que deseas desbloquear los dispositivos de ${emailToReset}?`)) {
                 try {
                     await deleteDoc(doc(db, "usuarios_seguros", emailToReset));
-                    alert("Usuario desbloqueado.");
-                    input.value = "";
-                } catch (error) { alert("Error: " + error.message); }
+                    alert(`✅ Dispositivos de ${emailToReset} reseteados correctamente.`);
+                    input.value = ""; 
+                } catch (error) {
+                    alert("❌ Error al resetear: " + error.message);
+                }
+                document.getElementById('admin-modal').classList.add('hidden');
             }
-        } else { alert("Correo inválido."); }
-    };
-}
-
-const btnAddUser = document.getElementById('btn-admin-add-user');
-if (btnAddUser) {
-    btnAddUser.onclick = async () => {
-        const emailInput = document.getElementById('admin-new-email');
-        const email = emailInput.value.trim();
-        const limitOptions = document.getElementsByName('device-limit');
-        let selectedLimit = 1;
-        for(let opt of limitOptions) { if(opt.checked) selectedLimit = parseInt(opt.value); }
-        if(email && email.includes('@')) {
-            // Agregar lógica para persistir en DB si quisieras a futuro, por ahora solo avisa
-            alert("Funcionalidad de agregar permanente requiere backend DB. Por ahora usa el código.");
+        } else {
+            alert("Por favor ingresa un correo válido.");
         }
     };
 }
+
 
 // --- 9. EVENTOS DE AUTENTICACIÓN ---
 document.getElementById('btn-google').addEventListener('click', () => {
     signInWithPopup(auth, new GoogleAuthProvider()).catch(e => {
         console.error("Error Google:", e);
-        alert("Error de inicio de sesión.");
+        alert("Error de inicio de sesión. Revisa la consola o permisos de pop-ups.");
     });
 });
 
 btnLogout.addEventListener('click', async () => {
     if(confirm("¿Cerrar sesión?")) {
-        if (currentSalaId && tempBattleID) await limpiarSala(currentSalaId); 
+        if (currentSalaId && tempBattleID) {
+            await limpiarSala(currentSalaId); 
+        }
         await signOut(auth);
         location.reload();
     }
 });
 
-// ... (RESTO DEL CÓDIGO DE JUEGO IGUAL) ...
-// Para no cortar, asegúrate de mantener todo el bloque de iniciarJuegoReal, cargarPregunta, etc. 
-// tal como estaba en la versión anterior, ya que esa parte funcionaba bien.
+// --- 10. LÓGICA DEL JUEGO / SETUP ---
+document.getElementById('btn-start').addEventListener('click', () => {
+    const modo = modeSelect.value;
+    
+    const nombreCompleto = document.getElementById('user-display').innerText;
+    const nombreCorto = nombreCompleto.split(' ')[0];
+
+    document.getElementById('header-user-info').classList.remove('hidden');
+    document.getElementById('header-username').innerText = nombreCorto;
+    document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
+
+
+    if (modo === 'multiplayer') {
+        const alias = aliasInput.value.trim();
+        if (alias.length < 3) {
+            hablar("Por favor, introduce un alias de al menos tres letras para la batalla.");
+            aliasInput.focus();
+            return;
+        }
+        currentAlias = alias;
+        hablar(`¡Excelente, ${alias}! Elige tu avatar y tu zona de guerra.`);
+        iniciarBatalla(); 
+    } else {
+        hablar(`Magnífico, has seleccionado el modo ${modo}. Buena suerte.`);
+        iniciarJuegoReal();
+    }
+    
+    const bgMusic = document.getElementById('bg-music');
+    if(bgMusic) { bgMusic.volume = obtenerVolumen(); bgMusic.play().catch(()=>{}); }
+});
+
+modeSelect.addEventListener('change', () => {
+    const isMultiplayer = modeSelect.value === 'multiplayer';
+    
+    if (isMultiplayer) {
+        aliasInputGroup.classList.remove('hidden');
+        btnStart.innerText = '⚔️ Unirse a Batalla';
+    } else {
+        aliasInputGroup.classList.add('hidden');
+        btnStart.innerText = 'Empezar';
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnConfirmIdentity = document.getElementById('btn-confirm-identity');
+    
+    if (btnConfirmIdentity) {
+        btnConfirmIdentity.addEventListener('click', () => {
+            const nick = document.getElementById('player-nickname').value.trim();
+            
+            if (nick.length < 3) {
+                 hablar("Por favor, introduce un apodo de al menos tres letras.");
+                 return;
+            }
+            
+            mostrarSelectorSalas();
+        });
+    }
+    
+    const backToSetup = document.getElementById('back-to-setup');
+    const backToAvatar = document.getElementById('back-to-avatar');
+    
+    if(backToSetup) backToSetup.addEventListener('click', () => showScreen('setup-screen'));
+    if(backToAvatar) backToAvatar.addEventListener('click', () => showScreen('avatar-screen'));
+});
+
 
 // =========================================================
 // === INICIAR JUEGO (CON MODAL PERSONALIZADO) ===
@@ -856,41 +958,62 @@ document.getElementById('btn-quit-quiz').addEventListener('click', () => {
     }
 });
 
+
+// --- ACTUALIZAR SCORE ---
 async function actualizarScoreEnSala(salaId, aciertos) {
     if (!salaId || !tempBattleID) return;
+
     const salaRef = doc(db, "salas_activas", salaId);
+    const scoreFinal = aciertos; 
+
     try {
         const snap = await getDoc(salaRef);
         if (snap.exists()) {
             let jugadores = snap.data().jugadores || [];
+            
             const indiceJugador = jugadores.findIndex(j => j.id === tempBattleID);
+            
             if (indiceJugador !== -1) {
-                jugadores[indiceJugador].score = aciertos;
+                jugadores[indiceJugador].score = scoreFinal;
                 jugadores[indiceJugador].terminado = true; 
-            } else return [];
+            } else {
+                return [];
+            }
+
             await updateDoc(salaRef, { jugadores: jugadores });
             return jugadores; 
         }
         return [];
-    } catch (e) { return []; }
+    } catch (e) {
+        console.error("Error actualizando score en sala:", e);
+        return [];
+    }
 }
+
 
 function dibujarPodio(jugadores) {
     if (!podiumContainer) return;
+    
     const ranking = jugadores.sort((a, b) => b.score - a.score);
+
     podiumContainer.innerHTML = '';
     roomResultsBox.classList.remove('hidden');
+
     const maxScore = ranking.length > 0 ? ranking[0].score : 1;
+    
     const minAltura = 40; 
     
     ranking.forEach((jugador, i) => {
+        
         const alturaPorcentaje = maxScore > 0 ? (jugador.score / maxScore) * (100 - minAltura) + minAltura : minAltura;
+        
         let puesto = i + 1;
         let cssOrder = puesto === 1 ? 2 : (puesto === 2 ? 1 : (puesto === 3 ? 3 : 4));
         
         const columna = document.createElement('div');
         columna.className = `podium-column`;
         columna.style.order = cssOrder;
+        
         columna.innerHTML = `
             <img src="${jugador.avatar}" class="podium-avatar" />
             <span class="podium-name">${jugador.name}</span>
@@ -905,6 +1028,7 @@ function dibujarPodio(jugadores) {
     }
 }
 
+// --- 13. FUNCIÓN TERMINAR QUIZ ---
 async function terminarQuiz(abandono = false) {
     const bgMusic = document.getElementById('bg-music');
     if(bgMusic) { bgMusic.pause(); bgMusic.currentTime = 0; }
@@ -912,13 +1036,18 @@ async function terminarQuiz(abandono = false) {
 
     const btnReview = document.getElementById('btn-review');
     const btnInicio = document.getElementById('btn-inicio-final'); 
+    
     if (btnReview) btnReview.disabled = true;
     if (btnInicio) btnInicio.disabled = true;
 
-    if (modeSelect.value === 'study' && !abandono) await borrarProgresoEstudio();
+    if (modeSelect.value === 'study' && !abandono) {
+        await borrarProgresoEstudio();
+    }
 
     let aciertos = 0;
-    respuestasUsuario.forEach((r, i) => { if (r === preguntasExamen[i].respuesta) aciertos++; });
+    respuestasUsuario.forEach((r, i) => { 
+        if (r === preguntasExamen[i].respuesta) aciertos++; 
+    });
     
     const totalPreguntas = preguntasExamen.length;
     const notaPorcentaje = totalPreguntas > 0 ? Math.round((aciertos / totalPreguntas) * 100) : 0;
@@ -934,75 +1063,149 @@ async function terminarQuiz(abandono = false) {
     
     if (sfxWin) sfxWin.volume = vol;
     if (sfxFail) sfxFail.volume = vol;
-    msg.className = ''; 
 
+    msg.className = ''; 
+    
     if (currentMode === 'multiplayer' && currentSalaId) {
-        const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
-        const jugadoresActivos = jugadoresActualizados.filter(j => j.estado === 'activo' || j.terminado === true);
-        const countFaltantes = jugadoresActivos.filter(j => j.terminado === false).length;
         
-        if (countFaltantes === 0) {
+        const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
+
+        const jugadoresActivos = jugadoresActualizados.filter(j => j.estado === 'activo' || j.terminado === true);
+        const jugadoresFaltantes = jugadoresActivos.filter(j => j.terminado === false);
+        const countFaltantes = jugadoresFaltantes.length;
+
+        const todosTerminados = countFaltantes === 0;
+
+        if (todosTerminados) {
             dibujarPodio(jugadoresActualizados);
-            msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA!'; 
+            msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA! Vea el Podio.'; 
             msg.style.color = "#1a73e8";
             hablar("La batalla ha terminado. Revisa el podio.");
+            
             if (btnReview) btnReview.disabled = false;
             if (btnInicio) btnInicio.disabled = false;
+
         } else {
+            
             roomResultsBox.classList.add('hidden'); 
             document.getElementById('btn-review').classList.add('hidden');
-            msg.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Esperando a ${countFaltantes} agentes...`;
+            if (btnReview) btnReview.disabled = true;
+            if (btnInicio) btnInicio.disabled = true;
+            
+            const mensajeEspera = countFaltantes > 1 
+                ? `Esperando a ${countFaltantes} agentes que siguen en juego...` 
+                : `Esperando a 1 agente que sigue en juego...`;
+
+            msg.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${mensajeEspera}`;
             msg.style.color = "#fbbc04";
             
+            if (finalAvatarDisplay && currentAvatarUrl) {
+                finalAvatarDisplay.src = currentAvatarUrl;
+                finalAvatarDisplay.classList.remove('hidden');
+            }
+
             const salaRef = doc(db, "salas_activas", currentSalaId);
             unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
                 if(!docSnap.exists()) return;
-                const jugadores = docSnap.data().jugadores || [];
-                const activos = jugadores.filter(j => j.id !== tempBattleID);
-                const pendientes = activos.filter(j => j.terminado === false).length;
+                const jugadoresEsperando = docSnap.data().jugadores || [];
+                const jugadoresActivosEnEspera = jugadoresEsperando.filter(j => j.id !== tempBattleID);
+                const countFaltantesListener = jugadoresActivosEnEspera.filter(j => j.terminado === false).length;
+                const todosHanTerminado = countFaltantesListener === 0;
                 
-                if (pendientes === 0) {
+                if (!todosHanTerminado) {
+                    const msgEspera = countFaltantesListener > 1 
+                        ? `Esperando a ${countFaltantesListener} agentes que siguen en juego...` 
+                        : `Esperando a 1 agente que sigue en juego...`;
+                    msg.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${msgEspera}`;
+                }
+                
+                if (todosHanTerminado) {
                     if (unsubscribeRoom) unsubscribeRoom(); 
-                    dibujarPodio(jugadores);
-                    msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA!'; 
+                    
+                    dibujarPodio(jugadoresEsperando);
+                    msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA! Vea el Podio.'; 
                     msg.style.color = "#1a73e8";
                     document.getElementById('btn-review').classList.remove('hidden');
-                    hablar("Todos han terminado.");
+                    hablar("Todos los agentes han completado su misión.");
+                    
                     if (btnReview) btnReview.disabled = false;
                     if (btnInicio) btnInicio.disabled = false;
                 }
             });
         }
+
     } else { 
         if (abandono) {
-            msg.innerText = "Finalizado por usuario."; 
+            msg.innerText = "Finalizado por usuario. Se registraron las respuestas completadas."; 
             msg.style.color = "#ea4335";
         } else if (aciertos === totalPreguntas) { 
-            msg.innerHTML = '<i class="fa-solid fa-trophy moving-icon-win"></i> ¡PERFECTO! 💯'; 
+            msg.innerHTML = '<i class="fa-solid fa-trophy moving-icon-win"></i> ¡FELICITACIONES! PUNTAJE PERFECTO 💯'; 
             msg.style.color = "#28a745"; 
             if (typeof createConfetti === 'function') createConfetti(); 
             if (sfxWin) sfxWin.play().catch(()=>{});
-            hablar("¡Increíble! Puntaje perfecto."); 
-        } else { 
-            msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Finalizado!'; 
+            hablar("¡Increíble! Has obtenido un puntaje perfecto. Eres un maestro en seguridad."); 
+        } else if (notaPorcentaje >= 85) { 
+            msg.innerHTML = '<i class="fa-solid fa-medal moving-icon-win"></i> ¡LEGENDARIO! 🏆'; 
+            msg.style.color = "#28a745"; 
+            if (typeof createConfetti === 'function') createConfetti(); 
+            if (sfxWin) sfxWin.play().catch(()=>{});
+        } else if (notaPorcentaje >= 70) { 
+            msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Misión Cumplida!'; 
             msg.style.color = "#fbbc04";
             if (sfxWin) sfxWin.play().catch(()=>{});
+        } else { 
+            msg.innerHTML = '<i class="fa-solid fa-face-sad-cry moving-icon-fail"></i> Entrenamiento fallido. Debes mejorar.'; 
+            msg.style.color = "#1a73e8"; 
+            if (sfxFail) sfxFail.play().catch(()=>{});
         }
+        
         if (btnInicio) btnInicio.disabled = false;
         if (btnReview) btnReview.disabled = false;
+
         roomResultsBox.classList.add('hidden');
         finalAvatarDisplay.classList.add('hidden');
     }
+
+    if (modeSelect.value === 'study') {
+        document.getElementById('btn-review').classList.add('hidden');
+    } else {
+        if (currentMode !== 'multiplayer' || abandono) {
+             document.getElementById('btn-review').classList.remove('hidden');
+        }
+    }
 }
 
+// Botón explícito para limpiar sala al "Volver al Inicio"
 const btnInicioFinal = document.getElementById('btn-inicio-final');
 if(btnInicioFinal) {
     btnInicioFinal.onclick = async () => {
-        if (currentSalaId && tempBattleID) await limpiarSala(currentSalaId); 
+        if (currentSalaId && tempBattleID) {
+            await limpiarSala(currentSalaId); 
+        }
         location.reload();
     };
 }
 
+btnNextQuestion.addEventListener('click', () => {
+    const isStudyMode = modeSelect.value === 'study';
+    const isMultiplayer = currentMode === 'multiplayer';
+    
+    if ((isStudyMode || isMultiplayer) && seleccionTemporal !== null) {
+        indiceActual++;
+        cargarPregunta();
+        if(isStudyMode) guardarProgresoEstudio(); 
+        return; 
+    }
+    
+    if (seleccionTemporal !== null) {
+        respuestasUsuario.push(seleccionTemporal);
+        indiceActual++;
+        cargarPregunta();
+    }
+});
+
+
+// --- 15. FUNCIONES AUXILIARES DE TIEMPO Y ANIMACIÓN ---
 function iniciarReloj() {
     intervaloTiempo = setInterval(() => {
         tiempoRestante--;
@@ -1028,7 +1231,108 @@ function createConfetti() {
     }
 }
 
+// --- 16. REVISIÓN Y MÁS FUNCIONES AUXILIARES ---
+document.getElementById('btn-review').addEventListener('click', () => {
+    resultScreen.classList.add('hidden');
+    reviewScreen.classList.remove('hidden');
+    const cont = document.getElementById('review-container'); cont.innerHTML = '';
+    
+    preguntasExamen.forEach((p, i) => {
+        const dada = respuestasUsuario[i], ok = (dada === p.respuesta);
+        const card = document.createElement('div'); card.className = 'review-item';
+        let ops = '';
+        p.opciones.forEach((o, x) => {
+            let c = (x === p.respuesta) ? 'ans-correct' : (x === dada && !ok ? 'ans-wrong' : '');
+            let ico = (x === p.respuesta) ? '✅ ' : (x === dada && !ok ? '❌ ' : '');
+            let b = (x === dada) ? 'user-selected' : '';
+            ops += `<div class="review-answer ${c} ${b}">${ico}${o}</div>`;
+        });
+        card.innerHTML = `<div class="review-question">${i+1}. ${p.texto}</div>${ops}<div class="review-explanation"><strong>Explicación:</strong> ${p.explicacion}</div>`;
+        cont.appendChild(card);
+    });
+});
+
+// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN ---
+
+function obtenerVolumen() {
+    return parseFloat(document.getElementById('volume-slider').value);
+}
+
+function actualizarVolumen() {
+    const vol = obtenerVolumen();
+    document.querySelectorAll('audio').forEach(a => {
+        a.volume = vol;
+        a.muted = (vol === 0);
+    });
+
+    const icon = document.getElementById('vol-icon');
+    icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    actualizarVolumen();
+});
+
+document.getElementById('volume-slider').addEventListener('input', actualizarVolumen);
+
+document.getElementById('btn-mute').addEventListener('click', () => {
+    const slider = document.getElementById('volume-slider');
+    const vol = obtenerVolumen();
+    
+    if (vol > 0) {
+        slider.dataset.lastVolume = vol; 
+        slider.value = 0;
+    } else {
+        slider.value = slider.dataset.lastVolume || 0.4; 
+    }
+    actualizarVolumen();
+});
+
+// --- Funciones de Ranking/Historial ---
+async function guardarHistorialFirebase(nota) {
+    try {
+        await addDoc(collection(db, "historial_academico"), {
+            email: currentUserEmail,
+            score: nota,
+            date: new Date(),
+            uid: uidJugadorPermanente
+        });
+    } catch (e) { console.error("Error guardando historial:", e); }
+}
+
+async function guardarPuntajeGlobal(nota) {
+    try {
+        const today = new Date().toLocaleDateString();
+        const docRef = doc(db, "ranking_global", uidJugadorPermanente); 
+        
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().dateString === today) {
+            if (nota > docSnap.data().score) {
+                await updateDoc(docRef, {
+                    score: nota,
+                    date: new Date(),
+                    dateString: today
+                });
+            }
+        } else {
+            await setDoc(docRef, {
+                email: currentUserEmail,
+                score: nota,
+                date: new Date(),
+                dateString: today
+            });
+        }
+    } catch (e) { console.error("Error guardando puntaje global:", e); }
+}
+
+
 // --- 18. GESTIÓN DE SALA AL CERRAR VENTANA/PESTAÑA ---
+// CORRECCIÓN: ELIMINADO EL EVENTO DE VISIBILIDAD PARA EVITAR SALIDAS POR MINIMIZAR
+
 window.addEventListener('beforeunload', (e) => {
-    if (currentSalaId && tempBattleID) limpiarSala(currentSalaId); 
+    // Limpieza de emergencia al CERRAR el navegador totalmente (no minimizar)
+    if (currentSalaId && tempBattleID) {
+        limpiarSala(currentSalaId); 
+    }
 });
