@@ -59,6 +59,7 @@ const reviewScreen = document.getElementById('review-screen');
 const btnLogout = document.getElementById('btn-logout');
 const btnNextQuestion = document.getElementById('btn-next-question');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz');
+const btnExitQuiz = document.getElementById('btn-exit-quiz'); // BOTÓN NUEVO
 const modeSelect = document.getElementById('mode-select');
 const volumeSlider = document.getElementById('volume-slider');
 
@@ -67,6 +68,7 @@ function showScreen(screenId) {
     document.getElementById(screenId).classList.remove('hidden');
 }
 
+// === VOLUMEN ===
 function obtenerVolumen() {
     return volumeSlider ? parseFloat(volumeSlider.value) : 0.5;
 }
@@ -312,9 +314,9 @@ btnLogout.onclick = async () => {
     }
 };
 
-// --- JUEGO START (CORREGIDO UNIRSE A BATALLA) ---
+// --- JUEGO START (CORREGIDO BATALLA) ---
 document.getElementById('btn-start').onclick = () => {
-    currentMode = modeSelect.value; // Asegurar captura de modo
+    currentMode = modeSelect.value; 
     
     document.getElementById('header-user-info').classList.remove('hidden');
     const usr = document.getElementById('user-display').innerText;
@@ -322,18 +324,18 @@ document.getElementById('btn-start').onclick = () => {
     document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
 
     if(currentMode === 'multiplayer') {
+        // 1. Aseguramos alias
         const aliasVal = document.getElementById('alias-input').value.trim();
         if(aliasVal.length < 3) { 
-            hablar("Por favor, introduce un alias de al menos tres letras."); 
+            hablar("Por favor, introduce un alias."); 
             document.getElementById('alias-input').focus();
             return; 
         }
         currentAlias = aliasVal;
-        hablar(`¡Excelente, ${currentAlias}! Elige tu avatar y tu zona de guerra.`);
-        
+        hablar(`¡Excelente, ${currentAlias}! Elige tu avatar.`);
         iniciarBatalla(); 
     } else {
-        hablar(`Magnífico, has seleccionado el modo ${currentMode === 'exam' ? 'examen' : 'estudio'}. Buena suerte.`);
+        hablar("Iniciando.");
         iniciarJuegoReal();
     }
     
@@ -350,16 +352,34 @@ modeSelect.onchange = () => {
     document.getElementById('btn-start').innerText = isMulti ? '⚔️ Unirse a Batalla' : 'Empezar';
 };
 
+// --- BOTÓN SALIR AL MENÚ (CONECTADO) ---
+if (btnExitQuiz) {
+    btnExitQuiz.onclick = async () => {
+        // En examen advertimos, en estudio guardamos
+        if(currentMode === 'study') await guardarProgresoEstudio();
+        else if(!confirm("¿Salir del examen? Perderás el progreso.")) return;
+
+        clearInterval(intervaloTiempo);
+        showScreen('setup-screen');
+        document.getElementById('header-user-info').classList.add('hidden');
+        
+        const bg = document.getElementById('bg-music');
+        if(bg) { bg.pause(); bg.currentTime = 0; }
+    };
+}
+
 // --- PREGUNTAS ---
 function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // CORRECCIÓN DEFINITIVA: RENDIRSE SOLO EN MULTIPLAYER
+    // == VISIBILIDAD DE BOTONES ==
     if (currentMode === 'multiplayer') {
-        btnQuitQuiz.classList.remove('hidden'); 
+        btnQuitQuiz.classList.remove('hidden'); // Solo en batalla
+        if(btnExitQuiz) btnExitQuiz.classList.add('hidden');
     } else {
-        btnQuitQuiz.classList.add('hidden'); // OCULTO EN ESTUDIO Y EXAMEN
+        btnQuitQuiz.classList.add('hidden'); 
+        if(btnExitQuiz) btnExitQuiz.classList.remove('hidden'); // Salir al Menú en Examen/Estudio
     }
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
@@ -490,7 +510,7 @@ function empezarNuevoJuego() {
     cargarPregunta();
 }
 
-// --- TERMINAR (CORRECCIÓN: BOTÓN REVISAR SIEMPRE DISPONIBLE EN EXAMEN/ESTUDIO) ---
+// --- TERMINAR ---
 async function terminarQuiz(abandono = false) {
     clearInterval(intervaloTiempo);
     const btnReview = document.getElementById('btn-review');
@@ -536,18 +556,16 @@ async function terminarQuiz(abandono = false) {
              });
         }
     } else {
-        // === MODO INDIVIDUAL (EXAMEN / ESTUDIO) ===
         if(aciertos === preguntasExamen.length) msg.innerText = "¡Perfecto!";
         else msg.innerText = "Finalizado.";
         
-        // Habilitar botones inmediatamente
         btnReview.disabled = false;
         btnInicio.disabled = false;
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
         
-        // MOSTRAR REVISAR SIEMPRE EN ESTOS MODOS
-        btnReview.classList.remove('hidden');
+        if(currentMode !== 'study') btnReview.classList.remove('hidden');
+        else btnReview.classList.add('hidden');
     }
 }
 
@@ -569,7 +587,7 @@ document.getElementById('btn-confirm-identity').onclick = () => {
 document.getElementById('back-to-setup').onclick = () => showScreen('setup-screen');
 document.getElementById('back-to-avatar').onclick = () => showScreen('avatar-screen');
 
-// Botón Volver al Inicio (Limpia y recarga)
+// Botón INICIO FINAL (Limpia y recarga)
 document.getElementById('btn-inicio-final').onclick = async () => {
     if (currentSalaId && tempBattleID) await limpiarSala(currentSalaId); 
     location.reload();
