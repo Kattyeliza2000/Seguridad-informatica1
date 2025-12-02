@@ -3,7 +3,6 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { bancoPreguntas } from './preguntas.js'; 
 
-// --- CONFIGURACIÓN ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -23,7 +22,6 @@ const correosUnDispositivo = [
 ];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
-// --- VARIABLES ---
 let preguntasExamen = []; 
 let indiceActual = 0;
 let respuestasUsuario = []; 
@@ -53,7 +51,6 @@ const AVATAR_CONFIG = [
 
 const ROOM_ICONS = { "SALA_FIREWALL": "fa-fire", "SALA_ENCRIPTADO": "fa-lock", "SALA_ZERO_DAY": "fa-bug", "SALA_PHISHING": "fa-fish", "SALA_RANSOMWARE": "fa-skull-crossbones", "SALA_BOTNET": "fa-robot" };
 
-// REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
@@ -359,11 +356,11 @@ function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // === CORRECCIÓN: OCULTAR RENDIRSE EN EXAMEN Y ESTUDIO (SOLO BATALLA) ===
+    // === CORRECCIÓN CRÍTICA: OCULTAR RENDIRSE EN EXAMEN Y ESTUDIO ===
     if (currentMode === 'multiplayer') {
         btnQuitQuiz.classList.remove('hidden'); 
     } else {
-        btnQuitQuiz.classList.add('hidden'); // OCULTO EN EXAMEN Y ESTUDIO
+        btnQuitQuiz.classList.add('hidden'); // OCULTO EN ESTUDIO Y EXAMEN
     }
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
@@ -396,6 +393,7 @@ function seleccionarOpcion(index, btnClickeado) {
     if (isStudy || isMulti) {
         mostrarResultadoInmediato(index);
         if (isStudy) setTimeout(() => { guardarProgresoEstudio(); }, 500);
+        if (isMulti && index === preguntasExamen[indiceActual].respuesta) currentStreak++;
     } 
     btnNextQuestion.classList.remove('hidden');
 }
@@ -404,29 +402,20 @@ function mostrarResultadoInmediato(seleccionada) {
     const correcta = preguntasExamen[indiceActual].respuesta;
     const buttons = document.getElementById('options-container').querySelectorAll('button');
     const combo = document.getElementById('combo-display');
-    
-    const esCorrecta = (seleccionada === correcta);
 
-    if (esCorrecta) {
+    if (seleccionada === correcta) {
         document.getElementById('correct-sound').play().catch(()=>{});
-        
-        // LÓGICA DE RACHA
-        if(currentMode === 'multiplayer') {
-            currentStreak++; 
-            if(currentStreak > 1) {
-                combo.innerText = `¡RACHA x${currentStreak}! 🔥`;
-                combo.classList.remove('hidden');
-                combo.style.animation = 'none';
-                combo.offsetHeight; 
-                combo.style.animation = 'popIn 0.5s';
-            }
+        if(currentMode === 'multiplayer' && currentStreak > 1) {
+            combo.innerText = `¡RACHA x${currentStreak}! 🔥`;
+            combo.classList.remove('hidden');
+            combo.style.animation = 'none';
+            combo.offsetHeight; 
+            combo.style.animation = 'popIn 0.5s';
         }
     } else {
         document.getElementById('fail-sound').play().catch(()=>{});
-        if(currentMode === 'multiplayer') {
-            currentStreak = 0;
-            combo.classList.add('hidden');
-        }
+        currentStreak = 0;
+        combo.classList.add('hidden');
     }
 
     buttons.forEach((btn, idx) => {
@@ -508,11 +497,13 @@ async function terminarQuiz(abandono = false) {
     const btnReview = document.getElementById('btn-review');
     const btnInicio = document.getElementById('btn-inicio-final');
     
-    // Deshabilitar por defecto
     btnReview.disabled = true;
     btnInicio.disabled = true;
 
-    if(currentMode === 'study' && !abandono) await borrarProgresoEstudio();
+    // EN ESTUDIO NO BORRAMOS PROGRESO A MENOS QUE SEA EL FINAL REAL
+    if(currentMode === 'study' && !abandono && indiceActual >= preguntasExamen.length - 1) {
+        await borrarProgresoEstudio();
+    }
 
     let aciertos = 0;
     respuestasUsuario.forEach((r, i) => { if(r === preguntasExamen[i].respuesta) aciertos++; });
@@ -549,7 +540,6 @@ async function terminarQuiz(abandono = false) {
              });
         }
     } else {
-        // === INDIVIDUAL (EXAMEN/ESTUDIO) ===
         if(aciertos === preguntasExamen.length) msg.innerText = "¡Perfecto!";
         else msg.innerText = "Finalizado.";
         
@@ -558,7 +548,6 @@ async function terminarQuiz(abandono = false) {
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
         
-        // MOSTRAR REVISAR (EXCEPTO ESTUDIO DONDE YA SE VIO)
         if(currentMode !== 'study') btnReview.classList.remove('hidden');
         else btnReview.classList.add('hidden');
     }
@@ -581,4 +570,11 @@ document.getElementById('btn-confirm-identity').onclick = () => {
 };
 document.getElementById('back-to-setup').onclick = () => showScreen('setup-screen');
 document.getElementById('back-to-avatar').onclick = () => showScreen('avatar-screen');
+
+// --- BOTÓN INICIO FINAL: RECARGAR PARA LIMPIAR TODO ---
+document.getElementById('btn-inicio-final').onclick = async () => {
+    if (currentSalaId && tempBattleID) await limpiarSala(currentSalaId); 
+    location.reload();
+};
+
 window.addEventListener('beforeunload', () => { if(currentSalaId) limpiarSala(currentSalaId); });
