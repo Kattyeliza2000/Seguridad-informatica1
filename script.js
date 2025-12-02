@@ -20,7 +20,21 @@ const db = getFirestore(app);
 
 // --- 2. LISTA DE CORREOS AUTORIZADOS ---
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
-const correosUnDispositivo = ["cnavarretem4@unemi.edu.ec", "iastudillol@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", "xsalvadorv@unemi.edu.ec", "nbravop4@unemi.edu.ec", "jmoreirap6@unemi.edu.ec", "jcastrof8@unemi.edu.ec", "jcaleroc3@unemi.edu.ec"];
+
+// AGREGADO: iastudillol@unemi.edu.ec en la lista de 1 dispositivo
+const correosUnDispositivo = [
+    "cnavarretem4@unemi.edu.ec", 
+    "iastudillol@unemi.edu.ec", 
+    "gorellanas2@unemi.edu.ec", 
+    "ehidalgoc4@unemi.edu.ec", 
+    "lbrionesg3@unemi.edu.ec", 
+    "xsalvadorv@unemi.edu.ec", 
+    "nbravop4@unemi.edu.ec", 
+    "jmoreirap6@unemi.edu.ec", 
+    "jcastrof8@unemi.edu.ec", 
+    "jcaleroc3@unemi.edu.ec"
+];
+
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
 // --- 3. VARIABLES GLOBALES ---
@@ -1078,7 +1092,7 @@ document.getElementById('btn-review').addEventListener('click', () => {
     });
 });
 
-// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN (CORREGIDO) ---
+// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN ---
 
 function obtenerVolumen() {
     return parseFloat(document.getElementById('volume-slider').value);
@@ -1086,13 +1100,11 @@ function obtenerVolumen() {
 
 function actualizarVolumen() {
     const vol = obtenerVolumen();
-    // Actualizar audio tags
     document.querySelectorAll('audio').forEach(a => {
         a.volume = vol;
         a.muted = (vol === 0);
     });
 
-    // Actualizar ícono
     const icon = document.getElementById('vol-icon');
     icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
 }
