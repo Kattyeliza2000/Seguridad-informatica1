@@ -21,7 +21,6 @@ const db = getFirestore(app);
 // --- 2. LISTA DE CORREOS AUTORIZADOS ---
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
 
-// AGREGADO CORRECTAMENTE
 const correosUnDispositivo = [
     "cnavarretem4@unemi.edu.ec", 
     "iastudillol@unemi.edu.ec", 
@@ -113,54 +112,27 @@ function playClick() {
     }
 }
 
-// === GENERADOR DE HUELLA DIGITAL (Canvas Fingerprinting) ===
-// Esto soluciona el problema de "mismo dispositivo, caché borrada"
-function getCanvasFingerprint() {
-    try {
-        var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext('2d');
-        var txt = "i9asdm..$#poLP";
-        ctx.textBaseline = "top";
-        ctx.font = "14px 'Arial'";
-        ctx.textBaseline = "alphabetic";
-        ctx.fillStyle = "#f60";
-        ctx.fillRect(125,1,62,20);
-        ctx.fillStyle = "#069";
-        ctx.fillText(txt, 2, 15);
-        ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
-        ctx.fillText(txt, 4, 17);
-        
-        // Convertimos el dibujo en un string base64
-        return canvas.toDataURL();
-    } catch (e) {
-        return "err"; 
-    }
-}
-
-// Generar un ID corto a partir de la huella larga
-function hashFingerprint(str) {
-    let hash = 0, i, chr;
-    if (str.length === 0) return hash;
-    for (i = 0; i < str.length; i++) {
-        chr = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + chr;
-        hash |= 0; 
+// === GENERADOR DE HUELLA DIGITAL (FINGERPRINT) ===
+function generarHuellaDigital() {
+    const nav = window.navigator;
+    const screen = window.screen;
+    const rawString = `${nav.userAgent}||${nav.language}||${screen.colorDepth}||${screen.width}x${screen.height}||${new Date().getTimezoneOffset()}`;
+    let hash = 0;
+    for (let i = 0; i < rawString.length; i++) {
+        const char = rawString.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
     }
     return "DEV_" + Math.abs(hash).toString(36);
 }
 
-// --- 5. FUNCIÓN: OBTENER ID ÚNICO DEL DISPOSITIVO ---
 function obtenerDeviceId() {
-    // 1. Intentamos obtener la huella de hardware
-    const rawFingerprint = getCanvasFingerprint();
-    const hardwareId = hashFingerprint(rawFingerprint);
-    
-    // 2. Combinamos con datos de pantalla para evitar colisiones
-    const screenInfo = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
-    const finalId = hardwareId + "_" + hashFingerprint(screenInfo);
-
-    console.log("ID DE DISPOSITIVO DETECTADO:", finalId);
-    return finalId;
+    let deviceId = localStorage.getItem('device_id_seguro');
+    if (!deviceId) {
+        deviceId = generarHuellaDigital(); 
+        localStorage.setItem('device_id_seguro', deviceId);
+    }
+    return deviceId;
 }
 
 function hablar(texto) {
@@ -556,12 +528,17 @@ async function validarDispositivo(user) {
     currentUserEmail = user.email;
     uidJugadorPermanente = user.uid;
     
-    // Usamos el ID de Hardware que NO cambia al borrar caché
     const miDeviceId = obtenerDeviceId(); 
     
     let limiteDispositivos = 1;
     if (correosDosDispositivos.includes(currentUserEmail)) {
         limiteDispositivos = 2;
+    }
+    
+    // === PASE VIP PARA LA ADMIN (TÚ) ===
+    // Si eres tú, te damos cupo ilimitado para que nunca te bloquees.
+    if (currentUserEmail === 'kholguinb2@unemi.edu.ec') {
+        limiteDispositivos = 9999; // ¡Acceso Ilimitado!
     }
 
     const docRef = doc(db, "usuarios_seguros", currentUserEmail);
@@ -572,25 +549,21 @@ async function validarDispositivo(user) {
         let listaDispositivos = datos.dispositivos || []; 
         
         if (listaDispositivos.includes(miDeviceId)) {
-            // El dispositivo ya estaba registrado, entra directo
             return true;
         } else {
-            // Dispositivo NUEVO. Verificamos si hay cupo.
+            // BLOQUEO ESTRICTO (Para todos menos tú)
             if (listaDispositivos.length >= limiteDispositivos) {
-                // CUPO LLENO -> BLOQUEO (Seguridad estricta)
-                alert(`⛔ ACCESO DENEGADO ⛔\n\nTu cuenta ya está activa en ${limiteDispositivos} dispositivo(s) registrados.\n\nSi cambiaste de PC real, contacta al administrador.`);
+                alert(`⛔ ACCESO DENEGADO ⛔\n\nTu cuenta ya está activa en ${limiteDispositivos} dispositivo(s) registrados.\n\nSi borraste la caché o cambiaste de equipo, contacta al administrador.`);
                 await signOut(auth);
                 location.reload();
                 return false;
             } else {
-                // HAY CUPO -> Registramos el nuevo ID de hardware
                 let nuevaLista = [...listaDispositivos, miDeviceId];
                 await setDoc(docRef, { dispositivos: nuevaLista }, { merge: true });
                 return true;
             }
         }
     } else {
-        // Primera vez que entra
         await setDoc(docRef, {
             dispositivos: [miDeviceId],
             fecha_registro: new Date().toISOString()
@@ -681,7 +654,7 @@ if(btnCleanRooms) {
 const btnResetUser = document.getElementById('btn-admin-reset-user');
 if(btnResetUser) {
     btnResetUser.onclick = async () => {
-        const input = document.getElementById('admin-user-email');
+        const input = document.getElementById('admin-reset-email');
         const emailToReset = input ? input.value.trim() : null;
         
         if (emailToReset && emailToReset.includes("@")) {
@@ -697,6 +670,35 @@ if(btnResetUser) {
             }
         } else {
             alert("Por favor ingresa un correo válido.");
+        }
+    };
+}
+
+// NUEVO: AGREGAR USUARIO A LA DB
+const btnAddUser = document.getElementById('btn-admin-add-user');
+if (btnAddUser) {
+    btnAddUser.onclick = async () => {
+        const emailInput = document.getElementById('admin-new-email');
+        const email = emailInput.value.trim();
+        const limitOptions = document.getElementsByName('device-limit');
+        let selectedLimit = 1;
+        
+        for(let opt of limitOptions) { if(opt.checked) selectedLimit = parseInt(opt.value); }
+
+        if(email && email.includes('@')) {
+            try {
+                await setDoc(doc(db, "usuarios_autorizados", email), {
+                    email: email,
+                    limiteDispositivos: selectedLimit,
+                    fechaAgregado: new Date()
+                });
+                alert(`✅ Usuario ${email} autorizado con ${selectedLimit} dispositivo(s).`);
+                emailInput.value = '';
+            } catch (e) {
+                alert("Error guardando usuario: " + e.message);
+            }
+        } else {
+            alert("Correo inválido.");
         }
     };
 }
@@ -958,62 +960,41 @@ document.getElementById('btn-quit-quiz').addEventListener('click', () => {
     }
 });
 
-
-// --- ACTUALIZAR SCORE ---
 async function actualizarScoreEnSala(salaId, aciertos) {
     if (!salaId || !tempBattleID) return;
-
     const salaRef = doc(db, "salas_activas", salaId);
-    const scoreFinal = aciertos; 
-
     try {
         const snap = await getDoc(salaRef);
         if (snap.exists()) {
             let jugadores = snap.data().jugadores || [];
-            
             const indiceJugador = jugadores.findIndex(j => j.id === tempBattleID);
-            
             if (indiceJugador !== -1) {
-                jugadores[indiceJugador].score = scoreFinal;
+                jugadores[indiceJugador].score = aciertos;
                 jugadores[indiceJugador].terminado = true; 
-            } else {
-                return [];
-            }
-
+            } else return [];
             await updateDoc(salaRef, { jugadores: jugadores });
             return jugadores; 
         }
         return [];
-    } catch (e) {
-        console.error("Error actualizando score en sala:", e);
-        return [];
-    }
+    } catch (e) { return []; }
 }
-
 
 function dibujarPodio(jugadores) {
     if (!podiumContainer) return;
-    
     const ranking = jugadores.sort((a, b) => b.score - a.score);
-
     podiumContainer.innerHTML = '';
     roomResultsBox.classList.remove('hidden');
-
     const maxScore = ranking.length > 0 ? ranking[0].score : 1;
-    
     const minAltura = 40; 
     
     ranking.forEach((jugador, i) => {
-        
         const alturaPorcentaje = maxScore > 0 ? (jugador.score / maxScore) * (100 - minAltura) + minAltura : minAltura;
-        
         let puesto = i + 1;
         let cssOrder = puesto === 1 ? 2 : (puesto === 2 ? 1 : (puesto === 3 ? 3 : 4));
         
         const columna = document.createElement('div');
         columna.className = `podium-column`;
         columna.style.order = cssOrder;
-        
         columna.innerHTML = `
             <img src="${jugador.avatar}" class="podium-avatar" />
             <span class="podium-name">${jugador.name}</span>
@@ -1028,7 +1009,6 @@ function dibujarPodio(jugadores) {
     }
 }
 
-// --- 13. FUNCIÓN TERMINAR QUIZ ---
 async function terminarQuiz(abandono = false) {
     const bgMusic = document.getElementById('bg-music');
     if(bgMusic) { bgMusic.pause(); bgMusic.currentTime = 0; }
@@ -1036,18 +1016,13 @@ async function terminarQuiz(abandono = false) {
 
     const btnReview = document.getElementById('btn-review');
     const btnInicio = document.getElementById('btn-inicio-final'); 
-    
     if (btnReview) btnReview.disabled = true;
     if (btnInicio) btnInicio.disabled = true;
 
-    if (modeSelect.value === 'study' && !abandono) {
-        await borrarProgresoEstudio();
-    }
+    if (modeSelect.value === 'study' && !abandono) await borrarProgresoEstudio();
 
     let aciertos = 0;
-    respuestasUsuario.forEach((r, i) => { 
-        if (r === preguntasExamen[i].respuesta) aciertos++; 
-    });
+    respuestasUsuario.forEach((r, i) => { if (r === preguntasExamen[i].respuesta) aciertos++; });
     
     const totalPreguntas = preguntasExamen.length;
     const notaPorcentaje = totalPreguntas > 0 ? Math.round((aciertos / totalPreguntas) * 100) : 0;
@@ -1063,149 +1038,75 @@ async function terminarQuiz(abandono = false) {
     
     if (sfxWin) sfxWin.volume = vol;
     if (sfxFail) sfxFail.volume = vol;
-
     msg.className = ''; 
-    
+
     if (currentMode === 'multiplayer' && currentSalaId) {
-        
         const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
-
         const jugadoresActivos = jugadoresActualizados.filter(j => j.estado === 'activo' || j.terminado === true);
-        const jugadoresFaltantes = jugadoresActivos.filter(j => j.terminado === false);
-        const countFaltantes = jugadoresFaltantes.length;
-
-        const todosTerminados = countFaltantes === 0;
-
-        if (todosTerminados) {
+        const countFaltantes = jugadoresActivos.filter(j => j.terminado === false).length;
+        
+        if (countFaltantes === 0) {
             dibujarPodio(jugadoresActualizados);
-            msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA! Vea el Podio.'; 
+            msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA!'; 
             msg.style.color = "#1a73e8";
             hablar("La batalla ha terminado. Revisa el podio.");
-            
             if (btnReview) btnReview.disabled = false;
             if (btnInicio) btnInicio.disabled = false;
-
         } else {
-            
             roomResultsBox.classList.add('hidden'); 
             document.getElementById('btn-review').classList.add('hidden');
-            if (btnReview) btnReview.disabled = true;
-            if (btnInicio) btnInicio.disabled = true;
-            
-            const mensajeEspera = countFaltantes > 1 
-                ? `Esperando a ${countFaltantes} agentes que siguen en juego...` 
-                : `Esperando a 1 agente que sigue en juego...`;
-
-            msg.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${mensajeEspera}`;
+            msg.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Esperando a ${countFaltantes} agentes...`;
             msg.style.color = "#fbbc04";
             
-            if (finalAvatarDisplay && currentAvatarUrl) {
-                finalAvatarDisplay.src = currentAvatarUrl;
-                finalAvatarDisplay.classList.remove('hidden');
-            }
-
             const salaRef = doc(db, "salas_activas", currentSalaId);
             unsubscribeRoom = onSnapshot(salaRef, (docSnap) => {
                 if(!docSnap.exists()) return;
-                const jugadoresEsperando = docSnap.data().jugadores || [];
-                const jugadoresActivosEnEspera = jugadoresEsperando.filter(j => j.id !== tempBattleID);
-                const countFaltantesListener = jugadoresActivosEnEspera.filter(j => j.terminado === false).length;
-                const todosHanTerminado = countFaltantesListener === 0;
+                const jugadores = docSnap.data().jugadores || [];
+                const activos = jugadores.filter(j => j.id !== tempBattleID);
+                const pendientes = activos.filter(j => j.terminado === false).length;
                 
-                if (!todosHanTerminado) {
-                    const msgEspera = countFaltantesListener > 1 
-                        ? `Esperando a ${countFaltantesListener} agentes que siguen en juego...` 
-                        : `Esperando a 1 agente que sigue en juego...`;
-                    msg.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${msgEspera}`;
-                }
-                
-                if (todosHanTerminado) {
+                if (pendientes === 0) {
                     if (unsubscribeRoom) unsubscribeRoom(); 
-                    
-                    dibujarPodio(jugadoresEsperando);
-                    msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA! Vea el Podio.'; 
+                    dibujarPodio(jugadores);
+                    msg.innerHTML = '<i class="fa-solid fa-star moving-icon-win"></i> ¡BATALLA TERMINADA!'; 
                     msg.style.color = "#1a73e8";
                     document.getElementById('btn-review').classList.remove('hidden');
-                    hablar("Todos los agentes han completado su misión.");
-                    
+                    hablar("Todos han terminado.");
                     if (btnReview) btnReview.disabled = false;
                     if (btnInicio) btnInicio.disabled = false;
                 }
             });
         }
-
     } else { 
         if (abandono) {
-            msg.innerText = "Finalizado por usuario. Se registraron las respuestas completadas."; 
+            msg.innerText = "Finalizado por usuario."; 
             msg.style.color = "#ea4335";
         } else if (aciertos === totalPreguntas) { 
-            msg.innerHTML = '<i class="fa-solid fa-trophy moving-icon-win"></i> ¡FELICITACIONES! PUNTAJE PERFECTO 💯'; 
+            msg.innerHTML = '<i class="fa-solid fa-trophy moving-icon-win"></i> ¡PERFECTO! 💯'; 
             msg.style.color = "#28a745"; 
             if (typeof createConfetti === 'function') createConfetti(); 
             if (sfxWin) sfxWin.play().catch(()=>{});
-            hablar("¡Increíble! Has obtenido un puntaje perfecto. Eres un maestro en seguridad."); 
-        } else if (notaPorcentaje >= 85) { 
-            msg.innerHTML = '<i class="fa-solid fa-medal moving-icon-win"></i> ¡LEGENDARIO! 🏆'; 
-            msg.style.color = "#28a745"; 
-            if (typeof createConfetti === 'function') createConfetti(); 
-            if (sfxWin) sfxWin.play().catch(()=>{});
-        } else if (notaPorcentaje >= 70) { 
-            msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Misión Cumplida!'; 
+            hablar("¡Increíble! Puntaje perfecto."); 
+        } else { 
+            msg.innerHTML = '<i class="fa-solid fa-check-circle moving-icon-win"></i> ¡Finalizado!'; 
             msg.style.color = "#fbbc04";
             if (sfxWin) sfxWin.play().catch(()=>{});
-        } else { 
-            msg.innerHTML = '<i class="fa-solid fa-face-sad-cry moving-icon-fail"></i> Entrenamiento fallido. Debes mejorar.'; 
-            msg.style.color = "#1a73e8"; 
-            if (sfxFail) sfxFail.play().catch(()=>{});
         }
-        
         if (btnInicio) btnInicio.disabled = false;
         if (btnReview) btnReview.disabled = false;
-
         roomResultsBox.classList.add('hidden');
         finalAvatarDisplay.classList.add('hidden');
     }
-
-    if (modeSelect.value === 'study') {
-        document.getElementById('btn-review').classList.add('hidden');
-    } else {
-        if (currentMode !== 'multiplayer' || abandono) {
-             document.getElementById('btn-review').classList.remove('hidden');
-        }
-    }
 }
 
-// Botón explícito para limpiar sala al "Volver al Inicio"
 const btnInicioFinal = document.getElementById('btn-inicio-final');
 if(btnInicioFinal) {
     btnInicioFinal.onclick = async () => {
-        if (currentSalaId && tempBattleID) {
-            await limpiarSala(currentSalaId); 
-        }
+        if (currentSalaId && tempBattleID) await limpiarSala(currentSalaId); 
         location.reload();
     };
 }
 
-btnNextQuestion.addEventListener('click', () => {
-    const isStudyMode = modeSelect.value === 'study';
-    const isMultiplayer = currentMode === 'multiplayer';
-    
-    if ((isStudyMode || isMultiplayer) && seleccionTemporal !== null) {
-        indiceActual++;
-        cargarPregunta();
-        if(isStudyMode) guardarProgresoEstudio(); 
-        return; 
-    }
-    
-    if (seleccionTemporal !== null) {
-        respuestasUsuario.push(seleccionTemporal);
-        indiceActual++;
-        cargarPregunta();
-    }
-});
-
-
-// --- 15. FUNCIONES AUXILIARES DE TIEMPO Y ANIMACIÓN ---
 function iniciarReloj() {
     intervaloTiempo = setInterval(() => {
         tiempoRestante--;
@@ -1231,7 +1132,6 @@ function createConfetti() {
     }
 }
 
-// --- 16. REVISIÓN Y MÁS FUNCIONES AUXILIARES ---
 document.getElementById('btn-review').addEventListener('click', () => {
     resultScreen.classList.add('hidden');
     reviewScreen.classList.remove('hidden');
@@ -1252,8 +1152,6 @@ document.getElementById('btn-review').addEventListener('click', () => {
     });
 });
 
-// --- 17. INICIALIZACIÓN Y EVENTOS DE VOLUMEN ---
-
 function obtenerVolumen() {
     return parseFloat(document.getElementById('volume-slider').value);
 }
@@ -1264,7 +1162,6 @@ function actualizarVolumen() {
         a.volume = vol;
         a.muted = (vol === 0);
     });
-
     const icon = document.getElementById('vol-icon');
     icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
 }
@@ -1278,7 +1175,6 @@ document.getElementById('volume-slider').addEventListener('input', actualizarVol
 document.getElementById('btn-mute').addEventListener('click', () => {
     const slider = document.getElementById('volume-slider');
     const vol = obtenerVolumen();
-    
     if (vol > 0) {
         slider.dataset.lastVolume = vol; 
         slider.value = 0;
@@ -1288,51 +1184,6 @@ document.getElementById('btn-mute').addEventListener('click', () => {
     actualizarVolumen();
 });
 
-// --- Funciones de Ranking/Historial ---
-async function guardarHistorialFirebase(nota) {
-    try {
-        await addDoc(collection(db, "historial_academico"), {
-            email: currentUserEmail,
-            score: nota,
-            date: new Date(),
-            uid: uidJugadorPermanente
-        });
-    } catch (e) { console.error("Error guardando historial:", e); }
-}
-
-async function guardarPuntajeGlobal(nota) {
-    try {
-        const today = new Date().toLocaleDateString();
-        const docRef = doc(db, "ranking_global", uidJugadorPermanente); 
-        
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists() && docSnap.data().dateString === today) {
-            if (nota > docSnap.data().score) {
-                await updateDoc(docRef, {
-                    score: nota,
-                    date: new Date(),
-                    dateString: today
-                });
-            }
-        } else {
-            await setDoc(docRef, {
-                email: currentUserEmail,
-                score: nota,
-                date: new Date(),
-                dateString: today
-            });
-        }
-    } catch (e) { console.error("Error guardando puntaje global:", e); }
-}
-
-
-// --- 18. GESTIÓN DE SALA AL CERRAR VENTANA/PESTAÑA ---
-// CORRECCIÓN: ELIMINADO EL EVENTO DE VISIBILIDAD PARA EVITAR SALIDAS POR MINIMIZAR
-
 window.addEventListener('beforeunload', (e) => {
-    // Limpieza de emergencia al CERRAR el navegador totalmente (no minimizar)
-    if (currentSalaId && tempBattleID) {
-        limpiarSala(currentSalaId); 
-    }
+    if (currentSalaId && tempBattleID) limpiarSala(currentSalaId); 
 });
