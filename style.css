@@ -1,9 +1,12 @@
-/* === ESTILOS v306 (FIX VISUAL) === */
+/* === ESTILOS v308 (FIX VISUAL DEFINITIVO) === */
 * { box-sizing: border-box; }
 
 /* --- REGLA CRÍTICA: OCULTAR ELEMENTOS --- */
+/* Esto debe ir PRIMERO para evitar que se vea todo junto */
 .hidden { 
     display: none !important; 
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
 :root {
@@ -25,7 +28,7 @@ body {
     flex-direction: column; 
     align-items: center; 
     justify-content: flex-start; 
-    padding-top: 80px; 
+    padding-top: 80px; /* Espacio para el header */
     overflow-x: hidden; 
 }
 
@@ -40,7 +43,7 @@ header {
     display: flex; 
     align-items: center; 
     justify-content: space-between; 
-    z-index: 100; 
+    z-index: 1000; 
 }
 .logo { display: flex; align-items: center; gap: 8px; }
 .logo h1 { margin: 0; font-size: 1rem; color: var(--primary); font-weight: 700; }
@@ -54,13 +57,14 @@ header {
 #app-loader {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: white;
+    background: #eef2f6;
     z-index: 99999; /* Encima de todo */
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
 }
+.spinner { width: 40px; height: 40px; border: 4px solid #ddd; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
 
 /* --- CONTENEDORES --- */
 .container { 
@@ -76,23 +80,15 @@ header {
     border: 1px solid #e1e4e8; 
 }
 
-/* --- INPUTS Y FORMULARIOS --- */
+/* --- INPUTS --- */
 .control-group { margin-bottom: 15px; text-align: left; }
 label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #444; }
 
 select, input[type="text"], input[type="password"], input[type="email"] { 
-    width: 100%; 
-    padding: 10px; 
-    border: 1px solid #dadce0; 
-    border-radius: 6px; 
-    font-size: 0.95rem; 
-    background: #fff; 
-    color: #333; 
-    margin-bottom: 10px;
+    width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 0.95rem; background: #fff; color: #333; margin-bottom: 10px;
 }
-
 input[type="radio"] { width: auto; margin-right: 5px; accent-color: var(--primary); }
-input[type="range"] { width: 60px; accent-color: var(--primary); margin: 0; }
+input[type="range"] { width: 80px; accent-color: var(--primary); margin: 0; cursor: pointer; }
 select:focus, input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1); }
 
 /* --- BOTONES --- */
@@ -111,34 +107,30 @@ select:focus, input:focus { border-color: var(--primary); outline: none; box-sha
 .btn-icon { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #555; transition: 0.2s; padding: 5px; border-radius: 50%; }
 .btn-icon:hover:not(.locked-btn) { background-color: #f0f0f0; }
 
-/* --- PERFIL Y SETUP --- */
+/* --- PERFIL --- */
 .auth-title { color: var(--primary); font-size: 1.6rem; font-weight: 600; margin: 0 0 8px 0; letter-spacing: -0.5px; }
 .auth-subtitle { color: #5f6368; font-size: 0.9rem; margin: 0 0 25px 0; }
 .profile-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; }
 .google-profile-pic { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); padding: 1px; object-fit: cover; }
 .verified-badge { display: inline-flex; align-items: center; gap: 5px; background-color: #e6f4ea; color: #137333; border: 1px solid #1e8e3e; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
 
-/* --- AVATARES --- */
-.avatar-section { margin: 10px 0; }
+/* --- AVATARES Y SALAS --- */
 .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; justify-items: center; }
 .avatar-option { width: 60px; height: 60px; border-radius: 12px; background-color: #f0f4f8; border: 2px solid transparent; padding: 4px; }
-.avatar-option:hover { transform: scale(1.05); }
 .avatar-selected { border-color: var(--primary) !important; background: #e8f0fe !important; transform: scale(1.1); }
 #player-nickname { width: 100%; padding: 10px; margin-top: 15px; border: 1px solid #dadce0; border-radius: 6px; font-size: 1rem; text-align: center; font-weight: bold; color: var(--primary); outline: none; }
 #alias-input { text-align: center; font-weight: bold; color: var(--primary); }
 
-/* --- SALAS --- */
 .rooms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
 .room-btn { background: #fff; border: 1px solid #dadce0; padding: 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; }
 .room-btn:hover { border-color: var(--primary); background: #f0f7ff; }
 .room-count { font-size: 0.8rem; font-weight: 600; margin-top: 6px; color: var(--primary); background: #e8f0fe; padding: 2px 8px; border-radius: 10px; }
 .room-icon { font-size: 2rem; color: var(--primary); margin-bottom: 10px; }
-
 .lobby-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; max-height: 200px; overflow-y: auto; }
 .player-badge { background: #fff; border: 1px solid #dadce0; padding: 6px 12px; border-radius: 50px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
 .lobby-avatar-small { width: 30px; height: 30px; border-radius: 50%; }
 
-/* --- QUIZ --- */
+/* --- QUIZ & RESULTADOS --- */
 .question-box h2 { font-size: 1.1rem; color: #222; line-height: 1.4; margin-bottom: 20px; }
 .options-box button { width: 100%; background: #fff; border: 1px solid #dadce0; border-radius: 8px; padding: 12px 15px; margin-bottom: 8px; text-align: left; cursor: pointer; font-size: 0.95rem; transition: background 0.1s; color: #444; }
 .options-box button:hover:not(:disabled) { border-color: var(--primary); background: #f8fbff; }
@@ -146,6 +138,11 @@ select:focus, input:focus { border-color: var(--primary); outline: none; box-sha
 .ans-correct { border-color: var(--success) !important; background: #d4edda !important; color: #155724 !important; }
 .ans-wrong { border-color: var(--danger) !important; background: #f8d7da !important; color: #721c24 !important; }
 .explanation-feedback { background: #f8f9fa; padding: 10px; border-left: 4px solid var(--primary); margin-top: 10px; text-align: left; font-size: 0.9rem; }
+
+.volume-control-box { display: flex; align-items: center; gap: 5px; background-color: #f1f3f4; padding: 4px 10px; border-radius: 20px; margin-right: 10px; }
+.final-avatar { width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--primary); background: #fff; padding: 4px; display: block; margin-left: auto; margin-right: auto; }
+.ranking-box { background: #fffdeb; border: 2px solid var(--warning); border-radius: 12px; padding: 15px; margin-bottom: 25px; }
+#combo-display { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(45deg, #ff512f, #dd2476); color: white; padding: 8px 20px; border-radius: 50px; font-weight: 900; font-size: 1.1rem; z-index: 9999; animation: popIn 0.5s; }
 
 /* --- PODIO --- */
 .podium-container { display: flex; align-items: flex-end; justify-content: center; gap: 15px; height: 300px; margin-top: 20px; padding-bottom: 20px; overflow-x: auto; }
@@ -156,39 +153,21 @@ select:focus, input:focus { border-color: var(--primary); outline: none; box-sha
 .podium-column:nth-child(1) .podium-bar { background: linear-gradient(to top, #fbc02d, #fff176); color: #5f4300; height: 100%; }
 .podium-column:nth-child(2) .podium-bar { background: linear-gradient(to top, #9e9e9e, #e0e0e0); color: #424242; height: 80%; }
 .podium-column:nth-child(3) .podium-bar { background: linear-gradient(to top, #8d6e63, #d7ccc8); color: #3e2723; height: 60%; }
-@keyframes growBar { from { height: 0; opacity: 0; } to { opacity: 1; } }
-
-/* --- OTROS --- */
-.rank-row { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; gap: 10px; }
-.rank-pos { font-weight: 800; width: 20px; color: #888; }
-.rank-img { width: 40px; height: 40px; border-radius: 8px; background: #eee; object-fit: cover; }
-.rank-info { flex-grow: 1; text-align: left; overflow: hidden; }
-.rank-name { font-weight: 700; font-size: 0.9rem; display: block; }
-.rank-score { font-weight: 800; color: var(--primary); }
-
-.hidden { display: none !important; }
-.volume-control-box { display: flex; align-items: center; gap: 5px; background-color: #f1f3f4; padding: 4px 10px; border-radius: 20px; }
-.final-avatar { width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--primary); background: #fff; padding: 4px; display: block; margin-left: auto; margin-right: auto; }
-.ranking-box { background: #fffdeb; border: 2px solid var(--warning); border-radius: 12px; padding: 15px; margin-bottom: 25px; }
-#combo-display { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(45deg, #ff512f, #dd2476); color: white; padding: 8px 20px; border-radius: 50px; font-weight: 900; font-size: 1.1rem; z-index: 9999; animation: popIn 0.5s; }
 
 /* --- MODALES --- */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; }
 .modal-card { animation: popIn 0.3s; margin: 0; background: #fff; padding: 25px; border-radius: 15px; width: 90%; max-width: 450px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.3); text-align: center; }
 .close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 2rem; cursor: pointer; color: #888; line-height: 1; }
-.spinner { width: 25px; height: 25px; border: 3px solid #e1e4e8; border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
 
-/* --- ANIMACIONES --- */
+/* --- ANIMACIONES Y OTROS --- */
 #confetti-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
-@keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-@keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
-@keyframes growBar { from { height: 0; opacity: 0; } to { opacity: 1; } }
-
-/* --- ICONOS RESULTADO --- */
 .moving-icon-win, .moving-icon-fail { font-size: 1.5rem; margin-right: 10px; vertical-align: middle; display: inline-block; }
 .moving-icon-win { color: var(--success); animation: bounce 1s infinite; }
 .moving-icon-fail { color: var(--primary); animation: shake 0.5s infinite; }
 
+@keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+@keyframes growBar { from { height: 0; opacity: 0; } to { opacity: 1; } }
 @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
