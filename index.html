@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="preconnect" href="https://api.dicebear.com">
     
-    <link rel="stylesheet" href="style.css?v=420">
+    <link rel="stylesheet" href="style.css?v=450">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -143,12 +143,12 @@
     
     <div class="container hidden" id="quiz-screen" style="max-width: 700px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <button id="btn-exit-quiz" class="btn-text" style="font-size: 0.9rem; color: #666;">
+            <button id="btn-exit-quiz" class="btn-text" style="font-size: 0.9rem; color: #666; font-weight: bold;">
                 <i class="fa-solid fa-arrow-left"></i> Salir al Menú
             </button>
             <span id="timer-display" style="font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #1a73e8;">00:00</span>
         </div>
-        
+
         <div style="text-align: right; font-size: 0.85rem; color: #888; margin-bottom: 10px;">
             <span id="progress-display">Pregunta 1</span>
         </div>
@@ -158,6 +158,7 @@
         
         <div style="display: flex; justify-content: space-between; margin-top: 20px; align-items: center;">
             <button id="btn-quit-quiz" class="btn-text hidden" style="color: #ea4335;">Rendirse</button>
+            
             <button id="btn-next-question" class="btn-primary hidden" style="width: auto; padding: 10px 30px; margin-left: auto;">
                 Siguiente <i class="fa-solid fa-arrow-right"></i>
             </button>
@@ -169,10 +170,12 @@
         <h2 id="result-title">Finalizado</h2>
         <h1 id="score-final">0/0</h1>
         <p id="custom-msg"></p>
+        
         <div id="room-results-box" class="hidden ranking-box">
             <h3 style="color: #f9a825; margin: 0 0 10px 0;">🏆 Tabla de Posiciones</h3>
             <div id="podium-container" class="podium-container"></div>
         </div>
+        
         <button id="btn-review" class="btn-secondary">Revisar Respuestas</button>
         <button onclick="location.reload()" class="btn-primary" id="btn-inicio-final">Volver al Inicio</button>
     </div>
@@ -247,6 +250,6 @@
 
     <div id="confetti-wrapper" class="hidden"></div>
 
-    <script type="module" src="script.js?v=420"></script> 
+    <script type="module" src="script.js?v=450"></script> 
 </body>
 </html>
