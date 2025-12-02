@@ -72,7 +72,6 @@
             <label>Materia</label>
             <select disabled style="background-color: #f1f3f4; color: #888;"><option>Seguridad Informática</option></select>
         </div>
-
         <div class="control-group">
             <label>Modo</label>
             <select id="mode-select">
@@ -81,13 +80,11 @@
                 <option value="multiplayer">⚔️ Batalla Multiusuarios</option>
             </select>
         </div>
-
         <div class="control-group hidden" id="alias-input-group" style="margin-top: 15px;">
             <label for="alias-input">Alias para Batalla</label>
             <input type="text" id="alias-input" placeholder="Ej: Agente Secreto" maxlength="15">
             <small style="color: #666;">Tu alias se usará para el ranking temporal.</small>
         </div>
-
         <div class="control-group">
             <label>Tiempo</label>
             <select id="time-select">
@@ -97,9 +94,7 @@
                 <option value="infinity">Sin tiempo</option>
             </select>
         </div>
-
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-
         <div style="text-align: center;">
             <div class="profile-row">
                 <p style="font-size: 0.95rem; color: #555; margin: 0;">
@@ -111,7 +106,6 @@
                 <i class="fa-solid fa-square-check"></i> Dispositivo verificado
             </div>
         </div>
-
         <button id="btn-start" class="btn-primary" style="margin-top: 20px;">Empezar</button>
     </div>
 
@@ -160,12 +154,10 @@
         <h2 id="result-title">Finalizado</h2>
         <h1 id="score-final">0/0</h1>
         <p id="custom-msg"></p>
-        
         <div id="room-results-box" class="hidden ranking-box">
             <h3 style="color: #f9a825; margin: 0 0 10px 0;">🏆 Tabla de Posiciones</h3>
             <div id="podium-container" class="podium-container"></div>
         </div>
-        
         <button id="btn-review" class="btn-secondary">Revisar Respuestas</button>
         <button onclick="location.reload()" class="btn-primary" id="btn-inicio-final">Volver al Inicio</button>
     </div>
@@ -176,19 +168,21 @@
         <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Cerrar</button>
     </div>
 
+    <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
+    <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
+    <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
+    <audio id="correct-sound" preload="auto"><source src="audio/correct.mp3" type="audio/mpeg"></audio>
+    <audio id="click-sound" preload="auto"><source src="audio/click.mp3" type="audio/mpeg"></audio>
+
+    <div id="confetti-wrapper" class="hidden"></div>
+
     <div id="resume-modal" class="hidden modal-overlay">
         <div class="modal-card">
             <h2 style="color: #1a73e8; margin-top: 0;">¡Sesión Encontrada!</h2>
-            <p id="resume-text" style="font-size: 1rem; color: #555; margin: 20px 0;">
-                Tienes un progreso guardado.
-            </p>
+            <p id="resume-text" style="font-size: 1rem; color: #555; margin: 20px 0;"></p>
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button id="btn-resume-yes" class="btn-primary" style="background-color: #28a745;">
-                    <i class="fa-solid fa-play"></i> Continuar
-                </button>
-                <button id="btn-resume-no" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;">
-                    <i class="fa-solid fa-trash"></i> Empezar de Cero
-                </button>
+                <button id="btn-resume-yes" class="btn-primary" style="background-color: #28a745;"><i class="fa-solid fa-play"></i> Continuar</button>
+                <button id="btn-resume-no" class="btn-secondary" style="border-color: #ea4335; color: #ea4335;"><i class="fa-solid fa-trash"></i> Empezar de Cero</button>
             </div>
         </div>
     </div>
@@ -198,16 +192,23 @@
             <button id="close-admin" class="close-btn">&times;</button>
             <h2 style="color: #ea4335;"><i class="fa-solid fa-user-shield"></i> Panel de Control</h2>
             
-            <div style="display: flex; flex-direction: column; gap: 15px; text-align: left;">
+            <div style="display: flex; flex-direction: column; gap: 15px; text-align: left; max-height: 70vh; overflow-y: auto;">
                 
                 <div style="background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
-                    <label style="font-weight: bold; font-size: 0.9rem; color: #1a73e8;">➕ Autorizar Nuevo Usuario</label>
-                    <input type="text" id="admin-new-email" placeholder="nuevo.usuario@unemi.edu.ec" style="margin: 5px 0; padding: 8px; width: 100%;">
+                    <label style="font-weight: bold; font-size: 0.9rem; color: #1a73e8;">➕ Agregar Nuevo Usuario</label>
+                    <input type="text" id="admin-new-email" placeholder="usuario@unemi.edu.ec" style="margin: 5px 0; padding: 8px; width: 100%;">
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                         <label><input type="radio" name="device-limit" value="1" checked> 1 Equipo</label>
                         <label><input type="radio" name="device-limit" value="2"> 2 Equipos</label>
                     </div>
                     <button id="btn-admin-add-user" class="btn-primary" style="padding: 8px; font-size: 0.9rem;">Guardar Acceso</button>
+                </div>
+
+                <div>
+                    <label style="font-weight: bold; font-size: 0.9rem;">📋 Usuarios Autorizados</label>
+                    <div id="admin-users-list" style="background: #fff; border: 1px solid #eee; max-height: 150px; overflow-y: auto; border-radius: 4px; margin-top: 5px;">
+                        <p style="padding:10px; color:#999; text-align:center;">Cargando...</p>
+                    </div>
                 </div>
 
                 <hr style="width: 100%; border: 0; border-top: 1px solid #eee;">
@@ -230,14 +231,6 @@
             </div>
         </div>
     </div>
-
-    <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
-    <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
-    <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
-    <audio id="correct-sound" preload="auto"><source src="audio/correct.mp3" type="audio/mpeg"></audio>
-    <audio id="click-sound" preload="auto"><source src="audio/click.mp3" type="audio/mpeg"></audio>
-
-    <div id="confetti-wrapper" class="hidden"></div>
 
     <script type="module" src="script.js"></script> 
 </body>
