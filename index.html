@@ -35,6 +35,10 @@
             </div>
             
             <div class="header-controls">
+                <button id="btn-admin-settings" class="btn-icon hidden" title="Ajustes de Administrador" style="color: #ea4335;">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+
                 <button id="btn-ranking" class="btn-icon hidden" title="Ranking Global"><i class="fa-solid fa-trophy"></i></button>
                 <button id="btn-stats" class="btn-icon hidden" title="Mis Estadísticas"><i class="fa-solid fa-chart-pie"></i></button>
                 
@@ -172,14 +176,6 @@
         <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Cerrar</button>
     </div>
 
-    <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
-    <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
-    <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
-    <audio id="correct-sound" preload="auto"><source src="audio/correct.mp3" type="audio/mpeg"></audio>
-    <audio id="click-sound" preload="auto"><source src="audio/click.mp3" type="audio/mpeg"></audio>
-
-    <div id="confetti-wrapper" class="hidden"></div>
-
     <div id="resume-modal" class="hidden modal-overlay">
         <div class="modal-card">
             <h2 style="color: #1a73e8; margin-top: 0;">¡Sesión Encontrada!</h2>
@@ -196,6 +192,39 @@
             </div>
         </div>
     </div>
+
+    <div id="admin-modal" class="hidden modal-overlay">
+        <div class="modal-card">
+            <button id="close-admin" class="close-btn">&times;</button>
+            <h2 style="color: #ea4335;"><i class="fa-solid fa-user-shield"></i> Panel de Control</h2>
+            <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">Gestión de seguridad y salas.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <button id="btn-admin-clean-rooms" class="btn-secondary" style="border-color: #fbbc04; color: #d68b00;">
+                    <i class="fa-solid fa-broom"></i> Limpiar Todas las Salas
+                </button>
+                
+                <hr style="width: 100%; border: 0; border-top: 1px solid #eee;">
+                
+                <label style="text-align: left; font-size: 0.9rem; font-weight: bold;">Desbloquear Usuario:</label>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="admin-user-email" placeholder="correo@unemi.edu.ec" style="margin: 0; padding: 10px; flex-grow: 1;">
+                    <button id="btn-admin-reset-user" class="btn-primary" style="width: auto; background-color: #ea4335;">
+                        <i class="fa-solid fa-unlock"></i>
+                    </button>
+                </div>
+                <small style="color: #888; text-align: left;">* Borra los dispositivos registrados de este usuario.</small>
+            </div>
+        </div>
+    </div>
+
+    <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
+    <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
+    <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
+    <audio id="correct-sound" preload="auto"><source src="audio/correct.mp3" type="audio/mpeg"></audio>
+    <audio id="click-sound" preload="auto"><source src="audio/click.mp3" type="audio/mpeg"></audio>
+
+    <div id="confetti-wrapper" class="hidden"></div>
 
     <script type="module" src="script.js"></script> 
 </body>
