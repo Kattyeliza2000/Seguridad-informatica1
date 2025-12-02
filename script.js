@@ -3,6 +3,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { bancoPreguntas } from './preguntas.js'; 
 
+// --- CONFIGURACIÓN ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -22,6 +23,7 @@ const correosUnDispositivo = [
 ];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
+// --- VARIABLES ---
 let preguntasExamen = []; 
 let indiceActual = 0;
 let respuestasUsuario = []; 
@@ -51,6 +53,7 @@ const AVATAR_CONFIG = [
 
 const ROOM_ICONS = { "SALA_FIREWALL": "fa-fire", "SALA_ENCRIPTADO": "fa-lock", "SALA_ZERO_DAY": "fa-bug", "SALA_PHISHING": "fa-fish", "SALA_RANSOMWARE": "fa-skull-crossbones", "SALA_BOTNET": "fa-robot" };
 
+// REFERENCIAS HTML
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
@@ -232,15 +235,11 @@ onAuthStateChanged(auth, async (user) => {
             
             if (valid) {
                 showScreen('setup-screen');
-                
-                // GUARDAR INFO EN VARIABLES PERO NO MOSTRAR EN HEADER AÚN
                 document.getElementById('user-display').innerText = user.displayName;
                 if (user.photoURL) {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
                 }
-                
-                // ** ASEGURAR QUE EL HEADER NO MUESTRA LA FOTO TODAVÍA **
                 document.getElementById('header-user-info').classList.add('hidden');
                 btnLogout.classList.remove('hidden');
                 
@@ -317,11 +316,10 @@ btnLogout.onclick = async () => {
     }
 };
 
-// --- JUEGO START (HEADER Y NAVEGACIÓN) ---
+// --- JUEGO START ---
 document.getElementById('btn-start').onclick = () => {
     currentMode = modeSelect.value; 
     
-    // 1. AHORA SÍ MOSTRAR LA FOTO EN EL HEADER
     document.getElementById('header-user-info').classList.remove('hidden');
     const usr = document.getElementById('user-display').innerText;
     document.getElementById('header-username').innerText = usr.split(' ')[0];
@@ -337,7 +335,6 @@ document.getElementById('btn-start').onclick = () => {
         currentAlias = aliasVal;
         hablar(`¡Excelente, ${currentAlias}! Elige tu avatar y tu zona de guerra.`);
         
-        // ** NAVEGACIÓN A AVATARES **
         iniciarBatalla(); 
     } else {
         hablar(`Magnífico, has seleccionado el modo ${currentMode === 'exam' ? 'examen' : 'estudio'}. Buena suerte.`);
@@ -362,12 +359,11 @@ function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // === CORRECCIÓN DEFINITIVA: RENDIRSE SOLO EN MULTIPLAYER ===
+    // === CORRECCIÓN: OCULTAR RENDIRSE EN EXAMEN Y ESTUDIO (SOLO BATALLA) ===
     if (currentMode === 'multiplayer') {
         btnQuitQuiz.classList.remove('hidden'); 
     } else {
-        // EN EXAMEN Y ESTUDIO: OCULTO
-        btnQuitQuiz.classList.add('hidden');
+        btnQuitQuiz.classList.add('hidden'); // OCULTO EN EXAMEN Y ESTUDIO
     }
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
@@ -400,7 +396,6 @@ function seleccionarOpcion(index, btnClickeado) {
     if (isStudy || isMulti) {
         mostrarResultadoInmediato(index);
         if (isStudy) setTimeout(() => { guardarProgresoEstudio(); }, 500);
-        if (isMulti && index === preguntasExamen[indiceActual].respuesta) currentStreak++;
     } 
     btnNextQuestion.classList.remove('hidden');
 }
@@ -409,20 +404,29 @@ function mostrarResultadoInmediato(seleccionada) {
     const correcta = preguntasExamen[indiceActual].respuesta;
     const buttons = document.getElementById('options-container').querySelectorAll('button');
     const combo = document.getElementById('combo-display');
+    
+    const esCorrecta = (seleccionada === correcta);
 
-    if (seleccionada === correcta) {
+    if (esCorrecta) {
         document.getElementById('correct-sound').play().catch(()=>{});
-        if(currentMode === 'multiplayer' && currentStreak > 1) {
-            combo.innerText = `¡RACHA x${currentStreak}! 🔥`;
-            combo.classList.remove('hidden');
-            combo.style.animation = 'none';
-            combo.offsetHeight; 
-            combo.style.animation = 'popIn 0.5s';
+        
+        // LÓGICA DE RACHA
+        if(currentMode === 'multiplayer') {
+            currentStreak++; 
+            if(currentStreak > 1) {
+                combo.innerText = `¡RACHA x${currentStreak}! 🔥`;
+                combo.classList.remove('hidden');
+                combo.style.animation = 'none';
+                combo.offsetHeight; 
+                combo.style.animation = 'popIn 0.5s';
+            }
         }
     } else {
         document.getElementById('fail-sound').play().catch(()=>{});
-        currentStreak = 0;
-        combo.classList.add('hidden');
+        if(currentMode === 'multiplayer') {
+            currentStreak = 0;
+            combo.classList.add('hidden');
+        }
     }
 
     buttons.forEach((btn, idx) => {
@@ -555,8 +559,8 @@ async function terminarQuiz(abandono = false) {
         document.getElementById('final-avatar-display').classList.add('hidden');
         
         // MOSTRAR REVISAR (EXCEPTO ESTUDIO DONDE YA SE VIO)
-        // Si quieres que SIEMPRE se pueda revisar, quita el if.
-        btnReview.classList.remove('hidden'); 
+        if(currentMode !== 'study') btnReview.classList.remove('hidden');
+        else btnReview.classList.add('hidden');
     }
 }
 
