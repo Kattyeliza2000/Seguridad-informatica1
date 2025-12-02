@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=406">
 </head>
 <body>
 
@@ -72,6 +72,7 @@
             <label>Materia</label>
             <select disabled style="background-color: #f1f3f4; color: #888;"><option>Seguridad Informática</option></select>
         </div>
+
         <div class="control-group">
             <label>Modo</label>
             <select id="mode-select">
@@ -80,11 +81,13 @@
                 <option value="multiplayer">⚔️ Batalla Multiusuarios</option>
             </select>
         </div>
+
         <div class="control-group hidden" id="alias-input-group" style="margin-top: 15px;">
             <label for="alias-input">Alias para Batalla</label>
             <input type="text" id="alias-input" placeholder="Ej: Agente Secreto" maxlength="15">
             <small style="color: #666;">Tu alias se usará para el ranking temporal.</small>
         </div>
+
         <div class="control-group">
             <label>Tiempo</label>
             <select id="time-select">
@@ -94,7 +97,9 @@
                 <option value="infinity">Sin tiempo</option>
             </select>
         </div>
+
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
         <div style="text-align: center;">
             <div class="profile-row">
                 <p style="font-size: 0.95rem; color: #555; margin: 0;">
@@ -106,6 +111,7 @@
                 <i class="fa-solid fa-square-check"></i> Dispositivo verificado
             </div>
         </div>
+
         <button id="btn-start" class="btn-primary" style="margin-top: 20px;">Empezar</button>
     </div>
 
@@ -168,14 +174,6 @@
         <button onclick="location.reload()" class="btn-primary" style="margin-top: 20px;">Cerrar</button>
     </div>
 
-    <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
-    <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
-    <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
-    <audio id="correct-sound" preload="auto"><source src="audio/correct.mp3" type="audio/mpeg"></audio>
-    <audio id="click-sound" preload="auto"><source src="audio/click.mp3" type="audio/mpeg"></audio>
-
-    <div id="confetti-wrapper" class="hidden"></div>
-
     <div id="resume-modal" class="hidden modal-overlay">
         <div class="modal-card">
             <h2 style="color: #1a73e8; margin-top: 0;">¡Sesión Encontrada!</h2>
@@ -232,6 +230,14 @@
         </div>
     </div>
 
-    <script type="module" src="script.js"></script> 
+    <audio id="bg-music" loop preload="auto"><source src="audio/bg_music.mp3" type="audio/mpeg"></audio>
+    <audio id="success-sound" preload="auto"><source src="audio/success.mp3" type="audio/mpeg"></audio>
+    <audio id="fail-sound" preload="auto"><source src="audio/fail.mp3" type="audio/mpeg"></audio>
+    <audio id="correct-sound" preload="auto"><source src="audio/correct.mp3" type="audio/mpeg"></audio>
+    <audio id="click-sound" preload="auto"><source src="audio/click.mp3" type="audio/mpeg"></audio>
+
+    <div id="confetti-wrapper" class="hidden"></div>
+
+    <script type="module" src="script.js?v=406"></script> 
 </body>
 </html>
