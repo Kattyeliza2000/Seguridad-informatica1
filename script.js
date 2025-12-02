@@ -3,7 +3,6 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { bancoPreguntas } from './preguntas.js'; 
 
-// --- CONFIGURACIÓN ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -23,7 +22,6 @@ const correosUnDispositivo = [
 ];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
-// --- VARIABLES ---
 let preguntasExamen = []; 
 let indiceActual = 0;
 let respuestasUsuario = []; 
@@ -41,7 +39,6 @@ let currentAlias = null;
 let tempBattleID = null; 
 let unsubscribeRoom = null; 
 let currentSalaId = null; 
-let jugadoresEnSalaAlFinal = []; 
 let ghostHostTimer = null; 
 
 const AVATAR_CONFIG = [
@@ -70,14 +67,56 @@ function showScreen(screenId) {
     document.getElementById(screenId).classList.remove('hidden');
 }
 
+// === LÓGICA DE VOLUMEN CORREGIDA ===
+function obtenerVolumen() {
+    const slider = document.getElementById('volume-slider');
+    return slider ? parseFloat(slider.value) : 0.5;
+}
+
+function actualizarVolumen() {
+    const vol = obtenerVolumen();
+    document.querySelectorAll('audio').forEach(a => {
+        a.volume = vol;
+        a.muted = (vol === 0);
+    });
+    const icon = document.getElementById('vol-icon');
+    if(icon) {
+        icon.className = 'fa-solid ' + (vol === 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
+    }
+}
+
 function playClick() {
     const sfx = document.getElementById('click-sound');
     if(sfx) { 
-        sfx.volume = parseFloat(document.getElementById('volume-slider').value) || 0.5;
+        sfx.volume = obtenerVolumen();
         sfx.currentTime = 0; 
         sfx.play().catch(()=>{}); 
     }
 }
+
+function hablar(texto) {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang = 'es-ES';
+    u.volume = obtenerVolumen(); 
+    synth.speak(u);
+}
+
+// --- EVENTOS DE VOLUMEN ---
+document.getElementById('volume-slider').addEventListener('input', actualizarVolumen);
+document.getElementById('btn-mute').addEventListener('click', () => {
+    const slider = document.getElementById('volume-slider');
+    const vol = obtenerVolumen();
+    if (vol > 0) {
+        slider.dataset.lastVolume = vol; 
+        slider.value = 0;
+    } else {
+        slider.value = slider.dataset.lastVolume || 0.5; 
+    }
+    actualizarVolumen();
+});
 
 function generarHuellaDigital() {
     const nav = window.navigator;
@@ -99,16 +138,6 @@ function obtenerDeviceId() {
         localStorage.setItem('device_id_seguro', deviceId);
     }
     return deviceId;
-}
-
-function hablar(texto) {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(texto);
-    u.lang = 'es-ES';
-    u.volume = parseFloat(document.getElementById('volume-slider').value) || 0.5;
-    synth.speak(u);
 }
 
 function generarIDTemporal() { return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9); }
@@ -151,12 +180,11 @@ async function verificarPermisoDeAcceso(email) {
 }
 
 async function validarDispositivo(user, limit) {
-    currentUserEmail = user.email.toLowerCase(); // Asegurar minúsculas
+    currentUserEmail = user.email.toLowerCase(); 
     uidJugadorPermanente = user.uid;
     const miDeviceId = obtenerDeviceId(); 
     
-    // === PASE VIP REAL: Nunca bloquea a kholguinb2 ===
-    if (currentUserEmail === 'kholguinb2@unemi.edu.ec') return true;
+    if (currentUserEmail === 'kholguinb2@unemi.edu.ec') return true; 
 
     const ref = doc(db, "usuarios_seguros", currentUserEmail);
     const snap = await getDoc(ref);
@@ -189,7 +217,6 @@ onAuthStateChanged(auth, async (user) => {
         
         if (acceso.permitido || emailLower === 'kholguinb2@unemi.edu.ec') {
             
-            // ADMIN BUTTON
             if (emailLower === 'kholguinb2@unemi.edu.ec') {
                 const btnAdmin = document.getElementById('btn-admin-settings');
                 if(btnAdmin) {
@@ -214,7 +241,7 @@ onAuthStateChanged(auth, async (user) => {
                 }
                 document.getElementById('header-user-info').classList.add('hidden');
                 
-                // ASEGURAR QUE EL BOTÓN SALIR ES VISIBLE AL ENTRAR
+                // *** CORRECCIÓN BOTÓN SALIR ***
                 btnLogout.classList.remove('hidden');
                 
                 setTimeout(() => hablar(`Hola ${user.displayName.split(' ')[0]}`), 500);
@@ -262,6 +289,7 @@ document.getElementById('btn-admin-clean-rooms').onclick = async () => {
         const s = await getDocs(collection(db, "salas_activas"));
         s.forEach(async (d) => await deleteDoc(d.ref));
         alert("Limpieza completa.");
+        document.getElementById('admin-modal').classList.add('hidden');
     }
 };
 document.getElementById('btn-admin-reset-user').onclick = async () => {
@@ -306,8 +334,12 @@ document.getElementById('btn-start').onclick = () => {
         hablar("Iniciando.");
         iniciarJuegoReal();
     }
+    
     const bg = document.getElementById('bg-music');
-    if(bg) { bg.volume=0.4; bg.play().catch(()=>{}); }
+    if(bg) { 
+        bg.volume = obtenerVolumen(); 
+        bg.play().catch(()=>{}); 
+    }
 };
 
 modeSelect.onchange = () => {
@@ -316,14 +348,17 @@ modeSelect.onchange = () => {
     document.getElementById('btn-start').innerText = isMulti ? '⚔️ Unirse a Batalla' : 'Empezar';
 };
 
-// --- LÓGICA DE PREGUNTAS Y AVANCE (SOLUCIÓN AL BOTÓN SIGUIENTE) ---
+// --- LÓGICA DE PREGUNTAS (CORREGIDA) ---
 function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // ASEGURAR VISIBILIDAD DE BOTÓN RENDIRSE
-    if (currentMode === 'study') btnQuitQuiz.classList.add('hidden');
-    else btnQuitQuiz.classList.remove('hidden');
+    // *** CORRECCIÓN: Ocultar 'Rendirse' en Modo Examen ***
+    if (currentMode === 'exam') {
+        btnQuitQuiz.classList.add('hidden'); 
+    } else {
+        btnQuitQuiz.classList.remove('hidden');
+    }
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
 
@@ -345,8 +380,19 @@ function seleccionarOpcion(index, btnClickeado) {
     const isStudy = currentMode === 'study';
     const isMulti = currentMode === 'multiplayer';
     
-    if ((isStudy || isMulti) && seleccionTemporal !== null) return;
+    // En examen: solo marcar visualmente, NO mostrar respuesta aun
+    if (!isStudy && !isMulti) {
+        if (seleccionTemporal !== null) return; // Ya seleccionó
+        seleccionTemporal = index;
+        const buttons = document.getElementById('options-container').querySelectorAll('button');
+        buttons.forEach(b => b.classList.remove('option-selected'));
+        btnClickeado.classList.add('option-selected');
+        btnNextQuestion.classList.remove('hidden');
+        return;
+    }
 
+    // En Estudio/Multi:
+    if (seleccionTemporal !== null) return;
     seleccionTemporal = index;
     const buttons = document.getElementById('options-container').querySelectorAll('button');
     buttons.forEach(b => b.classList.remove('option-selected'));
@@ -394,18 +440,18 @@ function mostrarResultadoInmediato(seleccionada) {
     respuestasUsuario.push(seleccionada);
 }
 
-// === EVENTO CLAVE DEL BOTÓN SIGUIENTE (CORREGIDO) ===
+// === CORRECCIÓN CLAVE DEL BOTÓN SIGUIENTE ===
 btnNextQuestion.onclick = () => {
     const isStudy = currentMode === 'study';
     const isMulti = currentMode === 'multiplayer';
     
-    // En Estudio/Multi ya se guardó al hacer clic, solo avanzamos
+    // En Estudio/Multi ya se guardó la respuesta al hacer clic en la opción
     if (isStudy || isMulti) {
         indiceActual++;
         cargarPregunta();
         if(isStudy) guardarProgresoEstudio();
     } 
-    // En Examen, guardamos ahora la selección y avanzamos
+    // En Examen, la guardamos AHORA al dar Siguiente
     else if (seleccionTemporal !== null) {
         respuestasUsuario.push(seleccionTemporal);
         indiceActual++;
@@ -473,12 +519,31 @@ async function terminarQuiz(abandono = false) {
     const msg = document.getElementById('custom-msg');
     
     if (currentMode === 'multiplayer' && currentSalaId) {
-        // ... Lógica multiplayer (simplificada aquí, usa la completa si la necesitas) ...
-        // Asegura desbloqueo de botones al terminar
-        setTimeout(() => { 
-             btnReview.disabled = false; 
-             btnInicio.disabled = false; 
-        }, 2000); 
+        // ... (Lógica multiplayer) ...
+        const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
+        const pendientes = jugadoresActualizados.filter(j => !j.terminado).length;
+        
+        if (pendientes === 0) {
+             dibujarPodio(jugadoresActualizados);
+             msg.innerHTML = "Batalla Terminada";
+             btnReview.disabled = false;
+             btnInicio.disabled = false;
+        } else {
+             msg.innerHTML = `Esperando a ${pendientes} jugadores...`;
+             document.getElementById('room-results-box').classList.add('hidden');
+             
+             unsubscribeRoom = onSnapshot(doc(db, "salas_activas", currentSalaId), (snap) => {
+                 if(!snap.exists()) return;
+                 const p = snap.data().jugadores.filter(j => !j.terminado).length;
+                 if(p===0) {
+                     dibujarPodio(snap.data().jugadores);
+                     msg.innerHTML = "Batalla Terminada";
+                     btnReview.disabled = false;
+                     btnInicio.disabled = false;
+                     unsubscribeRoom();
+                 }
+             });
+        }
     } else {
         if(aciertos === preguntasExamen.length) msg.innerText = "¡Perfecto!";
         else msg.innerText = "Finalizado.";
@@ -486,7 +551,7 @@ async function terminarQuiz(abandono = false) {
         btnInicio.disabled = false;
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
-        // Mostrar botón revisar si NO es estudio
+        
         if(currentMode !== 'study') btnReview.classList.remove('hidden');
         else btnReview.classList.add('hidden');
     }
@@ -502,11 +567,8 @@ function iniciarReloj() {
     }, 1000);
 }
 
-document.getElementById('volume-slider').addEventListener('input', (e) => {
-    document.querySelectorAll('audio').forEach(a => a.volume = e.target.value);
-});
-
-// --- AVATARES Y SALAS (Se mantienen igual que antes, asegurando imports) ---
+// --- AVATARES Y SALAS ---
 document.getElementById('btn-confirm-identity').onclick = () => mostrarSelectorSalas();
 document.getElementById('back-to-setup').onclick = () => showScreen('setup-screen');
 document.getElementById('back-to-avatar').onclick = () => showScreen('avatar-screen');
+window.addEventListener('beforeunload', () => { if(currentSalaId) limpiarSala(currentSalaId); });
