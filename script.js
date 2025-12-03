@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, onSnapshot, deleteDoc, arrayRemove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { bancoPreguntas } from './preguntas.js'; 
 
 // --- CONFIGURACIÓN FIREBASE ---
@@ -43,8 +43,13 @@ let tempBattleID = null;
 let unsubscribeRoom = null; 
 let currentSalaId = null; 
 let ghostHostTimer = null; 
+let isHost = false;
+let playersInRoom = [];
+let myPlayerId = null;
+let hasLoadedAvatars = false;
 
 // --- CONSTANTES DE JUEGO ---
+const SUPER_ADMIN_EMAIL = "kholguinb2@unemi.edu.ec";
 const AVATAR_CONFIG = [
     { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff' }, { seed: 'Ana', style: 'avataaars', bg: 'ffd5dc' }, { seed: 'Sofia', style: 'avataaars', bg: 'b6e3f4' }, 
     { seed: 'Laura', style: 'lorelei', bg: 'c0aede' }, { seed: 'Maya', style: 'lorelei', bg: 'f7c9e5' }, { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9' }, 
@@ -53,7 +58,14 @@ const AVATAR_CONFIG = [
     { seed: 'Bandit', style: 'lorelei', bg: 'ffdfbf' }, { seed: 'Chris', style: 'avataaars', bg: 'a1eafb' }
 ];
 
-const ROOM_ICONS = { "SALA_FIREWALL": "fa-fire", "SALA_ENCRIPTADO": "fa-lock", "SALA_ZERO_DAY": "fa-bug", "SALA_PHISHING": "fa-fish", "SALA_RANSOMWARE": "fa-skull-crossbones", "SALA_BOTNET": "fa-robot" };
+const ROOM_ICONS = { 
+    "SALA_FIREWALL": "fa-fire", 
+    "SALA_ENCRIPTADO": "fa-lock", 
+    "SALA_ZERO_DAY": "fa-bug", 
+    "SALA_PHISHING": "fa-fish", 
+    "SALA_RANSOMWARE": "fa-skull-crossbones", 
+    "SALA_BOTNET": "fa-robot" 
+};
 
 // --- REFERENCIAS DOM ---
 const authScreen = document.getElementById('auth-screen');
@@ -85,7 +97,7 @@ function actualizarVolumen() {
         a.volume = vol;
         a.muted = (vol <= 0);
     });
-    const icon = document.getElementById('vol-icon');
+    const icon = document.getElementById('btn-mute');
     if(icon) icon.className = 'fa-solid ' + (vol <= 0 ? 'fa-volume-xmark' : (vol < 0.5 ? 'fa-volume-low' : 'fa-volume-high'));
 }
 
@@ -146,7 +158,9 @@ function obtenerDeviceId() {
     return deviceId;
 }
 
-function generarIDTemporal() { return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9); }
+function generarIDTemporal() { 
+    return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9); 
+}
 
 // --- FUNCIONES DB ESTUDIO ---
 async function guardarProgresoEstudio() {
@@ -190,8 +204,32 @@ async function validarDispositivo(user, limit) {
     uidJugadorPermanente = user.uid;
     const miDeviceId = obtenerDeviceId(); 
     
-    if (currentUserEmail === 'kholguinb2@unemi.edu.ec') return true; 
-
+    // SUPER ADMIN - ACCESO ILIMITADO
+    if (currentUserEmail === SUPER_ADMIN_EMAIL) {
+        const ref = doc(db, "usuarios_seguros", currentUserEmail);
+        const snap = await getDoc(ref);
+        
+        if (snap.exists()) {
+            let devs = snap.data().dispositivos || [];
+            if (!devs.includes(miDeviceId)) {
+                await setDoc(ref, { 
+                    dispositivos: [...devs, miDeviceId],
+                    superAdmin: true,
+                    ultimoAcceso: new Date().toISOString()
+                }, { merge: true });
+            }
+        } else {
+            await setDoc(ref, { 
+                dispositivos: [miDeviceId], 
+                superAdmin: true,
+                fecha: new Date().toISOString(),
+                ultimoAcceso: new Date().toISOString()
+            });
+        }
+        return true;
+    }
+    
+    // USUARIOS NORMALES
     const ref = doc(db, "usuarios_seguros", currentUserEmail);
     const snap = await getDoc(ref);
     
@@ -205,11 +243,18 @@ async function validarDispositivo(user, limit) {
             location.reload();
             return false;
         } else {
-            await setDoc(ref, { dispositivos: [...devs, miDeviceId] }, { merge: true });
+            await setDoc(ref, { 
+                dispositivos: [...devs, miDeviceId],
+                ultimoAcceso: new Date().toISOString()
+            }, { merge: true });
             return true;
         }
     } else {
-        await setDoc(ref, { dispositivos: [miDeviceId], fecha: new Date().toISOString() });
+        await setDoc(ref, { 
+            dispositivos: [miDeviceId], 
+            fecha: new Date().toISOString(),
+            ultimoAcceso: new Date().toISOString()
+        });
         return true;
     }
 }
@@ -221,13 +266,15 @@ onAuthStateChanged(auth, async (user) => {
         const emailLower = user.email.toLowerCase();
         const acceso = await verificarPermisoDeAcceso(emailLower);
         
-        if (acceso.permitido || emailLower === 'kholguinb2@unemi.edu.ec') {
+        if (acceso.permitido || emailLower === SUPER_ADMIN_EMAIL) {
             
-            if (emailLower === 'kholguinb2@unemi.edu.ec') {
+            // MOSTRAR PANEL ADMIN SOLO PARA SUPER ADMIN
+            if (emailLower === SUPER_ADMIN_EMAIL) {
                 const btnAdmin = document.getElementById('btn-admin-settings');
                 if(btnAdmin) {
                     btnAdmin.classList.remove('hidden');
                     btnAdmin.onclick = () => {
+                        playClick();
                         document.getElementById('admin-modal').classList.remove('hidden');
                         cargarUsuariosAutorizados();
                     };
@@ -244,14 +291,23 @@ onAuthStateChanged(auth, async (user) => {
                 if (user.photoURL) {
                     document.getElementById('user-google-photo').src = user.photoURL;
                     document.getElementById('user-google-photo').classList.remove('hidden');
+                    
+                    // MOSTRAR HEADER INMEDIATAMENTE
+                    document.getElementById('header-user-info').classList.remove('hidden');
+                    document.getElementById('header-username').innerText = user.displayName.split(' ')[0];
+                    document.getElementById('header-photo').src = user.photoURL;
                 }
-                document.getElementById('header-user-info').classList.add('hidden');
+                
                 btnLogout.classList.remove('hidden');
                 
-                setTimeout(() => hablar(`Bienvenido ${user.displayName.split(' ')[0]}, elija la opción que necesite.`), 500);
+                setTimeout(() => {
+                    hablar(`Bienvenido ${user.displayName.split(' ')[0]}, elija la opción que necesite.`);
+                    playClick();
+                }, 500);
             }
         } else {
-            alert("Correo no autorizado"); signOut(auth);
+            alert("Correo no autorizado"); 
+            await signOut(auth);
         }
     } else {
         showScreen('auth-screen');
@@ -287,34 +343,56 @@ window.eliminarUsuarioAutorizado = async function(email) {
     }
 };
 
-document.getElementById('close-admin').onclick = () => document.getElementById('admin-modal').classList.add('hidden');
+document.getElementById('close-admin').onclick = () => {
+    playClick();
+    document.getElementById('admin-modal').classList.add('hidden');
+};
+
 document.getElementById('btn-admin-clean-rooms').onclick = async () => {
-    if(confirm("¿Limpiar TODO?")) {
+    if(confirm("¿Limpiar TODAS las salas?")) {
         const s = await getDocs(collection(db, "salas_activas"));
         s.forEach(async (d) => await deleteDoc(d.ref));
         alert("Limpieza completa.");
         document.getElementById('admin-modal').classList.add('hidden');
     }
 };
+
 document.getElementById('btn-admin-reset-user').onclick = async () => {
     const e = document.getElementById('admin-reset-email').value.trim();
-    if(e) { await deleteDoc(doc(db, "usuarios_seguros", e)); alert("Desbloqueado."); }
+    if(e) { 
+        await deleteDoc(doc(db, "usuarios_seguros", e)); 
+        alert("Usuario desbloqueado."); 
+    }
 };
+
 document.getElementById('btn-admin-add-user').onclick = async () => {
-    const e = document.getElementById('admin-new-email').value.trim();
+    const e = document.getElementById('admin-new-email').value.trim().toLowerCase();
     let l = 1;
-    document.getElementsByName('device-limit').forEach(r => { if(r.checked) l = parseInt(r.value); });
+    document.getElementsByName('device-limit').forEach(r => { 
+        if(r.checked) l = parseInt(r.value); 
+    });
+    
     if(e) {
-        await setDoc(doc(db, "usuarios_autorizados", e), { email: e, limiteDispositivos: l });
+        await setDoc(doc(db, "usuarios_autorizados", e), { 
+            email: e, 
+            limiteDispositivos: l,
+            agregadoPor: currentUserEmail,
+            fecha: new Date().toISOString()
+        });
         cargarUsuariosAutorizados();
-        alert("Guardado.");
+        alert("Usuario autorizado correctamente.");
     }
 };
 
 // --- EVENTOS DE INTERFAZ Y JUEGO ---
-document.getElementById('btn-google').onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
+document.getElementById('btn-google').onclick = () => {
+    playClick();
+    signInWithPopup(auth, new GoogleAuthProvider());
+};
+
 btnLogout.onclick = async () => {
     if(confirm("¿Cerrar sesión?")) {
+        playClick();
         if(currentSalaId) await limpiarSala(currentSalaId);
         await signOut(auth);
         location.reload();
@@ -323,17 +401,13 @@ btnLogout.onclick = async () => {
 
 // BOTÓN PRINCIPAL START
 document.getElementById('btn-start').onclick = () => {
+    playClick();
     currentMode = modeSelect.value; 
     
-    document.getElementById('header-user-info').classList.remove('hidden');
-    const usr = document.getElementById('user-display').innerText;
-    document.getElementById('header-username').innerText = usr.split(' ')[0];
-    document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
-
     if(currentMode === 'multiplayer') {
         const aliasVal = document.getElementById('alias-input').value.trim();
         if(aliasVal.length < 3) { 
-            hablar("Por favor, introduce un alias."); 
+            hablar("Por favor, introduce un alias de al menos 3 caracteres."); 
             document.getElementById('alias-input').focus();
             return; 
         }
@@ -341,7 +415,15 @@ document.getElementById('btn-start').onclick = () => {
         hablar(`¡Excelente, ${currentAlias}! Elige tu avatar.`);
         iniciarBatalla(); 
     } else {
-        hablar("Iniciando.");
+        // SONIDO ESPECÍFICO PARA EXAMEN INDIVIDUAL
+        const examSound = document.getElementById('click-sound');
+        if(examSound) {
+            examSound.volume = obtenerVolumen();
+            examSound.currentTime = 0;
+            examSound.play().catch(()=>{});
+        }
+        
+        hablar("Iniciando " + (currentMode === 'study' ? "modo estudio" : "examen individual"));
         iniciarJuegoReal();
     }
     
@@ -353,19 +435,25 @@ document.getElementById('btn-start').onclick = () => {
 };
 
 modeSelect.onchange = () => {
+    playClick();
     const isMulti = modeSelect.value === 'multiplayer';
     document.getElementById('alias-input-group').classList.toggle('hidden', !isMulti);
     document.getElementById('btn-start').innerText = isMulti ? '⚔️ Unirse a Batalla' : 'Empezar';
 };
 
+// BOTÓN SALIR DEL QUIZ - SOLO EN EXAMEN Y ESTUDIO
 if (btnExitQuiz) {
     btnExitQuiz.onclick = async () => {
-        if(currentMode === 'study') await guardarProgresoEstudio();
-        else if(!confirm("¿Salir del examen? Perderás el progreso.")) return;
-
-        clearInterval(intervaloTiempo);
-        showScreen('setup-screen');
-        document.getElementById('header-user-info').classList.add('hidden');
+        playClick();
+        if(currentMode === 'study') {
+            await guardarProgresoEstudio();
+            showScreen('setup-screen');
+        } else if(currentMode === 'individual') {
+            if(confirm("¿Salir del examen? Perderás el progreso.")) {
+                clearInterval(intervaloTiempo);
+                showScreen('setup-screen');
+            }
+        }
         
         const bg = document.getElementById('bg-music');
         if(bg) { bg.pause(); bg.currentTime = 0; }
@@ -377,19 +465,25 @@ function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
+    // BOTONES SEGÚN MODO (REQUERIMIENTO ESPECÍFICO)
     if (currentMode === 'multiplayer') {
         btnQuitQuiz.classList.remove('hidden'); 
         if(btnExitQuiz) btnExitQuiz.classList.add('hidden');
     } else {
+        // NO MOSTRAR "RENDIRSE" EN EXAMEN NI ESTUDIO
         btnQuitQuiz.classList.add('hidden'); 
         if(btnExitQuiz) btnExitQuiz.classList.remove('hidden'); 
     }
 
-    if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
+    if (indiceActual >= preguntasExamen.length) { 
+        terminarQuiz(); 
+        return; 
+    }
 
     const data = preguntasExamen[indiceActual];
     document.getElementById('question-text').innerText = `${indiceActual + 1}. ${data.texto}`;
-    const cont = document.getElementById('options-container'); cont.innerHTML = '';
+    const cont = document.getElementById('options-container'); 
+    cont.innerHTML = '';
 
     data.opciones.forEach((opcion, index) => {
         const btn = document.createElement('button');
@@ -397,11 +491,16 @@ function cargarPregunta() {
         btn.onclick = () => seleccionarOpcion(index, btn);
         cont.appendChild(btn);
     });
+    
     document.getElementById('progress-display').innerText = `Pregunta ${indiceActual + 1} de ${preguntasExamen.length}`;
-    btnNextQuestion.innerHTML = (indiceActual === preguntasExamen.length - 1) ? 'Finalizar <i class="fa-solid fa-check"></i>' : 'Siguiente <i class="fa-solid fa-arrow-right"></i>';
+    btnNextQuestion.innerHTML = (indiceActual === preguntasExamen.length - 1) ? 
+        'Finalizar <i class="fa-solid fa-check"></i>' : 
+        'Siguiente <i class="fa-solid fa-arrow-right"></i>';
 }
 
 function seleccionarOpcion(index, btnClickeado) {
+    playClick(); // SONIDO AL DAR CLIC
+    
     const isStudy = currentMode === 'study';
     const isMulti = currentMode === 'multiplayer';
     
@@ -425,8 +524,20 @@ function mostrarResultadoInmediato(seleccionada) {
     const buttons = document.getElementById('options-container').querySelectorAll('button');
     const combo = document.getElementById('combo-display');
 
+    // SONIDOS DIFERENCIADOS POR MODO
     if (seleccionada === correcta) {
-        document.getElementById('correct-sound').play().catch(()=>{});
+        if (currentMode === 'multiplayer') {
+            // EN BATALLA: solo sonido de clic, no pista
+            const clickSound = document.getElementById('click-sound');
+            if(clickSound) {
+                clickSound.currentTime = 0;
+                clickSound.play().catch(()=>{});
+            }
+        } else {
+            // EN ESTUDIO: sonido de correcto
+            document.getElementById('correct-sound').play().catch(()=>{});
+        }
+        
         if(currentMode === 'multiplayer' && currentStreak > 1) {
             combo.innerText = `¡RACHA x${currentStreak}! 🔥`;
             combo.classList.remove('hidden');
@@ -435,7 +546,17 @@ function mostrarResultadoInmediato(seleccionada) {
             combo.style.animation = 'popIn 0.5s';
         }
     } else {
-        document.getElementById('fail-sound').play().catch(()=>{});
+        if (currentMode === 'multiplayer') {
+            // EN BATALLA: solo sonido de clic
+            const clickSound = document.getElementById('click-sound');
+            if(clickSound) {
+                clickSound.currentTime = 0;
+                clickSound.play().catch(()=>{});
+            }
+        } else {
+            // EN ESTUDIO: sonido de error
+            document.getElementById('fail-sound').play().catch(()=>{});
+        }
         currentStreak = 0;
         combo.classList.add('hidden');
     }
@@ -443,18 +564,22 @@ function mostrarResultadoInmediato(seleccionada) {
     buttons.forEach((btn, idx) => {
         btn.disabled = true;
         if (idx === correcta) btn.classList.add('ans-correct');
-        else if (idx === seleccionada) btn.classList.add('ans-wrong');
+        else if (idx === seleccionada && seleccionada !== correcta) btn.classList.add('ans-wrong');
     });
     
-    const div = document.createElement('div');
-    div.className = 'explanation-feedback';
-    div.innerHTML = `<strong>Explicación:</strong> ${preguntasExamen[indiceActual].explicacion}`;
-    document.getElementById('options-container').appendChild(div);
+    // SOLO MOSTRAR EXPLICACIÓN EN MODO ESTUDIO
+    if (currentMode === 'study') {
+        const div = document.createElement('div');
+        div.className = 'explanation-feedback';
+        div.innerHTML = `<strong>Explicación:</strong> ${preguntasExamen[indiceActual].explicacion}`;
+        document.getElementById('options-container').appendChild(div);
+    }
     
     respuestasUsuario.push(seleccionada);
 }
 
 btnNextQuestion.onclick = () => {
+    playClick();
     const isStudy = currentMode === 'study';
     const isMulti = currentMode === 'multiplayer';
     
@@ -470,30 +595,45 @@ btnNextQuestion.onclick = () => {
     }
 };
 
+// BOTÓN RENDIRSE - SOLO EN BATALLA
+btnQuitQuiz.onclick = async () => {
+    playClick();
+    if(confirm("¿Rendirse de la batalla? Quedarás registrado en el podio hasta donde hayas avanzado.")) {
+        await terminarQuiz(true);
+    }
+};
+
 // === INICIO DEL JUEGO ===
 async function iniciarJuegoReal() {
     const tiempo = document.getElementById('time-select').value;
     if (tiempo !== 'infinity') {
         tiempoRestante = parseInt(tiempo) * 60;
         iniciarReloj();
-    } else document.getElementById('timer-display').innerText = "--:--";
+    } else {
+        document.getElementById('timer-display').innerText = "--:--";
+    }
 
     if (currentMode === 'study') {
         const p = await verificarProgresoEstudio();
         if (p) {
             const modal = document.getElementById('resume-modal');
-            document.getElementById('resume-text').innerHTML = `Pregunta ${p.indiceActual + 1} de ${p.indicesPreguntas.length}.<br>¿Continuar?`;
+            document.getElementById('resume-text').innerHTML = `Pregunta ${p.indiceActual + 1} de ${p.indicesPreguntas.length}.<br>¿Continuar donde lo dejaste?`;
             modal.classList.remove('hidden');
+            
             document.getElementById('btn-resume-yes').onclick = () => {
-                playClick(); modal.classList.add('hidden');
+                playClick(); 
+                modal.classList.add('hidden');
                 preguntasExamen = p.indicesPreguntas.map(i => bancoPreguntas[i]);
                 respuestasUsuario = p.respuestasUsuario || [];
                 indiceActual = p.indiceActual;
                 hablar("Recuperando tu sesión.");
-                showScreen('quiz-screen'); cargarPregunta();
+                showScreen('quiz-screen'); 
+                cargarPregunta();
             };
+            
             document.getElementById('btn-resume-no').onclick = async () => {
-                playClick(); modal.classList.add('hidden');
+                playClick(); 
+                modal.classList.add('hidden');
                 await borrarProgresoEstudio();
                 empezarNuevoJuego();
             };
@@ -504,104 +644,134 @@ async function iniciarJuegoReal() {
 }
 
 function empezarNuevoJuego() {
-    if (currentMode === 'study') preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
-    else preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
+    if (currentMode === 'study') {
+        // MODO ESTUDIO: todas las preguntas aleatorias
+        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random());
+    } else {
+        // EXAMEN INDIVIDUAL: 20 preguntas aleatorias
+        preguntasExamen = [...bancoPreguntas].sort(() => 0.5 - Math.random()).slice(0, 20);
+    }
     
     respuestasUsuario = [];
     indiceActual = 0;
+    currentStreak = 0;
     showScreen('quiz-screen');
     cargarPregunta();
 }
 
-// === FINALIZAR Y RESULTADOS (CORREGIDO) ===
+// === FINALIZAR Y RESULTADOS ===
 async function terminarQuiz(abandono = false) {
     clearInterval(intervaloTiempo);
     const btnReview = document.getElementById('btn-review');
     const btnInicio = document.getElementById('btn-inicio-final');
     
-    // --- PASO 1: Bloquear inicialmente ambos botones ---
+    // BLOQUEAR BOTONES INICIALMENTE
     btnReview.disabled = true;
     btnInicio.disabled = true;
+    btnReview.classList.add('hidden'); // Ocultar revisión inicialmente
 
-    if(currentMode === 'study' && !abandono) await borrarProgresoEstudio();
+    if(currentMode === 'study' && !abandono) {
+        await borrarProgresoEstudio();
+    }
 
     let aciertos = 0;
-    respuestasUsuario.forEach((r, i) => { if(r === preguntasExamen[i].respuesta) aciertos++; });
+    respuestasUsuario.forEach((r, i) => { 
+        if(r === preguntasExamen[i].respuesta) aciertos++; 
+    });
     
     showScreen('result-screen');
     document.getElementById('score-final').innerText = `${aciertos} / ${preguntasExamen.length}`;
     const msg = document.getElementById('custom-msg');
     
     if (currentMode === 'multiplayer' && currentSalaId) {
-        // --- MODO BATALLA: Logica de espera ---
+        // MODO BATALLA: Lógica de espera
         const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
         const pendientes = jugadoresActualizados.filter(j => !j.terminado).length;
         
         if (pendientes === 0) {
-             dibujarPodio(jugadoresActualizados);
-             msg.innerHTML = "Batalla Terminada";
-             // TODOS TERMINARON: Habilitamos
-             btnReview.disabled = false;
-             btnInicio.disabled = false;
+            // TODOS TERMINARON
+            dibujarPodio(jugadoresActualizados);
+            msg.innerHTML = "¡Batalla Terminada!";
+            
+            // HABILITAR BOTONES SOLO CUANDO TODOS TERMINEN
+            btnReview.disabled = false;
+            btnInicio.disabled = false;
+            btnReview.classList.remove('hidden');
+            
+            // MOSTRAR AVATAR DEL JUGADOR ACTUAL
+            const myPlayer = jugadoresActualizados.find(j => j.alias === currentAlias);
+            if(myPlayer && myPlayer.avatar) {
+                document.getElementById('final-avatar-display').src = myPlayer.avatar;
+                document.getElementById('final-avatar-display').classList.remove('hidden');
+            }
         } else {
-             msg.innerHTML = `Esperando a ${pendientes} jugadores...`;
-             document.getElementById('room-results-box').classList.add('hidden');
-             // AUN HAY PENDIENTES: Se mantienen bloqueados (disabled=true)
-             
-             unsubscribeRoom = onSnapshot(doc(db, "salas_activas", currentSalaId), (snap) => {
-                 if(!snap.exists()) return;
-                 const p = snap.data().jugadores.filter(j => !j.terminado).length;
-                 if(p===0) {
-                     dibujarPodio(snap.data().jugadores);
-                     msg.innerHTML = "Batalla Terminada";
-                     // TODOS TERMINARON: Habilitamos ahora
-                     btnReview.disabled = false;
-                     btnInicio.disabled = false;
-                     unsubscribeRoom();
-                 }
-             });
+            // ESPERANDO A OTROS JUGADORES
+            msg.innerHTML = `Esperando a ${pendientes} jugador(es)...`;
+            document.getElementById('room-results-box').classList.add('hidden');
+            document.getElementById('final-avatar-display').classList.add('hidden');
+            
+            // MANTENER BOTONES BLOQUEADOS
+            btnReview.disabled = true;
+            btnInicio.disabled = true;
+            
+            // ESCUCHAR CAMBIOS EN LA SALA
+            unsubscribeRoom = onSnapshot(doc(db, "salas_activas", currentSalaId), (snap) => {
+                if(!snap.exists()) return;
+                const data = snap.data();
+                const nuevosPendientes = data.jugadores.filter(j => !j.terminado).length;
+                
+                if(nuevosPendientes === 0) {
+                    // TODOS TERMINARON AHORA
+                    dibujarPodio(data.jugadores);
+                    msg.innerHTML = "¡Batalla Terminada!";
+                    
+                    // HABILITAR BOTONES
+                    btnReview.disabled = false;
+                    btnInicio.disabled = false;
+                    btnReview.classList.remove('hidden');
+                    
+                    unsubscribeRoom();
+                } else {
+                    // ACTUALIZAR CONTADOR
+                    msg.innerHTML = `Esperando a ${nuevosPendientes} jugador(es)...`;
+                }
+            });
         }
     } else {
-        // --- MODO INDIVIDUAL (Examen y Estudio) ---
-        if(aciertos === preguntasExamen.length) msg.innerText = "¡Perfecto!";
-        else msg.innerText = "Finalizado.";
+        // MODO INDIVIDUAL (Examen y Estudio)
+        if(aciertos === preguntasExamen.length) {
+            msg.innerText = "¡Perfecto! Has acertado todas las preguntas.";
+        } else if(aciertos >= preguntasExamen.length * 0.7) {
+            msg.innerText = "¡Muy bien! Buen resultado.";
+        } else {
+            msg.innerText = "Examen finalizado. Puedes revisar tus respuestas.";
+        }
         
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
         
-        // CORRECCIÓN: Siempre mostrar y habilitar en modo individual
-        btnReview.classList.remove('hidden'); 
-        btnReview.disabled = false; 
+        // HABILITAR BOTONES INMEDIATAMENTE EN MODO INDIVIDUAL
+        btnReview.disabled = false;
         btnInicio.disabled = false;
+        btnReview.classList.remove('hidden');
     }
 }
 
 function iniciarReloj() {
     intervaloTiempo = setInterval(() => {
         tiempoRestante--;
-        let m = Math.floor(tiempoRestante / 60), s = tiempoRestante % 60;
+        let m = Math.floor(tiempoRestante / 60);
+        let s = tiempoRestante % 60;
         document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-        if (tiempoRestante <= 0) { clearInterval(intervaloTiempo); terminarQuiz(); }
+        if (tiempoRestante <= 0) { 
+            clearInterval(intervaloTiempo); 
+            terminarQuiz(); 
+        }
     }, 1000);
 }
 
-// Botón de confirmar identidad en multijugador
-document.getElementById('btn-confirm-identity').onclick = () => {
-    if(document.getElementById('player-nickname').value.length < 3) return;
-    mostrarSelectorSalas();
-};
-document.getElementById('back-to-setup').onclick = () => showScreen('setup-screen');
-document.getElementById('back-to-avatar').onclick = () => showScreen('avatar-screen');
-
-document.getElementById('btn-inicio-final').onclick = async () => {
-    if (currentSalaId && tempBattleID) await limpiarSala(currentSalaId); 
-    location.reload();
-};
-
-window.addEventListener('beforeunload', () => { if(currentSalaId) limpiarSala(currentSalaId); });
-
 // ==========================================================
-// === LÓGICA MULTIJUGADOR ===
+// === LÓGICA MULTIJUGADOR COMPLETA ===
 // ==========================================================
 
 function iniciarBatalla() {
@@ -620,52 +790,141 @@ function renderizarAvatares() {
         img.src = url;
         img.className = 'avatar-option';
         img.onclick = () => {
+            playClick();
             document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('avatar-selected'));
             img.classList.add('avatar-selected');
             currentAvatarUrl = url;
-            document.getElementById('player-nickname').value = currentAlias; 
+            document.getElementById('player-nickname').value = currentAlias;
         };
-        if (index === 0) img.click();
+        if (index === 0 && !hasLoadedAvatars) {
+            img.click();
+        }
         grid.appendChild(img);
     });
+    hasLoadedAvatars = true;
 }
+
+// Botón confirmar identidad
+document.getElementById('btn-confirm-identity').onclick = () => {
+    playClick();
+    if(document.getElementById('player-nickname').value.length < 3) {
+        alert("Por favor, selecciona un avatar.");
+        return;
+    }
+    mostrarSelectorSalas();
+};
+
+// Botón volver al menú desde avatar
+document.getElementById('back-to-setup').onclick = () => {
+    playClick();
+    showScreen('setup-screen');
+};
+
+// Botón volver a avatar desde salas
+document.getElementById('back-to-avatar').onclick = () => {
+    playClick();
+    showScreen('avatar-screen');
+};
+
+// Botón volver al inicio desde resultados
+document.getElementById('btn-inicio-final').onclick = async () => {
+    playClick();
+    if (currentSalaId) {
+        await limpiarSala(currentSalaId);
+    }
+    location.reload();
+};
+
+// Botón revisar respuestas
+document.getElementById('btn-review').onclick = () => {
+    playClick();
+    // Aquí iría la lógica para revisar respuestas
+    alert("Función de revisión en desarrollo...");
+};
+
+// Prevenir salida sin limpiar sala
+window.addEventListener('beforeunload', async (e) => {
+    if(currentSalaId) {
+        await limpiarSala(currentSalaId);
+    }
+});
 
 async function mostrarSelectorSalas() {
     showScreen('rooms-screen'); 
     const container = document.getElementById('rooms-container'); 
     if (!container) return;
     
-    container.innerHTML = '<p>Cargando salas...</p>';
+    container.innerHTML = '<p style="text-align:center;padding:20px;color:#666;"><i class="fa-solid fa-spinner fa-spin"></i> Cargando salas...</p>';
     
+    // Escuchar cambios en tiempo real
     onSnapshot(collection(db, "salas_activas"), (snapshot) => {
         container.innerHTML = '';
+        
         if (snapshot.empty) {
+            // Mostrar todas las salas vacías
             Object.keys(ROOM_ICONS).forEach(salaKey => {
                 crearBotonSala(salaKey, container, 0);
             });
         } else {
             const salasActivas = {};
             snapshot.forEach(doc => {
-                salasActivas[doc.id] = doc.data().jugadores.length;
+                const data = doc.data();
+                salasActivas[doc.id] = {
+                    count: data.jugadores ? data.jugadores.length : 0,
+                    estado: data.estado || 'esperando',
+                    maxPlayers: 6
+                };
             });
 
+            // Mostrar todas las salas, incluso las que no existen aún
             Object.keys(ROOM_ICONS).forEach(salaKey => {
-                const numJugadores = salasActivas[salaKey] || 0;
-                crearBotonSala(salaKey, container, numJugadores);
+                const info = salasActivas[salaKey] || { count: 0, estado: 'vacia' };
+                crearBotonSala(salaKey, container, info.count, info.estado, info.maxPlayers);
             });
         }
     });
 }
 
-function crearBotonSala(salaId, container, numJugadores) {
+function crearBotonSala(salaId, container, numJugadores, estado = 'vacia', maxPlayers = 6) {
     const btn = document.createElement('div');
     btn.className = 'room-btn';
+    
+    let estadoText = '';
+    let estadoColor = '#666';
+    
+    if (estado === 'vacia') {
+        estadoText = 'Sala Vacía';
+        estadoColor = '#666';
+    } else if (estado === 'esperando') {
+        estadoText = 'Esperando...';
+        estadoColor = '#fbbc04';
+    } else if (estado === 'jugando') {
+        estadoText = 'En Batalla';
+        estadoColor = '#ea4335';
+    } else if (estado === 'iniciando') {
+        estadoText = 'Iniciando...';
+        estadoColor = '#1a73e8';
+    }
+    
     btn.innerHTML = `
         <i class="fa-solid ${ROOM_ICONS[salaId]} room-icon"></i>
-        <span>${salaId.replace('SALA_', '')}</span>
-        <span class="room-count">${numJugadores} Jugadores</span>
+        <span style="font-weight:700;font-size:1.1rem;">${salaId.replace('SALA_', '')}</span>
+        <span class="room-count">${numJugadores}/${maxPlayers} Jugadores</span>
+        <span style="font-size:0.75rem;color:${estadoColor};margin-top:5px;">${estadoText}</span>
     `;
-    btn.onclick = () => unirseASala(salaId);
+    
+    // Deshabilitar si está llena o en juego
+    if (numJugadores >= maxPlayers || estado === 'jugando') {
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'not-allowed';
+        btn.onclick = null;
+    } else {
+        btn.onclick = () => {
+            playClick();
+            unirseASala(salaId);
+        };
+    }
+    
     container.appendChild(btn);
 }
 
@@ -673,25 +932,67 @@ async function unirseASala(salaId) {
     currentSalaId = salaId;
     const roomRef = doc(db, "salas_activas", salaId);
     
+    // Generar ID único para este jugador en esta sala
+    myPlayerId = `${uidJugadorPermanente || 'temp'}_${Date.now()}`;
+    
     const playerData = {
+        id: myPlayerId,
         uid: uidJugadorPermanente || generarIDTemporal(),
+        email: currentUserEmail,
         alias: currentAlias,
         avatar: currentAvatarUrl,
         score: 0,
-        terminado: false
+        terminado: false,
+        ready: false,
+        isHost: false,
+        joinedAt: new Date().toISOString(),
+        lastPing: new Date().toISOString()
     };
 
     try {
         const docSnap = await getDoc(roomRef);
         if (docSnap.exists()) {
+            const data = docSnap.data();
+            const jugadores = data.jugadores || [];
+            
+            // Verificar si ya está en la sala
+            const yaEnSala = jugadores.some(j => j.email === currentUserEmail);
+            if (yaEnSala) {
+                alert("Ya estás en esta sala.");
+                mostrarSelectorSalas();
+                return;
+            }
+            
+            // Verificar si soy el primero (anfitrión)
+            if (jugadores.length === 0) {
+                playerData.isHost = true;
+                isHost = true;
+            }
+            
+            // Verificar si la sala está llena
+            if (jugadores.length >= 6) {
+                alert("Esta sala está llena. Elige otra sala.");
+                mostrarSelectorSalas();
+                return;
+            }
+            
             await updateDoc(roomRef, {
-                jugadores: arrayUnion(playerData)
+                jugadores: arrayUnion(playerData),
+                estado: 'esperando'
             });
+            
         } else {
+            // Primero en la sala = anfitrión
+            playerData.isHost = true;
+            isHost = true;
             await setDoc(roomRef, {
                 jugadores: [playerData],
                 estado: 'esperando',
-                creado: new Date().toISOString()
+                creado: new Date().toISOString(),
+                tiempoElegido: document.getElementById('time-select').value,
+                hostAlias: currentAlias,
+                hostEmail: currentUserEmail,
+                maxJugadores: 6
             });
         }
         
@@ -699,55 +1000,127 @@ async function unirseASala(salaId) {
         
     } catch (e) {
         console.error("Error al unirse:", e);
-        alert("Error al unirse a la sala.");
+        alert("Error al unirse a la sala. Intenta nuevamente.");
+        mostrarSelectorSalas();
     }
 }
 
-// --- CORRECCIÓN AQUÍ: LOGICA DE ESPERA ---
 function esperarInicioJuego(salaId) {
     showScreen('lobby-screen'); 
     document.getElementById('lobby-room-name').innerText = salaId.replace('SALA_', '');
     
     const listContainer = document.getElementById('lobby-player-list');
+    const btnReady = document.getElementById('btn-lobby-ready');
     
-    unsubscribeRoom = onSnapshot(doc(db, "salas_activas", salaId), (docSnap) => {
-        if (!docSnap.exists()) return;
+    // Configurar botón según si soy anfitrión
+    if (isHost) {
+        btnReady.innerHTML = 'INICIAR BATALLA ⚔️';
+        btnReady.style.background = 'var(--danger)';
+        btnReady.style.fontWeight = '700';
+    } else {
+        btnReady.innerHTML = '¡ESTOY LISTO! ✓';
+        btnReady.style.background = 'var(--primary)';
+    }
+    
+    // Crear botón de salir de sala si no existe
+    if (!document.getElementById('btn-exit-lobby')) {
+        const exitBtn = document.createElement('button');
+        exitBtn.id = 'btn-exit-lobby';
+        exitBtn.className = 'btn-secondary';
+        exitBtn.innerHTML = '<i class="fa-solid fa-door-open"></i> Salir de Sala';
+        exitBtn.style.marginTop = '10px';
+        exitBtn.onclick = async () => {
+            playClick();
+            await limpiarSala(currentSalaId);
+            mostrarSelectorSalas();
+        };
+        document.querySelector('#lobby-screen .container').appendChild(exitBtn);
+    }
+    
+    unsubscribeRoom = onSnapshot(doc(db, "salas_activas", salaId), async (docSnap) => {
+        if (!docSnap.exists()) {
+            // La sala fue eliminada
+            alert("La sala ha sido cerrada.");
+            mostrarSelectorSalas();
+            return;
+        }
+        
         const data = docSnap.data();
         const jugadores = data.jugadores || [];
+        playersInRoom = jugadores;
         
+        // Actualizar lista de jugadores
         listContainer.innerHTML = '';
         jugadores.forEach(j => {
             const div = document.createElement('div');
             div.className = 'player-badge';
-            div.innerHTML = `<img src="${j.avatar}" class="lobby-avatar-small"> ${j.alias}`;
+            div.innerHTML = `
+                <img src="${j.avatar}" class="lobby-avatar-small" style="width:35px;height:35px;">
+                <span style="flex:1;font-weight:600;">${j.alias}</span>
+                ${j.isHost ? ' <i class="fa-solid fa-crown" style="color:var(--warning);"></i>' : ''}
+                ${j.ready ? ' <i class="fa-solid fa-check-circle" style="color:var(--success);"></i>' : 
+                          ' <i class="fa-solid fa-clock" style="color:#999;"></i>'}
+            `;
             listContainer.appendChild(div);
         });
 
-        const btnReady = document.getElementById('btn-lobby-ready');
-        if(btnReady) {
-            // AQUÍ ESTÁ EL CAMBIO IMPORTANTE:
-            // Verificamos si hay menos de 2 jugadores
-            if (jugadores.length < 2) {
-                btnReady.disabled = true; // Botón Bloqueado
-                btnReady.innerText = `Esperando rivales... (${jugadores.length}/2)`;
-                btnReady.style.opacity = "0.6";
-                btnReady.style.cursor = "not-allowed";
-            } else {
-                btnReady.disabled = false; // Botón Activado
-                btnReady.innerText = "¡EMPEZAR BATALLA! ⚔️";
-                btnReady.style.opacity = "1";
-                btnReady.style.cursor = "pointer";
-                
-                btnReady.onclick = () => {
+        // Actualizar título y contador
+        const jugadoresListos = jugadores.filter(j => j.ready).length;
+        document.querySelector('.auth-subtitle').innerHTML = 
+            `Esperando jugadores... (${jugadores.length}/6)<br>
+             <small>${jugadoresListos} listos, ${jugadores.length - jugadoresListos} pendientes</small>`;
+
+        // Configurar botón listo/iniciar
+        if (isHost) {
+            // Anfitrión: habilitar solo si hay al menos 2 jugadores y todos listos
+            const todosListos = jugadores.length >= 2 && jugadores.every(j => j.ready);
+            btnReady.disabled = !todosListos;
+            
+            btnReady.onclick = async () => {
+                if (todosListos) {
+                    playClick();
+                    // Anfitrión inicia la batalla
+                    await updateDoc(doc(db, "salas_activas", salaId), {
+                        estado: 'iniciando',
+                        tiempoInicio: new Date().toISOString(),
+                        tiempoLimite: data.tiempoElegido || '60'
+                    });
+                    
+                    // Usar el tiempo del anfitrión para todos
+                    const tiempoAnfitrion = data.tiempoElegido || '60';
+                    document.getElementById('time-select').value = tiempoAnfitrion;
+                    
+                    // Iniciar juego
                     iniciarJuegoReal();
-                };
-            }
+                }
+            };
+        } else {
+            // Jugador normal: botón para marcarse como listo
+            btnReady.disabled = false;
+            
+            btnReady.onclick = async () => {
+                playClick();
+                const myIndex = jugadores.findIndex(j => j.id === myPlayerId);
+                if (myIndex !== -1 && !jugadores[myIndex].ready) {
+                    jugadores[myIndex].ready = true;
+                    await updateDoc(doc(db, "salas_activas", salaId), {
+                        jugadores: jugadores
+                    });
+                }
+            };
+        }
+        
+        // Si la batalla ya está iniciando, unirse
+        if (data.estado === 'iniciando' || data.estado === 'jugando') {
+            const tiempoAnfitrion = data.tiempoElegido || '60';
+            document.getElementById('time-select').value = tiempoAnfitrion;
+            iniciarJuegoReal();
         }
     });
 }
 
 async function actualizarScoreEnSala(salaId, score) {
-    if (!uidJugadorPermanente && !currentUserEmail) return [];
+    if (!currentSalaId || !currentAlias) return [];
     
     const roomRef = doc(db, "salas_activas", salaId);
     
@@ -760,17 +1133,28 @@ async function actualizarScoreEnSala(salaId, score) {
             if (myIndex !== -1) {
                 jugadores[myIndex].score = score;
                 jugadores[myIndex].terminado = true;
-                await updateDoc(roomRef, { jugadores: jugadores });
+                jugadores[myIndex].finishedAt = new Date().toISOString();
+                
+                await updateDoc(roomRef, { 
+                    jugadores: jugadores,
+                    estado: 'jugando'
+                });
             }
             return jugadores;
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error("Error actualizando score:", e); 
+    }
     return [];
 }
 
 async function limpiarSala(salaId) {
     if (!salaId) return;
-    if (unsubscribeRoom) unsubscribeRoom();
+    
+    if (unsubscribeRoom) {
+        unsubscribeRoom();
+        unsubscribeRoom = null;
+    }
     
     try {
         const roomRef = doc(db, "salas_activas", salaId);
@@ -781,39 +1165,108 @@ async function limpiarSala(salaId) {
             const nuevosJugadores = jugadores.filter(j => j.alias !== currentAlias);
             
             if (nuevosJugadores.length === 0) {
-                await deleteDoc(roomRef); 
+                // Eliminar sala si está vacía
+                await deleteDoc(roomRef);
             } else {
-                await updateDoc(roomRef, { jugadores: nuevosJugadores });
+                // Actualizar sala
+                await updateDoc(roomRef, { 
+                    jugadores: nuevosJugadores,
+                    estado: nuevosJugadores.length === 1 ? 'esperando' : snap.data().estado
+                });
             }
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error("Error limpiando sala:", e); 
+    }
+    
     currentSalaId = null;
+    isHost = false;
+    playersInRoom = [];
 }
 
 function dibujarPodio(jugadores) {
     const container = document.getElementById('podium-container');
     if (!container) return;
     
+    // Ordenar por puntaje
     jugadores.sort((a, b) => b.score - a.score);
     const top3 = jugadores.slice(0, 3);
     
     container.innerHTML = '';
     
+    // Orden visual: 2do, 1ro, 3ro
     let visualOrder = [];
-    if (top3[1]) visualOrder.push(top3[1]); 
-    if (top3[0]) visualOrder.push(top3[0]); 
-    if (top3[2]) visualOrder.push(top3[2]); 
+    if (top3[1]) visualOrder.push(top3[1]); // 2do lugar
+    if (top3[0]) visualOrder.push(top3[0]); // 1er lugar
+    if (top3[2]) visualOrder.push(top3[2]); // 3er lugar
     
-    visualOrder.forEach((j) => {
+    visualOrder.forEach((j, index) => {
         const col = document.createElement('div');
         col.className = 'podium-column';
+        
+        // Alturas diferentes para cada posición
+        let heightPercent = '60%';
+        let podiumClass = '';
+        
+        if (index === 0) { // 2do lugar (posición media)
+            heightPercent = '80%';
+            podiumClass = 'second-place';
+        } else if (index === 1) { // 1er lugar (más alto)
+            heightPercent = '100%';
+            podiumClass = 'first-place';
+            // CREAR SERPENTINAS SOLO PARA EL GANADOR
+            crearSerpentinas();
+        } else { // 3er lugar (más bajo)
+            heightPercent = '60%';
+            podiumClass = 'third-place';
+        }
+        
         col.innerHTML = `
             <img src="${j.avatar}" class="podium-avatar">
             <div class="podium-name">${j.alias}</div>
-            <div class="podium-bar">${j.score}pts</div>
+            <div class="podium-bar ${podiumClass}" style="height:${heightPercent};">
+                ${j.score}pts
+            </div>
         `;
         container.appendChild(col);
     });
     
     document.getElementById('room-results-box').classList.remove('hidden');
 }
+
+function crearSerpentinas() {
+    const confettiCount = 150;
+    const colors = ['#1a73e8', '#28a745', '#ea4335', '#fbbc04', '#8e44ad', '#9b59b6'];
+    
+    for (let i = 0; i < confettiCount; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.width = Math.random() * 12 + 3 + 'px';
+            confetti.style.height = Math.random() * 12 + 3 + 'px';
+            confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
+            confetti.style.animationDelay = Math.random() * 0.5 + 's';
+            
+            document.body.appendChild(confetti);
+            
+            // Eliminar después de la animación
+            setTimeout(() => {
+                if (confetti.parentNode) {
+                    confetti.parentNode.removeChild(confetti);
+                }
+            }, 5000);
+        }, i * 20);
+    }
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', () => {
+    actualizarVolumen();
+    
+    // Asegurar que el loader se oculte
+    setTimeout(() => {
+        document.getElementById('app-loader').classList.add('hidden');
+    }, 2000);
+});
