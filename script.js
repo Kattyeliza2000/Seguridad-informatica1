@@ -3,6 +3,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, updateDoc, getDocs, arrayUnion, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { bancoPreguntas } from './preguntas.js'; 
 
+// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyCvxiNJivb3u_S0nNkYrUEYxTO_XUkTKDk",
     authDomain: "simulador-c565e.firebaseapp.com",
@@ -15,6 +16,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// --- LISTAS DE CORREOS Y PERMISOS ---
 const correosDosDispositivos = ["dpachecog2@unemi.edu.ec", "htigrer@unemi.edu.ec", "sgavilanezp2@unemi.edu.ec", "jzamoram9@unemi.edu.ec", "fcarrillop@unemi.edu.ec", "naguilarb@unemi.edu.ec", "kholguinb2@unemi.edu.ec"];
 const correosUnDispositivo = [
     "cnavarretem4@unemi.edu.ec", "iastudillol@unemi.edu.ec", "gorellanas2@unemi.edu.ec", "ehidalgoc4@unemi.edu.ec", "lbrionesg3@unemi.edu.ec", 
@@ -22,6 +24,7 @@ const correosUnDispositivo = [
 ];
 const correosPermitidos = [...correosDosDispositivos, ...correosUnDispositivo];
 
+// --- VARIABLES GLOBALES ---
 let preguntasExamen = []; 
 let indiceActual = 0;
 let respuestasUsuario = []; 
@@ -41,6 +44,7 @@ let unsubscribeRoom = null;
 let currentSalaId = null; 
 let ghostHostTimer = null; 
 
+// --- CONSTANTES DE JUEGO ---
 const AVATAR_CONFIG = [
     { seed: 'Katty', style: 'avataaars', bg: 'e8d1ff' }, { seed: 'Ana', style: 'avataaars', bg: 'ffd5dc' }, { seed: 'Sofia', style: 'avataaars', bg: 'b6e3f4' }, 
     { seed: 'Laura', style: 'lorelei', bg: 'c0aede' }, { seed: 'Maya', style: 'lorelei', bg: 'f7c9e5' }, { seed: 'Zoe', style: 'avataaars', bg: 'd1d4f9' }, 
@@ -51,6 +55,7 @@ const AVATAR_CONFIG = [
 
 const ROOM_ICONS = { "SALA_FIREWALL": "fa-fire", "SALA_ENCRIPTADO": "fa-lock", "SALA_ZERO_DAY": "fa-bug", "SALA_PHISHING": "fa-fish", "SALA_RANSOMWARE": "fa-skull-crossbones", "SALA_BOTNET": "fa-robot" };
 
+// --- REFERENCIAS DOM ---
 const authScreen = document.getElementById('auth-screen');
 const setupScreen = document.getElementById('setup-screen');
 const quizScreen = document.getElementById('quiz-screen');
@@ -59,16 +64,17 @@ const reviewScreen = document.getElementById('review-screen');
 const btnLogout = document.getElementById('btn-logout');
 const btnNextQuestion = document.getElementById('btn-next-question');
 const btnQuitQuiz = document.getElementById('btn-quit-quiz');
-const btnExitQuiz = document.getElementById('btn-exit-quiz'); // BOTÓN NUEVO
+const btnExitQuiz = document.getElementById('btn-exit-quiz');
 const modeSelect = document.getElementById('mode-select');
 const volumeSlider = document.getElementById('volume-slider');
 
 function showScreen(screenId) {
     document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
-    document.getElementById(screenId).classList.remove('hidden');
+    const target = document.getElementById(screenId);
+    if(target) target.classList.remove('hidden');
 }
 
-// === VOLUMEN ===
+// === AUDIO Y VOLUMEN ===
 function obtenerVolumen() {
     return volumeSlider ? parseFloat(volumeSlider.value) : 0.5;
 }
@@ -107,6 +113,17 @@ function playClick() {
     }
 }
 
+function hablar(texto) {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang = 'es-ES';
+    u.volume = obtenerVolumen(); 
+    synth.speak(u);
+}
+
+// === SEGURIDAD Y DISPOSITIVOS ===
 function generarHuellaDigital() {
     const nav = window.navigator;
     const screen = window.screen;
@@ -129,19 +146,9 @@ function obtenerDeviceId() {
     return deviceId;
 }
 
-function hablar(texto) {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(texto);
-    u.lang = 'es-ES';
-    u.volume = obtenerVolumen(); 
-    synth.speak(u);
-}
-
 function generarIDTemporal() { return 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9); }
 
-// --- DB FUNCTIONS ---
+// --- FUNCIONES DB ESTUDIO ---
 async function guardarProgresoEstudio() {
     if (!uidJugadorPermanente || currentMode !== 'study') return;
     try {
@@ -166,7 +173,7 @@ async function verificarProgresoEstudio() {
     return s.exists() ? s.data() : null;
 }
 
-// --- PERMISOS ---
+// --- VERIFICACIÓN DE PERMISOS ---
 async function verificarPermisoDeAcceso(email) {
     if (correosDosDispositivos.includes(email)) return { permitido: true, limite: 2 };
     if (correosUnDispositivo.includes(email)) return { permitido: true, limite: 1 };
@@ -207,7 +214,7 @@ async function validarDispositivo(user, limit) {
     }
 }
 
-// --- LOGIN ---
+// === LOGIN Y ESTADO DE AUTH ===
 onAuthStateChanged(auth, async (user) => {
     document.getElementById('app-loader').classList.add('hidden');
     if (user) {
@@ -252,7 +259,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// --- ADMIN LOGIC ---
+// --- LÓGICA DE ADMIN ---
 async function cargarUsuariosAutorizados() {
     const container = document.getElementById('admin-users-list');
     if(!container) return;
@@ -304,7 +311,7 @@ document.getElementById('btn-admin-add-user').onclick = async () => {
     }
 };
 
-// --- BOTONES GENERALES ---
+// --- EVENTOS DE INTERFAZ Y JUEGO ---
 document.getElementById('btn-google').onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
 btnLogout.onclick = async () => {
     if(confirm("¿Cerrar sesión?")) {
@@ -314,7 +321,7 @@ btnLogout.onclick = async () => {
     }
 };
 
-// --- JUEGO START (CORREGIDO BATALLA) ---
+// BOTÓN PRINCIPAL START
 document.getElementById('btn-start').onclick = () => {
     currentMode = modeSelect.value; 
     
@@ -324,7 +331,6 @@ document.getElementById('btn-start').onclick = () => {
     document.getElementById('header-photo').src = document.getElementById('user-google-photo').src;
 
     if(currentMode === 'multiplayer') {
-        // 1. Aseguramos alias
         const aliasVal = document.getElementById('alias-input').value.trim();
         if(aliasVal.length < 3) { 
             hablar("Por favor, introduce un alias."); 
@@ -352,10 +358,8 @@ modeSelect.onchange = () => {
     document.getElementById('btn-start').innerText = isMulti ? '⚔️ Unirse a Batalla' : 'Empezar';
 };
 
-// --- BOTÓN SALIR AL MENÚ (CONECTADO) ---
 if (btnExitQuiz) {
     btnExitQuiz.onclick = async () => {
-        // En examen advertimos, en estudio guardamos
         if(currentMode === 'study') await guardarProgresoEstudio();
         else if(!confirm("¿Salir del examen? Perderás el progreso.")) return;
 
@@ -368,18 +372,17 @@ if (btnExitQuiz) {
     };
 }
 
-// --- PREGUNTAS ---
+// === LÓGICA DE PREGUNTAS ===
 function cargarPregunta() {
     seleccionTemporal = null;
     btnNextQuestion.classList.add('hidden');
     
-    // == VISIBILIDAD DE BOTONES ==
     if (currentMode === 'multiplayer') {
-        btnQuitQuiz.classList.remove('hidden'); // Solo en batalla
+        btnQuitQuiz.classList.remove('hidden'); 
         if(btnExitQuiz) btnExitQuiz.classList.add('hidden');
     } else {
         btnQuitQuiz.classList.add('hidden'); 
-        if(btnExitQuiz) btnExitQuiz.classList.remove('hidden'); // Salir al Menú en Examen/Estudio
+        if(btnExitQuiz) btnExitQuiz.classList.remove('hidden'); 
     }
 
     if (indiceActual >= preguntasExamen.length) { terminarQuiz(); return; }
@@ -467,7 +470,7 @@ btnNextQuestion.onclick = () => {
     }
 };
 
-// --- RESTO DE LÓGICA DE INICIO ---
+// === INICIO DEL JUEGO ===
 async function iniciarJuegoReal() {
     const tiempo = document.getElementById('time-select').value;
     if (tiempo !== 'infinity') {
@@ -510,12 +513,13 @@ function empezarNuevoJuego() {
     cargarPregunta();
 }
 
-// --- TERMINAR ---
+// === FINALIZAR Y RESULTADOS (CORREGIDO) ===
 async function terminarQuiz(abandono = false) {
     clearInterval(intervaloTiempo);
     const btnReview = document.getElementById('btn-review');
     const btnInicio = document.getElementById('btn-inicio-final');
     
+    // --- PASO 1: Bloquear inicialmente ambos botones ---
     btnReview.disabled = true;
     btnInicio.disabled = true;
 
@@ -529,19 +533,20 @@ async function terminarQuiz(abandono = false) {
     const msg = document.getElementById('custom-msg');
     
     if (currentMode === 'multiplayer' && currentSalaId) {
+        // --- MODO BATALLA: Logica de espera ---
         const jugadoresActualizados = await actualizarScoreEnSala(currentSalaId, aciertos);
         const pendientes = jugadoresActualizados.filter(j => !j.terminado).length;
         
         if (pendientes === 0) {
              dibujarPodio(jugadoresActualizados);
              msg.innerHTML = "Batalla Terminada";
+             // TODOS TERMINARON: Habilitamos
              btnReview.disabled = false;
              btnInicio.disabled = false;
         } else {
              msg.innerHTML = `Esperando a ${pendientes} jugadores...`;
              document.getElementById('room-results-box').classList.add('hidden');
-             btnReview.disabled = true;
-             btnInicio.disabled = true;
+             // AUN HAY PENDIENTES: Se mantienen bloqueados (disabled=true)
              
              unsubscribeRoom = onSnapshot(doc(db, "salas_activas", currentSalaId), (snap) => {
                  if(!snap.exists()) return;
@@ -549,6 +554,7 @@ async function terminarQuiz(abandono = false) {
                  if(p===0) {
                      dibujarPodio(snap.data().jugadores);
                      msg.innerHTML = "Batalla Terminada";
+                     // TODOS TERMINARON: Habilitamos ahora
                      btnReview.disabled = false;
                      btnInicio.disabled = false;
                      unsubscribeRoom();
@@ -556,20 +562,20 @@ async function terminarQuiz(abandono = false) {
              });
         }
     } else {
+        // --- MODO INDIVIDUAL (Examen y Estudio) ---
         if(aciertos === preguntasExamen.length) msg.innerText = "¡Perfecto!";
         else msg.innerText = "Finalizado.";
         
-        btnReview.disabled = false;
-        btnInicio.disabled = false;
         document.getElementById('room-results-box').classList.add('hidden');
         document.getElementById('final-avatar-display').classList.add('hidden');
         
-        if(currentMode !== 'study') btnReview.classList.remove('hidden');
-        else btnReview.classList.add('hidden');
+        // CORRECCIÓN: Siempre mostrar y habilitar en modo individual
+        btnReview.classList.remove('hidden'); 
+        btnReview.disabled = false; 
+        btnInicio.disabled = false;
     }
 }
 
-// --- EXTRAS ---
 function iniciarReloj() {
     intervaloTiempo = setInterval(() => {
         tiempoRestante--;
@@ -579,7 +585,7 @@ function iniciarReloj() {
     }, 1000);
 }
 
-// --- AVATARES Y SALAS ---
+// Botón de confirmar identidad en multijugador
 document.getElementById('btn-confirm-identity').onclick = () => {
     if(document.getElementById('player-nickname').value.length < 3) return;
     mostrarSelectorSalas();
@@ -587,10 +593,212 @@ document.getElementById('btn-confirm-identity').onclick = () => {
 document.getElementById('back-to-setup').onclick = () => showScreen('setup-screen');
 document.getElementById('back-to-avatar').onclick = () => showScreen('avatar-screen');
 
-// Botón INICIO FINAL (Limpia y recarga)
 document.getElementById('btn-inicio-final').onclick = async () => {
     if (currentSalaId && tempBattleID) await limpiarSala(currentSalaId); 
     location.reload();
 };
 
 window.addEventListener('beforeunload', () => { if(currentSalaId) limpiarSala(currentSalaId); });
+
+// ==========================================================
+// === LÓGICA MULTIJUGADOR ===
+// ==========================================================
+
+function iniciarBatalla() {
+    showScreen('avatar-screen'); 
+    renderizarAvatares();
+}
+
+function renderizarAvatares() {
+    const grid = document.getElementById('avatar-grid-container');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    AVATAR_CONFIG.forEach((conf, index) => {
+        const url = `https://api.dicebear.com/7.x/${conf.style}/svg?seed=${conf.seed}&backgroundColor=${conf.bg}`;
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'avatar-option';
+        img.onclick = () => {
+            document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('avatar-selected'));
+            img.classList.add('avatar-selected');
+            currentAvatarUrl = url;
+            document.getElementById('player-nickname').value = currentAlias; 
+        };
+        if (index === 0) img.click();
+        grid.appendChild(img);
+    });
+}
+
+async function mostrarSelectorSalas() {
+    showScreen('rooms-screen'); 
+    const container = document.getElementById('rooms-container'); 
+    if (!container) return;
+    
+    container.innerHTML = '<p>Cargando salas...</p>';
+    
+    onSnapshot(collection(db, "salas_activas"), (snapshot) => {
+        container.innerHTML = '';
+        if (snapshot.empty) {
+            Object.keys(ROOM_ICONS).forEach(salaKey => {
+                crearBotonSala(salaKey, container, 0);
+            });
+        } else {
+            const salasActivas = {};
+            snapshot.forEach(doc => {
+                salasActivas[doc.id] = doc.data().jugadores.length;
+            });
+
+            Object.keys(ROOM_ICONS).forEach(salaKey => {
+                const numJugadores = salasActivas[salaKey] || 0;
+                crearBotonSala(salaKey, container, numJugadores);
+            });
+        }
+    });
+}
+
+function crearBotonSala(salaId, container, numJugadores) {
+    const btn = document.createElement('div');
+    btn.className = 'room-btn';
+    btn.innerHTML = `
+        <i class="fa-solid ${ROOM_ICONS[salaId]} room-icon"></i>
+        <span>${salaId.replace('SALA_', '')}</span>
+        <span class="room-count">${numJugadores} Jugadores</span>
+    `;
+    btn.onclick = () => unirseASala(salaId);
+    container.appendChild(btn);
+}
+
+async function unirseASala(salaId) {
+    currentSalaId = salaId;
+    const roomRef = doc(db, "salas_activas", salaId);
+    
+    const playerData = {
+        uid: uidJugadorPermanente || generarIDTemporal(),
+        alias: currentAlias,
+        avatar: currentAvatarUrl,
+        score: 0,
+        terminado: false
+    };
+
+    try {
+        const docSnap = await getDoc(roomRef);
+        if (docSnap.exists()) {
+            await updateDoc(roomRef, {
+                jugadores: arrayUnion(playerData)
+            });
+        } else {
+            await setDoc(roomRef, {
+                jugadores: [playerData],
+                estado: 'esperando',
+                creado: new Date().toISOString()
+            });
+        }
+        
+        esperarInicioJuego(salaId);
+        
+    } catch (e) {
+        console.error("Error al unirse:", e);
+        alert("Error al unirse a la sala.");
+    }
+}
+
+function esperarInicioJuego(salaId) {
+    showScreen('lobby-screen'); 
+    document.getElementById('lobby-room-name').innerText = salaId.replace('SALA_', '');
+    
+    const listContainer = document.getElementById('lobby-player-list');
+    
+    unsubscribeRoom = onSnapshot(doc(db, "salas_activas", salaId), (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        const jugadores = data.jugadores || [];
+        
+        listContainer.innerHTML = '';
+        jugadores.forEach(j => {
+            const div = document.createElement('div');
+            div.className = 'player-badge';
+            div.innerHTML = `<img src="${j.avatar}" class="lobby-avatar-small"> ${j.alias}`;
+            listContainer.appendChild(div);
+        });
+
+        const btnReady = document.getElementById('btn-lobby-ready');
+        if(btnReady) {
+            btnReady.onclick = () => {
+                iniciarJuegoReal();
+            };
+        }
+    });
+}
+
+async function actualizarScoreEnSala(salaId, score) {
+    if (!uidJugadorPermanente && !currentUserEmail) return [];
+    
+    const roomRef = doc(db, "salas_activas", salaId);
+    
+    try {
+        const snap = await getDoc(roomRef);
+        if (snap.exists()) {
+            let jugadores = snap.data().jugadores;
+            const myIndex = jugadores.findIndex(j => j.alias === currentAlias);
+            
+            if (myIndex !== -1) {
+                jugadores[myIndex].score = score;
+                jugadores[myIndex].terminado = true;
+                await updateDoc(roomRef, { jugadores: jugadores });
+            }
+            return jugadores;
+        }
+    } catch (e) { console.error(e); }
+    return [];
+}
+
+async function limpiarSala(salaId) {
+    if (!salaId) return;
+    if (unsubscribeRoom) unsubscribeRoom();
+    
+    try {
+        const roomRef = doc(db, "salas_activas", salaId);
+        const snap = await getDoc(roomRef);
+        
+        if (snap.exists()) {
+            let jugadores = snap.data().jugadores;
+            const nuevosJugadores = jugadores.filter(j => j.alias !== currentAlias);
+            
+            if (nuevosJugadores.length === 0) {
+                await deleteDoc(roomRef); 
+            } else {
+                await updateDoc(roomRef, { jugadores: nuevosJugadores });
+            }
+        }
+    } catch (e) { console.error(e); }
+    currentSalaId = null;
+}
+
+function dibujarPodio(jugadores) {
+    const container = document.getElementById('podium-container');
+    if (!container) return;
+    
+    jugadores.sort((a, b) => b.score - a.score);
+    const top3 = jugadores.slice(0, 3);
+    
+    container.innerHTML = '';
+    
+    let visualOrder = [];
+    if (top3[1]) visualOrder.push(top3[1]); 
+    if (top3[0]) visualOrder.push(top3[0]); 
+    if (top3[2]) visualOrder.push(top3[2]); 
+    
+    visualOrder.forEach((j) => {
+        const col = document.createElement('div');
+        col.className = 'podium-column';
+        col.innerHTML = `
+            <img src="${j.avatar}" class="podium-avatar">
+            <div class="podium-name">${j.alias}</div>
+            <div class="podium-bar">${j.score}pts</div>
+        `;
+        container.appendChild(col);
+    });
+    
+    document.getElementById('room-results-box').classList.remove('hidden');
+}
