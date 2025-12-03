@@ -1,4 +1,4 @@
-/* === ESTILOS v407 (COMPACTO Y CORREGIDO) === */
+/* === ESTILOS v407 (COMPLETO PARA MULTIJUGADOR) === */
 * { box-sizing: border-box; }
 
 /* --- REGLA CRÍTICA: OCULTAR ELEMENTOS --- */
@@ -81,12 +81,12 @@ header {
     transition: all 0.3s ease;
 }
 
-/* --- CORRECCIÓN: PANTALLA DE INICIO COMPACTA --- */
+/* --- PANTALLA DE INICIO COMPACTA --- */
 #auth-screen {
-    max-width: 400px !important; /* Más estrecho */
-    padding: 40px 30px; /* Buen espaciado interno */
+    max-width: 400px !important;
+    padding: 40px 30px;
     text-align: center;
-    margin-top: 10vh; /* Centrado visual vertical */
+    margin-top: 10vh;
 }
 
 /* --- TITULO AZUL --- */
@@ -134,9 +134,24 @@ select:focus, input:focus { border-color: var(--primary); outline: none; box-sha
 .google-profile-pic { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); padding: 1px; object-fit: cover; }
 .verified-badge { display: inline-flex; align-items: center; gap: 5px; background-color: #e6f4ea; color: #137333; border: 1px solid #1e8e3e; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
 
-/* --- AVATARES Y SALAS --- */
-.avatar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 15px; margin-top: 20px; justify-items: center; }
-.avatar-option { width: 70px; height: 70px; border-radius: 15px; background-color: #f0f4f8; border: 3px solid transparent; padding: 4px; cursor: pointer; transition: 0.2s; }
+/* --- AVATARES Y SALAS (IMPORTANTE PARA MULTIJUGADOR) --- */
+.avatar-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); 
+    gap: 15px; 
+    margin-top: 20px; 
+    justify-items: center; 
+}
+.avatar-option { 
+    width: 70px; 
+    height: 70px; 
+    border-radius: 15px; 
+    background-color: #f0f4f8; 
+    border: 3px solid transparent; 
+    padding: 4px; 
+    cursor: pointer; 
+    transition: 0.2s; 
+}
 .avatar-option:hover { transform: scale(1.05); }
 .avatar-selected { border-color: var(--primary) !important; background: #e8f0fe !important; transform: scale(1.1); box-shadow: 0 4px 10px rgba(26, 115, 232, 0.2); }
 #player-nickname, #alias-input { text-align: center; font-weight: bold; color: var(--primary); font-size: 1.1rem; }
