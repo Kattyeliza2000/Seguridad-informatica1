@@ -703,6 +703,7 @@ async function unirseASala(salaId) {
     }
 }
 
+// --- CORRECCIÓN AQUÍ: LOGICA DE ESPERA ---
 function esperarInicioJuego(salaId) {
     showScreen('lobby-screen'); 
     document.getElementById('lobby-room-name').innerText = salaId.replace('SALA_', '');
@@ -724,9 +725,23 @@ function esperarInicioJuego(salaId) {
 
         const btnReady = document.getElementById('btn-lobby-ready');
         if(btnReady) {
-            btnReady.onclick = () => {
-                iniciarJuegoReal();
-            };
+            // AQUÍ ESTÁ EL CAMBIO IMPORTANTE:
+            // Verificamos si hay menos de 2 jugadores
+            if (jugadores.length < 2) {
+                btnReady.disabled = true; // Botón Bloqueado
+                btnReady.innerText = `Esperando rivales... (${jugadores.length}/2)`;
+                btnReady.style.opacity = "0.6";
+                btnReady.style.cursor = "not-allowed";
+            } else {
+                btnReady.disabled = false; // Botón Activado
+                btnReady.innerText = "¡EMPEZAR BATALLA! ⚔️";
+                btnReady.style.opacity = "1";
+                btnReady.style.cursor = "pointer";
+                
+                btnReady.onclick = () => {
+                    iniciarJuegoReal();
+                };
+            }
         }
     });
 }
